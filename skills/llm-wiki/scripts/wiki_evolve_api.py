@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Claude Messages runner with pre-request USD reservations (stdlib only).
+"""リクエストの前に USD を予約する Claude Messages のランナー（標準ライブラリのみ）。
 
-Hard limits cover this runner's first-party inference, at the pinned standard
-token prices, excluding tax/account activity. No server tools, caching, premium
-routing, retries or arbitrary shell tool. CLI subscriptions use the CLI adapters.
+厳密な上限の対象は、このランナーによるファーストパーティの推論で、固定した標準のトークン価格で計算し、
+税金やアカウント上のほかの利用は含まない。サーバーツール、キャッシュ、プレミアムなルーティング、
+再試行、任意のシェルのツールは使わない。CLI のサブスクリプションには CLI 用のアダプターを使う。
 """
 from datetime import date
 from decimal import Decimal
@@ -19,10 +19,10 @@ from wiki_evolve import encode, finite, inside, require, tree
 from wiki_evolve_agent import prompt, schema
 from wiki_evolve_stream import append_trace
 
-# First-party global standard prices verified 2026-09-13. Fail closed when stale.
+# ファーストパーティのグローバルな標準価格。2026-09-13 に確認した。古くなったら安全側に倒して失敗させる。
 # https://platform.claude.com/docs/en/about-claude/pricing
-# Both models have a 1M context limit. Reserve that entire input limit rather
-# than treating the token-count endpoint's estimate as a guaranteed upper bound.
+# どちらのモデルもコンテキストの上限は 1M である。トークン数を数えるエンドポイントの推定値を
+# 保証された上限とは見なさず、入力の上限すべてを予約する。
 PRICES = {'claude-sonnet-5': (2, 10), 'claude-sonnet-4-6': (3, 15)}
 PRICE_EXPIRES = date(2026, 10, 13)
 CONTEXT_LIMIT = 1_000_000
@@ -42,7 +42,7 @@ def post(body):
     request = urllib.request.Request('https://api.anthropic.com/v1/messages',
         data=json.dumps(body).encode(), headers={'x-api-key': key, 'anthropic-version': '2023-06-01',
                                                'content-type': 'application/json'}, method='POST')
-    # No automatic retry: an uncertain response retains its entire reservation.
+    # 自動では再試行しない。結果が不確かなレスポンスは、予約した分をすべて保持したままにする。
     with urllib.request.urlopen(request, timeout=120) as response:
         return json.load(response)
 

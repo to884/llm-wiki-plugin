@@ -1,8 +1,8 @@
-# Changelog
+# 変更履歴
 
-All notable changes to this plugin are documented in this file.
+このプラグインの主な変更は、すべてこのファイルに記録する。
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+書式は [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) にもとづき、このプロジェクトは [Semantic Versioning](https://semver.org/spec/v2.0.0.html) に従う。
 
 ## [Unreleased]
 
@@ -10,245 +10,245 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
-- Deploy button: the form asks for the dimensions and metric of a new Vectorize index and gives no default. `server/package.json` now shows guidance on the form (`384` dimensions, `cosine` metric) and for the KV namespace, R2 bucket and `ADMIN_TOKEN`. The server README and the hosted wiki guide describe the form fields that need input. A full test deploy with the button passed: resource creation, the `ADMIN_TOKEN` prompt, the build, `/setup` sign-in, import and hybrid search.
-- Correct the 4.0.0 claim that the button needs no input other than `ADMIN_TOKEN`: a new Vectorize index also needs the two values above.
-- Tests read the server and CLI versions from their constants.
+- Deploy ボタン: 新しい Vectorize インデックスの次元数と距離指標をフォームで尋ねられるが、既定値が入っていなかった。`server/package.json` で、フォームに入力の案内（次元数 `384`、距離指標 `cosine`）と、KV 名前空間、R2 バケット、`ADMIN_TOKEN` の案内を表示するようにした。サーバーの README とホスト型 wiki のガイドに、入力が必要なフォームの項目を書いた。ボタンを使った完全なテストデプロイに合格した。確認したのは、リソースの作成、`ADMIN_TOKEN` の入力、ビルド、`/setup` へのサインイン、インポート、ハイブリッド検索である。
+- 「ボタンでは `ADMIN_TOKEN` 以外の入力は不要」という 4.0.0 の記述を訂正した。新しい Vectorize インデックスには、上の2つの値も必要である。
+- テストは、サーバーと CLI のバージョンをそれぞれの定数から読むようにした。
 
 ## [4.0.0] - 2026-10-29
 
-Major release: the Paperclip companion is removed. Local wikis, scripts and command flags need no migration.
+メジャーリリース。Paperclip 連携プラグインを削除した。ローカルの wiki、スクリプト、コマンドのフラグに移行作業は要らない。
 
 ### Added
 
-- Optional hosted wiki in `server/`: one Cloudflare Worker that the "Deploy to Cloudflare" button deploys with one secret (`ADMIN_TOKEN`) and no manual step. Each wiki is one SQLite Durable Object. One deployment can hold many wikis. Optional R2, Vectorize and Workers AI bindings degrade without errors when absent.
-- Atomic commits with `create`, `edit`, `append`, `put`, `delete` and `move` operations, per-page revisions, author labels, diffs and revert. `edit` applies on a newer page when its text still occurs once; `append` never conflicts; other conflicts return HTTP 409 with the current revision and a diff.
-- Hosted hybrid search: SQLite FTS5 BM25 plus Workers AI `@cf/baai/bge-small-en-v1.5` vectors in Vectorize, fused with RRF (`k=60`), with `type`, `tag` and `since` filters, the `wiki_search.py --json` row shape, backlinks and top-linked modes. Embeddings run in batches through Durable Object alarms.
-- Server ports of structural lint, graph extraction, graph queries, graph lint and stats that update on each commit.
-- MCP server at `/mcp` (Streamable HTTP) with eight tools: `wiki_overview`, `wiki_read`, `wiki_search`, `wiki_commit`, `wiki_history`, `wiki_graph`, `wiki_lint` and `wiki_raw`. JSON API at `/api/v1`.
-- Per-agent bearer tokens with `read`, `write`, `raw:write` and `admin` scopes, stored as SHA-256 hashes. OAuth on the same Worker with dynamic client registration, client ID metadata documents and owner approval through `ADMIN_TOKEN` or a one-time pairing code.
-- Web UI: `/setup` for wikis, tokens, pairing codes, decision settings and MCP configuration for each client; a read-only reader at `/ui/<wiki>/` with folder tree, search, rendered pages, backlinks, history, diffs and review flags.
-- Raw source storage in R2 with SHA-256 integrity, immutable uploads and range reads.
-- `scripts/wiki_remote.py` (Python standard library only): `login`, `status`, `stats`, wiki and token administration, pairing codes, resumable `import` with dry run and SHA-256 verification, pull-only mirror with optional Git commits, `export`, raw file commands, search, read, commit, history, graph, lint, review, settings and `mcp-config` for Claude Code, Codex, Cursor, Gemini CLI, OpenCode, OMP, Pi and generic clients.
-- Optional decision layer, off by default: `scripts/wiki_decide.py` and server checks for a search relevance gate (D1), graph evidence check (D2), contradiction screen (D3), ingest shortlist (D4) and untrusted-text screen (D5). Backends: local Liquid `d1-2B` through `llama-server`, TypeSafe Jev, OpenRouter, Liquid API and, on the server, Jev on Workers AI. Read paths fail open; write checks only add review flags. `wiki_search.py --decide` and `wiki_graph_lint.py --decide` are opt-in; output without the flag is unchanged.
-- Shared `assets/decision-questions.json` question templates, synthetic decision evals in `eval/decisions/`, and CLI tests in `eval/remote/`.
-- `/wiki:migrate` command and `/wiki:init --hosted <url>`.
-- Documentation: hosted wiki guide (deploy, first run, tokens, OAuth, MCP set-up for each agent, migration, pull mirror, Free and Paid plan limits, costs, security), decision models guide, skill references `hosted-mode.md` and `decision-models.md`, and the v4 upgrade guide.
-- CI: server type check and tests, remote CLI and decision tests, and an equality check for the two copies of the decision questions.
+- `server/` に、任意で使うホスト型 wiki を追加した。1つの Cloudflare Worker で、「Deploy to Cloudflare」ボタンから、シークレット1つ（`ADMIN_TOKEN`）だけを指定し、手作業の手順なしでデプロイできる。wiki 1つが 1つの SQLite Durable Object になる。1つのデプロイで複数の wiki を持てる。任意の R2、Vectorize、Workers AI のバインディングは、ない場合もエラーにならず、機能を縮小して動く。
+- アトミックなコミットを追加した。操作は `create`、`edit`、`append`、`put`、`delete`、`move` で、ページごとのリビジョン、作成者のラベル、差分、リバートを備える。`edit` は、対象のテキストがページにまだ1回だけ出てくるなら、より新しいページにも適用される。`append` は競合しない。それ以外の競合では、現在のリビジョンと差分を付けて HTTP 409 を返す。
+- ホスト型のハイブリッド検索を追加した。SQLite FTS5 の BM25 と、Vectorize に格納した Workers AI `@cf/baai/bge-small-en-v1.5` のベクトルを RRF（`k=60`）で統合する。`type`、`tag`、`since` のフィルター、`wiki_search.py --json` と同じ形の行、被リンクのモード、被リンク数の多い順のモードに対応する。埋め込みは、Durable Object のアラームでバッチ処理する。
+- 構造の lint、グラフの抽出、グラフのクエリ、グラフの lint、統計をサーバーに移植し、コミットのたびに更新するようにした。
+- `/mcp` に MCP サーバー（Streamable HTTP）を追加した。ツールは `wiki_overview`、`wiki_read`、`wiki_search`、`wiki_commit`、`wiki_history`、`wiki_graph`、`wiki_lint`、`wiki_raw` の8つ。`/api/v1` に JSON API を追加した。
+- エージェントごとの Bearer トークンを追加した。スコープは `read`、`write`、`raw:write`、`admin` で、SHA-256 のハッシュとして保存する。同じ Worker で OAuth にも対応した。動的クライアント登録、クライアント ID のメタデータドキュメント、`ADMIN_TOKEN` または使い捨てのペアリングコードによる所有者の承認を備える。
+- Web UI を追加した。`/setup` では、wiki、トークン、ペアリングコード、判定の設定、クライアントごとの MCP 設定を扱う。`/ui/<wiki>/` は読み取り専用のリーダーで、フォルダーツリー、検索、レンダリングしたページ、被リンク、履歴、差分、レビューフラグを表示する。
+- R2 に raw ソースを保存できるようにした。SHA-256 による完全性の確認、変更できないアップロード、範囲指定の読み込みに対応する。
+- `scripts/wiki_remote.py`（Python の標準ライブラリだけを使う）を追加した。`login`、`status`、`stats`、wiki とトークンの管理、ペアリングコード、ドライランと SHA-256 の検証を備えた再開できる `import`、任意で Git のコミットを作る pull 専用のミラー、`export`、raw ファイルのコマンド、検索、読み込み、コミット、履歴、グラフ、lint、レビュー、設定、そして Claude Code、Codex、Cursor、Gemini CLI、OpenCode、OMP、Pi、汎用クライアント向けの `mcp-config` を備える。
+- 任意の判定レイヤーを追加した。既定では無効である。`scripts/wiki_decide.py` とサーバーのチェックで、検索結果の関連度によるふるい分け（D1）、グラフの証拠のチェック（D2）、矛盾の洗い出し（D3）、取り込み候補の絞り込み（D4）、信頼できないテキストの洗い出し（D5）を行う。バックエンドは、`llama-server` を使うローカルの Liquid `d1-2B`、TypeSafe Jev、OpenRouter、Liquid API、サーバーでは Workers AI 上の Jev である。読み取りの経路では、判定に失敗したら処理を通す（fail-open）。書き込みのチェックは、レビューフラグを付けるだけである。`wiki_search.py --decide` と `wiki_graph_lint.py --decide` はオプトインで、フラグを付けなければ出力は変わらない。
+- 共通の質問テンプレート `assets/decision-questions.json`、`eval/decisions/` の合成データによる判定の評価、`eval/remote/` の CLI テストを追加した。
+- `/wiki:migrate` コマンドと `/wiki:init --hosted <url>` を追加した。
+- ドキュメントを追加した。ホスト型 wiki のガイド（デプロイ、初回の実行、トークン、OAuth、エージェントごとの MCP 設定、移行、pull ミラー、Free プランと Paid プランの制限、費用、セキュリティ）、判定モデルのガイド、スキルのリファレンス `hosted-mode.md` と `decision-models.md`、v4 へのアップグレードガイドである。
+- CI に、サーバーの型チェックとテスト、リモート CLI と判定のテスト、2か所にある判定の質問のコピーが同一かのチェックを追加した。
 
 ### Changed
 
-- The skill has a "Backends" section: a wiki is a local folder or a hosted URL. The agent selects the backend from the user's instructions, calls `wiki_overview` first in hosted mode, makes surgical changes with `edit` operations, adds log and index lines with `append`, and reads the page again and retries after a conflict.
-- Ingest, query and lint references show the local form and the hosted form of each step once. The agent-memory reference has a hosted-wiki stanza; the retrieval reference describes hosted search.
-- `/wiki:query`, `/wiki:ingest`, `/wiki:lint`, `/wiki:stats`, `/wiki:graph` and `/wiki:upgrade` describe hosted mode. `/wiki:learn` and `/wiki:evolve` stay local and can run on a pull mirror.
-- Local mode is unchanged. Existing wikis, scripts and command flags need no migration.
+- スキルに「バックエンド」のセクションを設けた。wiki は、ローカルのフォルダーかホスト型の URL のどちらかである。エージェントはユーザーの指示からバックエンドを選ぶ。ホストモードでは最初に `wiki_overview` を呼び出し、`edit` 操作で必要な箇所だけを変更し、ログとインデックスの行は `append` で追加し、競合が起きたらページを読み直して再試行する。
+- 取り込み、クエリ、lint のリファレンスでは、各手順のローカルの形とホストの形を1回ずつ示すようにした。エージェントのメモリのリファレンスにホスト型 wiki 用の記述を加え、検索のリファレンスにホスト型の検索の説明を加えた。
+- `/wiki:query`、`/wiki:ingest`、`/wiki:lint`、`/wiki:stats`、`/wiki:graph`、`/wiki:upgrade` にホストモードの説明を加えた。`/wiki:learn` と `/wiki:evolve` はローカルのままで、pull ミラー上で実行できる。
+- ローカルモードは変わっていない。既存の wiki、スクリプト、コマンドのフラグに移行作業は要らない。
 
 ### Removed
 
-- The Paperclip companion (`integrations/paperclip/`, `paperclip-plugin-llm-wiki`), its CI workflow and its documentation. Its frontmatter, BM25, lint and stats code moved into `server/src/core/`. The npm package was never live on the registry, so no registry action is necessary. Users who need Paperclip can stay on v3.2.x.
+- Paperclip 連携プラグイン（`integrations/paperclip/`、`paperclip-plugin-llm-wiki`）と、その CI ワークフロー、ドキュメントを削除した。frontmatter、BM25、lint、統計のコードは `server/src/core/` に移した。npm パッケージはレジストリで公開されたことがないので、レジストリ側の作業は要らない。Paperclip が必要なユーザーは v3.2.x を使い続けられる。
 
 ## [3.2.0] - 2026-09-13
 
 ### Added
-- Complete bounded evolution loop with persistent training evidence and patterns, multi-file proposals, retained failed attempts, validation-only selection, independent final testing and optional cross-agent transfer. Invalid model-authored patches are retained as rejections without aborting the remaining cycle.
-- Nine host adapters (Claude, Codex, Cursor, Gemini, OpenCode, Pi, OMP, Hermes and OpenClaw) with neutral skill provisioning, durable interrupted tool traces and explicitly nullable usage; calibrated semantic judging, source-quotation checks, artifact tasks, and shared call/time/cost accounting across every role.
-- Pre-request inference reservations in a bounded first-party API runner, with conservative model-context/output ceilings, Decimal accounting, no retry after uncertain responses, and expiring reviewed prices. CLI runners reject hard-USD configurations before inference.
-- Ground semantic verdicts in exact factual-source or saved-artifact quotations, including changed artifacts without an explicit assertion. Artifact state does not establish the truth of newly authored claims.
-- Task-cluster confidence intervals and paired randomization analysis, plus a 16-task public-project study covering real ingestion, index/log updates, graph compilation and hybrid-search execution.
-- Portable skill/evidence bundles with SHA-256 verification; prepared runtime provisioning, disabled ONNX telemetry side effects and detached subprocess cleanup. Completed write-boundary violations retain evidence and score zero without ending the remaining isolated comparisons; runner/protocol failures still stop the run.
-- Version 2 example suites and full-cycle regression tests. Fictional evaluation data lives under `eval/evolution/pilot/`, outside the installed skill, to avoid supplying answer keys to inference.
+- 範囲を限ったスキル改善のループ一式を追加した。学習の証拠とパターンの永続化、複数ファイルにまたがる提案、失敗した試行の保持、検証だけによる選定、独立した最終テスト、任意の別エージェントへの転用評価を備える。モデルが書いた無効なパッチは、残りのサイクルを中断せずに、却下として記録する。
+- 9つのホスト用アダプター（Claude、Codex、Cursor、Gemini、OpenCode、Pi、OMP、Hermes、OpenClaw）を追加した。中立的なスキルの供給、中断しても残るツールのトレース、明示的に null を許す使用量の記録を備える。あわせて、較正した意味評価のジャッジ、ソースからの引用のチェック、成果物を扱うタスク、全ロールに共通の呼び出し回数・時間・費用の集計を追加した。
+- 範囲を限ったファーストパーティの API ランナーに、リクエスト前の推論費用の予約を追加した。モデルのコンテキストと出力に保守的な上限を設け、Decimal で集計し、結果が不確かなレスポンスのあとは再試行せず、レビュー済みの料金には有効期限を設ける。CLI のランナーは、USD の厳密な上限を指定した設定を推論の前に拒否する。
+- 意味評価の判定の根拠を、事実情報のソースまたは保存した成果物からの正確な引用に限るようにした。明示的なアサーションのない変更された成果物も対象にする。成果物の状態は、新しく書かれた主張が正しいことの証拠にはならない。
+- タスクのクラスターごとの信頼区間と、対応のあるランダム化分析を追加した。あわせて、実際の取り込み、インデックスとログの更新、グラフのコンパイル、ハイブリッド検索の実行を扱う、16 タスクの公開プロジェクトの調査を追加した。
+- SHA-256 で検証できる、持ち運び可能なスキルと証拠のバンドルを追加した。準備済みの実行環境の供給、ONNX のテレメトリーによる副作用の無効化、切り離したサブプロセスの後始末も追加した。書き込みの境界を越えた実行は、証拠を残したうえでスコアを 0 とし、残りの分離した比較は続ける。ランナーやプロトコルの失敗では、引き続き実行を止める。
+- バージョン 2 のスイートの例と、サイクル全体の回帰テストを追加した。推論に正解を渡さないように、架空の評価データはインストールされるスキルの外の `eval/evolution/pilot/` に置いた。
 
-- Optional `/wiki:learn` workflow for immutable observed task experience, cited source/concept patterns, root-cause hypotheses, applicability and counterexamples.
-- `/wiki:evolve` and stdlib `wiki_evolve.py` for evidence-linked whole-skill proposals and new skills, complete baseline/candidate snapshots, fixed-corpus paired evaluation, retained rejected attempts, explicit apply and rollback, whole-skill drift checks and interrupted-transition recovery.
-- A provider-neutral JSON runner contract, optional authenticated Claude Code query adapter, and a 20-task fictional query pilot covering citations, current/historical decisions, contradictions, multi-source answers and abstention. No model improvement is claimed without a measured trial.
-- Retained legacy version 1 regression gates; the new version 2 loop selects on validation only and reserves final tests for reporting. Both preserve failed attempts and reject malformed outputs and timeouts.
-- Idempotent experience/pattern templates and experiment-archive guidance, an optional upgrade schema marker, end-to-end lifecycle tests and PR CI for Python and documentation.
+- 任意の `/wiki:learn` ワークフローを追加した。観測した変更不可のタスクの経験、出典を示したソースとコンセプトのパターン、根本原因の仮説、適用できる範囲、反例を扱う。
+- `/wiki:evolve` と、標準ライブラリだけで動く `wiki_evolve.py` を追加した。根拠にリンクしたスキル全体への提案と新しいスキル、ベースラインと候補の完全なスナップショット、固定したコーパスでの対応のある評価、却下した試行の保持、明示的な適用とロールバック、スキル全体のずれのチェック、中断した変更の途中からの復旧を備える。
+- プロバイダーに依存しない JSON ランナーの取り決め、任意で使う認証済みの Claude Code クエリ用アダプター、20 タスクの架空のクエリのパイロットを追加した。パイロットでは、出典、現在と過去の決定、矛盾、複数のソースにまたがる回答、回答の差し控えを扱う。測定した試行なしに、モデルの改善を主張することはしない。
+- 旧バージョン 1 の回帰ゲートは残した。新しいバージョン 2 のループは検証だけで選定し、最終テストは報告のために取っておく。どちらも失敗した試行を残し、形式の正しくない出力とタイムアウトを拒否する。
+- 冪等な経験とパターンのテンプレート、実験のアーカイブについての案内、任意のアップグレード用のスキーマのマーカー、エンドツーエンドのライフサイクルのテスト、Python とドキュメントの PR 向け CI を追加した。
 
 ### Changed
 
-- Credit the WikiSkill paper in the README and documentation, mapping the adopted methodology to implementation choices and published validation limits.
-- Main plugin/skill version is 3.2.0: additive and backward-compatible, so no Markdown or CLI migration is required. Experience capture, skill editing and paid inference are never started by upgrade.
-- Keep `.evolution/` snapshots out of normal search, lint, statistics and graph extraction. Preserve searchable lessons and trial summaries in existing wiki page types.
-- Paperclip companion `paperclip-plugin-llm-wiki` v0.5.3 adds matching archive exclusions in search, health and page reading. Its package README records publication status.
-- Update command reference, agent workflows, site navigation, upgrade guide, contributor checks, manifest descriptions and machine-readable documentation. Handle documentation pages without a git modification timestamp during local builds.
+- README とドキュメントで WikiSkill の論文を出典として示し、取り入れた手法と、実装上の選択、公表した検証の限界との対応を示した。
+- プラグインとスキルの主バージョンを 3.2.0 にした。追加のみで後方互換なので、Markdown や CLI の移行は要らない。アップグレードで、経験の記録、スキルの編集、費用のかかる推論が始まることはない。
+- `.evolution/` のスナップショットを、通常の検索、lint、統計、グラフの抽出の対象から外した。検索できる教訓と試行の要約は、既存の wiki のページの種類で残す。
+- Paperclip 連携プラグイン `paperclip-plugin-llm-wiki` v0.5.3 で、検索、健全性チェック、ページの読み込みから、同じようにアーカイブを除外するようにした。公開の状況は、パッケージの README に記録している。
+- コマンドのリファレンス、エージェントのワークフロー、サイトのナビゲーション、アップグレードガイド、コントリビューター向けのチェック、マニフェストの説明、機械が読むためのドキュメントを更新した。ローカルでのビルドで、git の更新日時がないドキュメントのページも扱えるようにした。
 
 ## [3.1.1] - 2026-09-04
 
 ### Fixed
 
-- **Path-qualified wikilinks are now resolved instead of being reported broken.** `wiki_lint.py`, `wiki_graph_extract.py`, `wiki_search.py`, and `wiki_stats.py` each compared raw wikilink text against page slugs, where a slug is the bare filename stem — so `[[entities/kalman-filter]]`, a very common authoring form, matched nothing. The failures were silent and each misled differently: lint reported every such link as broken *and*, because inbound edges were keyed the same way, reported well-referenced pages as orphans; `wiki_graph_extract` emitted no `mentions` edge for them at all; `wiki_search --backlinks` missed them and `--top-linked` split one page's count across the bare and qualified forms; `wiki_stats` understated hubs. Measured on one 55-page wiki: 142 of 153 reported broken links were false, 15 of 16 orphans were false, and 126 of 308 mention edges were missing from the graph. Links are now normalized (display alias, heading anchor, `.md` suffix) before comparison. A directory prefix is treated as a **constraint**, not decoration — a qualified link resolves only if that exact path exists, with no fall back to a bare-stem match, because falling back would let `[[raw/foo]]` bind to `sources/foo.md`, a real collision wherever source pages are named after the raw file they summarize. `wiki_stats` is a documented exception: it counts popularity rather than adjudicating correctness, so it reduces to the stem and does not verify resolution.
-- Preserve unresolved targets in `wiki_search --backlinks` and `--top-linked`, so broken-link reports remain available while valid path-qualified links collapse to their page slug.
-- Adds `skills/llm-wiki/scripts/test_link_resolution.py` — stdlib-only, no test framework, run directly. 48 cases across all four resolvers, including guard cases that fail if the path constraint is relaxed.
+- **パスを含む wikilink を、リンク切れと報告せずに解決するようにした。** `wiki_lint.py`、`wiki_graph_extract.py`、`wiki_search.py`、`wiki_stats.py` は、それぞれ wikilink のテキストをそのままページのスラッグと比べていた。スラッグはファイル名から拡張子を除いただけのものなので、よく使われる書き方である `[[entities/kalman-filter]]` はどれにも一致しなかった。この失敗は表に出ず、スクリプトごとに違う形で誤った結果を出していた。lint は、そうしたリンクをすべてリンク切れと報告した。*さらに*、被リンクも同じキーで数えていたため、よく参照されているページを孤立ページと報告した。`wiki_graph_extract` は、それらのリンクについて `mentions` エッジをまったく出力しなかった。`wiki_search --backlinks` はそれらを見落とし、`--top-linked` は1つのページの件数を、パスなしの形とパス付きの形に分けて数えていた。`wiki_stats` はハブを少なく見積もっていた。55 ページのある wiki で測ったところ、リンク切れと報告された 153 件のうち 142 件、孤立ページ 16 件のうち 15 件が誤りで、308 件の mention エッジのうち 126 件がグラフから抜けていた。現在は、比較の前にリンクを正規化する（表示用のエイリアス、見出しのアンカー、`.md` の拡張子を取り除く）。ディレクトリのプレフィックスは飾りではなく**制約**として扱う。パス付きのリンクは、そのパスがちょうど存在する場合にだけ解決し、拡張子を除いたファイル名での一致にはフォールバックしない。フォールバックすると、`[[raw/foo]]` が `sources/foo.md` に結び付いてしまうためである。ソースページの名前を、要約した raw ファイルと同じにしている wiki では、これが実際に衝突する。`wiki_stats` は文書化した例外である。正しさを判定するのではなく、参照の多さを数えるものなので、拡張子を除いたファイル名に縮めて数え、解決できるかは確かめない。
+- `wiki_search --backlinks` と `--top-linked` で、解決できないリンク先を残すようにした。有効なパス付きのリンクはページのスラッグにまとめつつ、リンク切れの報告は引き続き得られる。
+- `skills/llm-wiki/scripts/test_link_resolution.py` を追加した。標準ライブラリだけを使い、テストフレームワークを使わずに直接実行する。4つのリンク解決の処理すべてにわたる 48 ケースで、パスの制約を緩めると失敗するガードのケースも含む。
 
 ## [3.1.0] - 2026-09-03
 
 ### Changed
 
-- Make personal global wikis a first-class setup alongside project wikis, and resolve every command against the configured wiki instead of assuming the current project's `wiki/` directory.
-- Publish the Paperclip companion as `paperclip-plugin-llm-wiki` v0.5.2.
+- 個人用のグローバルな wiki を、プロジェクトの wiki と並ぶ正式な構成にした。すべてのコマンドが、現在のプロジェクトの `wiki/` ディレクトリを前提にせず、設定された wiki を対象に解決するようにした。
+- Paperclip 連携プラグインを `paperclip-plugin-llm-wiki` v0.5.2 として公開した。
 
 ## [3.0.0] - 2026-07-20
 
 ### Changed
 
-- Replace OpenAI-compatible HTTP embeddings with local FastEmbed `BAAI/bge-small-en-v1.5` embeddings stored in sqlite-vec.
-- Make local hybrid section retrieval the default and retain `--no-embed` as the dependency-free BM25 escape hatch.
-- Keep the Paperclip worker lexical-only while preserving byte-for-byte parity with Python `--no-embed`; its documentation now distinguishes that surface from the default Python hybrid path.
-- Declare pinned FastEmbed and sqlite-vec dependencies through PEP 723 for isolated `uv run --script` execution.
-- Add `setup_wiki.py` as the mandatory init/upgrade runtime gate: it installs pinned FastEmbed 0.8.0, sqlite-vec 0.1.9, and PyYAML 6.0.3, caches the local model, builds the parse cache, synchronizes every wiki section, and emits a machine-readable readiness report.
-- Give graph lint and extraction their own pinned PyYAML PEP 723 metadata so every dependency-bearing agent tool runs reproducibly through `uv run --script`.
-- Bump the Paperclip companion, `paperclip-plugin-llm-wiki` v0.5.1, for its updated v3 local-retrieval agent setup guidance.
-- Replace provider consent, credential, endpoint, and cache-marker setup with local model-download and index-build guidance.
-- Add an idempotent v3 upgrade marker; existing Markdown needs no migration and legacy `embeddings.jsonl` caches are ignored.
-- Make initialization and upgrade fail closed when `uv` or runtime setup is unavailable instead of reporting a partially ready wiki.
+- OpenAI 互換の HTTP による埋め込みを、sqlite-vec に格納するローカルの FastEmbed `BAAI/bge-small-en-v1.5` の埋め込みに置き換えた。
+- ローカルのハイブリッドなセクション検索を既定にし、依存パッケージを使わない BM25 に切り替える手段として `--no-embed` を残した。
+- Paperclip の worker は語彙ベースの検索だけのままにし、Python の `--no-embed` とバイト単位で同じ結果を保った。そのドキュメントでは、既定の Python のハイブリッド検索の経路と区別して説明するようにした。
+- 分離した `uv run --script` で実行できるように、バージョンを固定した FastEmbed と sqlite-vec の依存関係を PEP 723 で宣言した。
+- init と upgrade で必ず通る実行環境のチェックとして `setup_wiki.py` を追加した。バージョンを固定した FastEmbed 0.8.0、sqlite-vec 0.1.9、PyYAML 6.0.3 をインストールし、ローカルのモデルをキャッシュし、パースキャッシュを作り、wiki のすべてのセクションを同期して、機械が読める準備状況のレポートを出力する。
+- グラフの lint と抽出に、バージョンを固定した PyYAML の PEP 723 メタデータを持たせた。依存パッケージを使うエージェントのツールは、どれも `uv run --script` で再現性を保って実行できる。
+- v3 のローカル検索に合わせてエージェントのセットアップの案内を更新した Paperclip 連携プラグイン `paperclip-plugin-llm-wiki` v0.5.1 にバージョンを上げた。
+- プロバイダーへの同意、認証情報、エンドポイント、キャッシュのマーカーのセットアップを、ローカルのモデルのダウンロードとインデックスの構築の案内に置き換えた。
+- 冪等な v3 のアップグレードのマーカーを追加した。既存の Markdown に移行作業は要らず、旧来の `embeddings.jsonl` のキャッシュは無視する。
+- `uv` や実行環境のセットアップが使えない場合、一部だけ準備できた wiki として報告せず、初期化とアップグレードを安全側に倒して失敗させるようにした。
 
 ### Fixed
 
-- Persist content-hashed section vectors in `wiki/.wiki-cache/embeddings.sqlite`, re-embedding only changed sections and removing deleted sections.
-- Rebuild derived vectors automatically when the model, dimension, or vector schema changes.
-- Apply the cosine metric consistently to filtered and unfiltered vector queries, and reject low-similarity semantic candidates before RRF to avoid false-positive answers on out-of-domain questions.
-- Fall back to valid lexical JSON on missing dependencies, model failures, or sqlite-vec load failures without exposing exception details.
-- Cover index reuse, incremental updates, deletions, filter-scoped vector search, dimension rebuilds, and lexical fallback with focused regressions.
+- 内容のハッシュを付けたセクションのベクトルを `wiki/.wiki-cache/embeddings.sqlite` に永続化し、変更されたセクションだけを埋め込み直し、削除されたセクションは取り除くようにした。
+- モデル、次元数、ベクトルのスキーマが変わったときに、派生したベクトルを自動で作り直すようにした。
+- フィルターの有無にかかわらず、ベクトルのクエリで一貫してコサイン距離を使うようにした。対象外の分野の質問で誤った回答を返さないように、類似度の低いセマンティック検索の候補は RRF の前に除外するようにした。
+- 依存パッケージがない、モデルが失敗した、sqlite-vec を読み込めなかった、といった場合に、例外の詳細を見せずに、有効な語彙ベースの JSON にフォールバックするようにした。
+- インデックスの再利用、差分の更新、削除、フィルターで範囲を絞ったベクトル検索、次元数の変更による作り直し、語彙ベースへのフォールバックを、対象を絞った回帰テストで確かめるようにした。
 
 
 ## [2.0.7] - 2026-07-20
 
 ### Fixed
 
-- Require `--approve-embedding-build` before a new or switched provider can upload canonical sections, then persist a provider-fingerprint approval marker after success.
-- Permit later same-provider searches to embed only new or changed sections without repeated approval, including one-section wikis where every current section changed.
-- Add regressions for deferred first builds, provider switches, marker persistence, and same-provider incremental updates.
-- Persist only a SHA-256 provider fingerprint in cache version 3; custom endpoint URLs, embedded credentials, and signed query tokens are never written to new rows. Version 2 caches are treated as legacy and require an approved delete/rebuild so previously persisted raw endpoints are removed.
-- Redact backend failure details from CLI fallback warnings so credential-bearing endpoint URLs and provider response bodies cannot leak to stderr.
+- 新しいプロバイダー、または切り替えたプロバイダーが正本のセクションをアップロードする前に、`--approve-embedding-build` を必須にした。成功したら、プロバイダーのフィンガープリントによる承認のマーカーを保存する。
+- その後の同じプロバイダーでの検索では、承認を繰り返さずに、新しいセクションや変更されたセクションだけを埋め込めるようにした。すべてのセクションが変更された、セクションが1つだけの wiki も対象にする。
+- 最初の構築を後回しにする場合、プロバイダーの切り替え、マーカーの保存、同じプロバイダーでの差分の更新について、回帰テストを追加した。
+- キャッシュのバージョン 3 では、プロバイダーの SHA-256 のフィンガープリントだけを保存するようにした。カスタムのエンドポイントの URL、URL に埋め込まれた認証情報、署名付きのクエリトークンは、新しい行には決して書き込まない。バージョン 2 のキャッシュは旧来のものとして扱い、以前に保存された生のエンドポイントを取り除くために、承認を得たうえでの削除と作り直しを必須にした。
+- CLI のフォールバックの警告から、バックエンドの失敗の詳細を伏せるようにした。認証情報を含むエンドポイントの URL や、プロバイダーのレスポンスの本文が標準エラー出力に漏れないようにするためである。
 
 ## [2.0.6] - 2026-07-20
 
 ### Fixed
 
-- Detect legacy embedding caches before hybrid retrieval and fall back to lexical with an explicit approve/delete/rebuild instruction instead of silently resending every canonical section.
-- Stamp new vector rows with cache version and provider metadata; add a subprocess regression proving legacy caches remain untouched without approval.
+- ハイブリッド検索の前に旧来の埋め込みキャッシュを検出し、正本のセクションを黙ってすべて送り直すのではなく、承認・削除・作り直しの明示的な指示を出したうえで語彙ベースの検索にフォールバックするようにした。
+- 新しいベクトルの行に、キャッシュのバージョンとプロバイダーのメタデータを記録するようにした。承認がなければ旧来のキャッシュに手を付けないことを確かめる、サブプロセスの回帰テストを追加した。
 
 ## [2.0.5] - 2026-07-20
 
 ### Fixed
 
-- Bind cached section vectors to the approved provider identity, normalized endpoint, model, and text. Switching providers can no longer reuse vectors produced elsewhere under the same model name.
-- Add cross-provider cache and URL-normalization regression tests.
+- キャッシュしたセクションのベクトルを、承認したプロバイダーの識別情報、正規化したエンドポイント、モデル、テキストに結び付けるようにした。プロバイダーを切り替えても、同じモデル名で別の場所が作ったベクトルを再利用することはもうない。
+- プロバイダーをまたいだキャッシュと、URL の正規化の回帰テストを追加した。
 
 ## [2.0.4] - 2026-07-20
 
 ### Fixed
 
-- Bind embedding consent to the selected provider: `openai` is pinned to the OpenAI endpoint and key, while `custom` requires its own endpoint and model and never inherits OpenAI configuration.
-- Add mismatch regression coverage so mixed OpenAI/custom environment variables cannot redirect text or reuse an unapproved credential.
+- 埋め込みへの同意を、選んだプロバイダーに結び付けるようにした。`openai` は OpenAI のエンドポイントとキーに固定し、`custom` は専用のエンドポイントとモデルを必須とし、OpenAI の設定を引き継がない。
+- OpenAI 用と custom 用の環境変数が混ざっていても、テキストの送り先が変わったり、承認していない認証情報が再利用されたりしないことを確かめる、不一致の回帰テストを追加した。
 
 ## [2.0.3] - 2026-07-20
 
 ### Fixed
 
-- Persisted retrieval consent is now enforced by `wiki_search.py`: only `Embedding mode: openai | custom` can activate provider calls. `undecided`, `lexical`, `deferred`, or a missing mode stay local even when `OPENAI_API_KEY` is present.
-- Setup, command, and public documentation now disclose ongoing hybrid data use and cost: every hybrid query sends query text, the first vector build sends canonical sections, and later searches send new or changed sections missing cached vectors.
+- 保存した検索への同意を、`wiki_search.py` で強制するようにした。プロバイダーの呼び出しを有効にできるのは、`Embedding mode: openai | custom` だけである。`undecided`、`lexical`、`deferred`、またはモードの指定がない場合は、`OPENAI_API_KEY` があってもローカルのままにする。
+- セットアップ、コマンド、公開ドキュメントで、ハイブリッド検索で継続的に発生するデータの送信と費用を明示した。ハイブリッド検索のクエリのたびにクエリのテキストを送り、最初のベクトルの構築では正本のセクションを送り、その後の検索ではキャッシュされたベクトルのない新しいセクションや変更されたセクションを送る。
 
 
 ## [2.0.2] - 2026-07-20
 
 ### Changed
 
-- Init, upgrade, and query commands now run an explicit retrieval setup interview covering local BM25, OpenAI hybrid, custom compatible endpoints, first-build timing, graph usage, and agent integration.
-- Setup guidance distinguishes environment configuration, successful API validation, and a fully built wiki embedding cache. It never treats a present key as proof of validity and requires approval before the first billable embedding request.
-- New wiki schemas record an explicit embedding mode and validation state without storing secrets.
+- init、upgrade、query のコマンドで、検索のセットアップについての明示的な質問を行うようにした。対象は、ローカルの BM25、OpenAI のハイブリッド検索、互換性のあるカスタムのエンドポイント、最初の構築のタイミング、グラフを使うか、エージェントとの連携である。
+- セットアップの案内では、環境の設定、API の検証の成功、wiki の埋め込みキャッシュの構築完了を区別するようにした。キーがあることを有効性の証明とは見なさず、最初の課金対象の埋め込みリクエストの前に承認を必須にした。
+- 新しい wiki のスキーマに、シークレットを保存せずに、埋め込みのモードと検証の状態を明示的に記録するようにした。
 
 ## [2.0.1] - 2026-07-20
 
 ### Fixed
 
-- Exclude a top-level `raw/` directory from Python and Paperclip search, lint, stats, and graph compilation. This supports wikis that keep immutable raw sources inside the wiki root without allowing raw documents to pollute canonical page retrieval or graph output.
+- Python と Paperclip の検索、lint、統計、グラフのコンパイルの対象から、最上位の `raw/` ディレクトリを外した。これにより、変更しない raw ソースを wiki のルートの中に置いても、raw のドキュメントが正本のページの検索やグラフの出力に混ざらない。
 
 ## [2.0.0] — 2026-07-20
 
 ### Added
 
-- **Section-level retrieval with structured evidence.** `wiki_search.py` now ranks ATX-heading sections by default, emits `--json` evidence rows with heading paths, snippets, source metadata, and neighbors, and retains the prior whole-page behavior behind `--granularity page`.
-- **Incremental retrieval cache.** `--cache` stores content-hashed parse results under `wiki/.wiki-cache/`; cold, warm, and uncached searches return byte-identical JSON.
-- **Opt-in hybrid retrieval.** OpenAI-compatible embedding endpoints activate semantic ranking fused with BM25 through reciprocal rank fusion. Embedding vectors are cached locally; backend failures fall back to lexical search without failing the command.
-- **Retrieval evaluation harness.** `eval/retrieval/` ships a 20-page corpus, 32 exact/paraphrase/filter/negative queries, recall/MRR/false-positive metrics, a section-vs-page regression gate, and cache-invariance checks.
-- **Documentation website.** A [VitePress](https://vitepress.dev) site under `docs/` — nine guides with fuzzy full-text local search and Mermaid diagrams — builds to `docs/.vitepress/dist` and deploys to GitHub Pages through a dedicated Actions workflow (`.github/workflows/deploy-docs.yml`).
-- **SEO and agent discovery.** Every guide ships unique descriptions, canonical URLs, Open Graph/Twitter cards, schema.org JSON-LD, and permissive crawl directives. The Pages artifact includes a sitemap, `robots.txt`, `llms.txt`, and a 1200×630 social preview; natural-language FAQs and tuned fuzzy/prefix search improve human and AI retrieval.
-- **Paperclip integration.** `paperclip-plugin-llm-wiki` v0.5.0 provides a three-column wiki workspace, sidebar launcher, setup walkthrough, quick switcher, backlinks panel, issue-context tab, dashboard health, and the agent-callable `wiki.query` tool. The integration remains read-only; agents maintain canonical Markdown through the skill.
-- **Paperclip design and verification assets.** `integrations/paperclip/SPEC.md` and `FEASIBILITY.md` document the design and SDK validation. The Paperclip CI job installs pinned dependencies, typechecks, tests, builds, and checks the publish package.
+- **構造化された証拠を返すセクション単位の検索。** `wiki_search.py` は、既定で ATX 見出しのセクション単位に順位を付けるようにした。`--json` で、見出しのパス、抜粋、ソースのメタデータ、隣接するセクションを含む証拠の行を出力する。以前のページ単位の動作は `--granularity page` で残した。
+- **差分で更新する検索キャッシュ。** `--cache` は、内容のハッシュを付けたパース結果を `wiki/.wiki-cache/` に保存する。コールドキャッシュ、ウォームキャッシュ、キャッシュなしのどの検索でも、バイト単位で同じ JSON を返す。
+- **オプトインのハイブリッド検索。** OpenAI 互換の埋め込みのエンドポイントを使うと、セマンティック検索の順位付けが有効になり、Reciprocal Rank Fusion で BM25 と統合する。埋め込みのベクトルはローカルにキャッシュする。バックエンドが失敗しても、コマンドを失敗させずに語彙ベースの検索にフォールバックする。
+- **検索の評価ハーネス。** `eval/retrieval/` に、20 ページのコーパス、完全一致・言い換え・フィルター・負例の 32 クエリ、再現率・MRR・偽陽性率の指標、セクション単位とページ単位を比べる回帰ゲート、キャッシュで結果が変わらないことのチェックを入れた。
+- **ドキュメントのサイト。** `docs/` に [VitePress](https://vitepress.dev) のサイトを追加した。あいまいなローカル全文検索と Mermaid の図を備えた 9 本のガイドで、`docs/.vitepress/dist` にビルドし、専用の Actions のワークフロー（`.github/workflows/deploy-docs.yml`）で GitHub Pages にデプロイする。
+- **SEO とエージェントによる発見。** すべてのガイドに、固有の説明文、正規の URL、Open Graph と Twitter のカード、schema.org の JSON-LD、クロールを許可する指定を付けた。Pages の成果物には、サイトマップ、`robots.txt`、`llms.txt`、1200×630 のソーシャルプレビューを含む。自然な文章で書いた FAQ と、調整したあいまい検索と前方一致検索で、人と AI の両方が情報を見つけやすくした。
+- **Paperclip 連携。** `paperclip-plugin-llm-wiki` v0.5.0 は、3カラムの wiki のワークスペース、サイドバーのランチャー、セットアップの手順案内、クイックスイッチャー、被リンクのパネル、issue のコンテキストのタブ、ダッシュボードでの健全性の表示、エージェントから呼び出せる `wiki.query` ツールを提供する。連携は読み取り専用のままで、正本の Markdown はエージェントがスキルを通じて保守する。
+- **Paperclip の設計と検証の資料。** `integrations/paperclip/SPEC.md` と `FEASIBILITY.md` に、設計と SDK の検証を記録した。Paperclip の CI ジョブは、バージョンを固定した依存パッケージをインストールし、型チェック、テスト、ビルド、公開するパッケージのチェックを行う。
 
 ### Changed
 
-- **Paperclip retrieval parity.** The TypeScript port now performs section-level BM25, returns heading/snippet evidence, de-duplicates issue-context results by page, and stays synchronized with Python through generated parity fixtures.
-- **Paperclip workspace.** The former single-column browser is now a URL-driven Reader with a folder tree, metadata rail, stable heading links, syntax highlighting, recent pages, and per-page URLs. Setup and `verifySetup` close the loop between plugin install and agent-side skill configuration.
-- **Idempotent v2 upgrade.** `/wiki:upgrade` and `init_wiki.py --upgrade` create `wiki/.wiki-cache/.gitignore` and surface the new `## Retrieval` schema section without changing existing page content.
-- Agent documentation now records verified bundled-script support across all listed agents, including OMP.
+- **Paperclip の検索の一致。** TypeScript への移植で、セクション単位の BM25 を行い、見出しと抜粋の証拠を返し、issue のコンテキストの結果をページ単位で重複除去するようにした。生成した一致確認用のフィクスチャで、Python 版との同期を保つ。
+- **Paperclip のワークスペース。** 以前の1カラムのブラウザーを、URL で状態を管理するリーダーにした。フォルダーツリー、メタデータのレール、変わらない見出しのリンク、シンタックスハイライト、最近のページ、ページごとの URL を備える。セットアップと `verifySetup` で、プラグインのインストールとエージェント側のスキルの設定がつながるようにした。
+- **冪等な v2 のアップグレード。** `/wiki:upgrade` と `init_wiki.py --upgrade` は、`wiki/.wiki-cache/.gitignore` を作り、既存のページの内容を変えずに、新しい `## Retrieval` のスキーマのセクションを知らせる。
+- エージェントのドキュメントに、OMP を含む一覧のすべてのエージェントで、同梱のスクリプトが動くことを確認したと記録した。
 
-### Notes for upgraders
+### アップグレードする人へ
 
-- Pull v2.0.0 and run `/wiki:upgrade` (or `python skills/llm-wiki/scripts/init_wiki.py . --upgrade`), then approve the `## Retrieval` addition to `wiki/SCHEMA.md`. Existing pages need no content migration.
-- Hybrid embeddings remain opt-in. Without embedding environment variables, search stays stdlib-only lexical BM25.
-- The Paperclip plugin pins `@paperclipai/plugin-sdk` at `2026.428.0`; its calver SDK should be upgraded deliberately and revalidated against upstream source.
+- v2.0.0 を取得して `/wiki:upgrade`（または `python skills/llm-wiki/scripts/init_wiki.py . --upgrade`）を実行し、`wiki/SCHEMA.md` への `## Retrieval` の追加を承認する。既存のページの内容に移行作業は要らない。
+- ハイブリッド検索の埋め込みは、引き続きオプトインである。埋め込み用の環境変数がなければ、検索は標準ライブラリだけを使う語彙ベースの BM25 のままである。
+- Paperclip プラグインは `@paperclipai/plugin-sdk` を `2026.428.0` に固定している。カレンダー形式でバージョンを付けるこの SDK は、意図してアップグレードし、上流のソースに対して検証し直す必要がある。
 
 ## [0.3.0] — 2026-04-25
 
 ### Added
 
-- **Optional graph layer.** Pages can now declare typed `graph:` metadata in frontmatter (`node_id`, `node_type`, `aliases`, `relationships[]` with `predicate`, `object`, `source`, `evidence`, `confidence`, `status`). A bundled extractor compiles the wiki into `wiki/graph/`: `nodes.jsonl`, `edges.jsonl`, `graph.sqlite`, `graph.graphml`. Markdown remains canonical — the graph can be deleted and rebuilt at any time. Typed semantic edges require an explicit source-page slug and evidence quote; the extractor never invents them.
-- **Three new scripts** (require PyYAML; existing scripts remain stdlib-only):
-  - `wiki_graph_extract.py` — compile pages → `nodes.jsonl`, `edges.jsonl`, `graph.sqlite`, `graph.graphml`. Emits typed edges from frontmatter, low-confidence `mentions` edges from body wikilinks, `sourced_from` edges from frontmatter `sources:` lists, and `summarizes_raw` edges from source-page `raw:` fields. Output is deterministic and sorted.
-  - `wiki_graph_lint.py` — validate typed edges against `wiki/graph/ontology.yaml`: unknown predicates, missing evidence, broken object refs, alias collisions, invalid `confidence`/`status`, broken `contradicts`/`supersedes`.
-  - `wiki_graph_query.py` — `neighbors`, `edges`, `path`, `facts` queries against `graph.sqlite`. Returns structured rows with source slug, confidence/status, evidence snippet, and page path.
-- **Graph templates.** `init_wiki.py` now seeds `wiki/graph/ontology.yaml` (starter ontology with implicit + typed predicates), `wiki/graph/README.md` (canonical-vs-generated explainer), and `wiki/graph/.gitignore` (ignores `graph.sqlite` and `graph.graphml` by default). The wiki's top-level `SCHEMA.md` template now documents the optional `graph:` frontmatter, lint cadence for the graph layer, and the generated-artifact tracking policy.
-- **`/wiki:graph <action>` slash command.** Dispatches to `extract`, `lint`, `neighbors`, `edges`, `path`, or `facts`. The `/wiki:ingest`, `/wiki:lint`, and `/wiki:query` commands now wire the graph step in conditionally — only when `wiki/graph/ontology.yaml` exists.
-- **`/wiki:upgrade` slash command and `init_wiki.py --upgrade` flag.** Brings a wiki bootstrapped under v0.2.0 up to v0.3.0 conventions. Adds the missing `wiki/graph/` files idempotently and surfaces SCHEMA.md sections that need to be merged by hand. Never overwrites SCHEMA.md — the schema is co-evolved with the user; the slash command walks them through each addition with `str_replace` and per-section approval.
-- **`references/graph-workflow.md`.** Full reference for the graph layer: ontology format, frontmatter schema, when to add a typed edge vs a plain wikilink, the extract/lint/query loop, the generated-artifact policy, and anti-patterns.
+- **任意のグラフ層。** ページの frontmatter に、型付きの `graph:` メタデータを書けるようにした（`node_id`、`node_type`、`aliases`、`predicate`・`object`・`source`・`evidence`・`confidence`・`status` を持つ `relationships[]`）。同梱の抽出スクリプトが、wiki を `wiki/graph/` の `nodes.jsonl`、`edges.jsonl`、`graph.sqlite`、`graph.graphml` にコンパイルする。正本は Markdown のままで、グラフはいつでも削除して作り直せる。型付きの意味のエッジには、明示的なソースページのスラッグと証拠の引用が必須で、抽出スクリプトがエッジをでっち上げることはない。
+- **新しい3つのスクリプト**（PyYAML が必要。既存のスクリプトは引き続き標準ライブラリだけを使う）:
+  - `wiki_graph_extract.py` — ページを `nodes.jsonl`、`edges.jsonl`、`graph.sqlite`、`graph.graphml` にコンパイルする。frontmatter からは型付きのエッジを、本文の wikilink からは確信度の低い `mentions` エッジを、frontmatter の `sources:` のリストからは `sourced_from` エッジを、ソースページの `raw:` フィールドからは `summarizes_raw` エッジを出力する。出力は決定的で、ソートされている。
+  - `wiki_graph_lint.py` — 型付きのエッジを `wiki/graph/ontology.yaml` に照らして検証する。未知の述語、証拠の欠落、リンク切れの目的語の参照、エイリアスの衝突、不正な `confidence` と `status`、リンク切れの `contradicts` と `supersedes` を検出する。
+  - `wiki_graph_query.py` — `graph.sqlite` に対する `neighbors`、`edges`、`path`、`facts` のクエリ。ソースのスラッグ、確信度とステータス、証拠の抜粋、ページのパスを含む構造化された行を返す。
+- **グラフのテンプレート。** `init_wiki.py` は、`wiki/graph/ontology.yaml`（暗黙の述語と型付きの述語を含む初期のオントロジー）、`wiki/graph/README.md`（正本と生成物の違いの説明）、`wiki/graph/.gitignore`（既定で `graph.sqlite` と `graph.graphml` を無視する）を用意するようにした。wiki の最上位の `SCHEMA.md` のテンプレートに、任意の `graph:` の frontmatter、グラフ層の lint の頻度、生成物を git で管理するかの方針を書いた。
+- **`/wiki:graph <action>` スラッシュコマンド。** `extract`、`lint`、`neighbors`、`edges`、`path`、`facts` に処理を振り分ける。`/wiki:ingest`、`/wiki:lint`、`/wiki:query` のコマンドは、`wiki/graph/ontology.yaml` がある場合に限って、グラフの手順を組み込むようにした。
+- **`/wiki:upgrade` スラッシュコマンドと `init_wiki.py --upgrade` フラグ。** v0.2.0 で作った wiki を、v0.3.0 の規約に合わせる。足りない `wiki/graph/` のファイルを冪等に追加し、手作業でマージが必要な SCHEMA.md のセクションを知らせる。SCHEMA.md はユーザーと一緒に改訂してきたものなので、決して上書きしない。スラッシュコマンドは、`str_replace` とセクションごとの承認で、追加内容を1つずつ案内する。
+- **`references/graph-workflow.md`。** グラフ層の詳しいリファレンス。オントロジーの形式、frontmatter のスキーマ、型付きのエッジを追加すべきときと通常の wikilink で足りるとき、抽出・lint・クエリの流れ、生成物の方針、アンチパターンを扱う。
 
 ### Changed
 
-- `wiki_lint.py`, `wiki_search.py`, and `wiki_stats.py` now skip the `wiki/graph/` directory the same way they skip `wiki/indexes/` — generated artifacts and the ontology don't pollute structural lint or search ranking.
-- `references/architecture.md`, `references/ingest-workflow.md`, `references/query-workflow.md`, and `references/lint-workflow.md` now document the optional graph layer alongside the original three layers/operations.
+- `wiki_lint.py`、`wiki_search.py`、`wiki_stats.py` は、`wiki/indexes/` と同じように `wiki/graph/` ディレクトリを対象から外すようにした。生成物とオントロジーが、構造の lint や検索の順位付けに混ざらない。
+- `references/architecture.md`、`references/ingest-workflow.md`、`references/query-workflow.md`、`references/lint-workflow.md` に、元からある3つの層と3つの操作に加えて、任意のグラフ層を書いた。
 
-### Notes for upgraders
+### アップグレードする人へ
 
-- **From an older Claude Code install:** run `/plugin marketplace update` then `/plugin install llm-wiki@llm-wiki` to pull v0.3.0.
-- **Upgrading an existing wiki:** the easiest path is `/wiki:upgrade` — it runs `python skills/llm-wiki/scripts/init_wiki.py . --upgrade`, idempotently adds the `wiki/graph/` files, and walks you through the SCHEMA.md additions interactively (one section at a time, per-edit approval; SCHEMA.md is never overwritten silently). The CLI version of the same: `python skills/llm-wiki/scripts/init_wiki.py . --upgrade`.
-- **Pre-graph wikis remain fully valid.** The graph layer is opt-in. The new lint/extract/query scripts no-op when `wiki/graph/ontology.yaml` is absent; the existing scripts and slash commands behave identically when no page carries `graph:` metadata.
-- **Refreshing other-agent installs:** `npx skills update llm-wiki`, or re-run the original `npx skills add praneybehl/llm-wiki-plugin -a <agent>` command.
-- The graph scripts require PyYAML (`pip install pyyaml`). The existing four scripts are still stdlib-only.
+- **以前の Claude Code のインストールから:** `/plugin marketplace update` を実行してから `/plugin install llm-wiki@llm-wiki` を実行し、v0.3.0 を取得する。
+- **既存の wiki のアップグレード:** もっとも簡単なのは `/wiki:upgrade` である。`python skills/llm-wiki/scripts/init_wiki.py . --upgrade` を実行し、`wiki/graph/` のファイルを冪等に追加し、SCHEMA.md への追加を対話的に案内する（1回に1セクションずつ、編集ごとに承認を得る。SCHEMA.md を黙って上書きすることはない）。CLI で同じことをするには `python skills/llm-wiki/scripts/init_wiki.py . --upgrade` を実行する。
+- **グラフ層を導入する前の wiki も、そのまま有効である。** グラフ層はオプトインである。新しい lint・抽出・クエリのスクリプトは、`wiki/graph/ontology.yaml` がなければ何もしない。`graph:` メタデータを持つページがなければ、既存のスクリプトとスラッシュコマンドの動作は変わらない。
+- **ほかのエージェントへのインストールの更新:** `npx skills update llm-wiki` を実行するか、最初に使った `npx skills add praneybehl/llm-wiki-plugin -a <agent>` のコマンドをもう一度実行する。
+- グラフのスクリプトには PyYAML（`pip install pyyaml`）が必要である。既存の4つのスクリプトは、引き続き標準ライブラリだけを使う。
 
 ## [0.2.0] — 2026-04-15
 
 ### Added
 
-- Documented multi-agent installation. The `llm-wiki` skill is agentskills.io-format and installs into Codex, Cursor, Gemini CLI, OpenCode, OpenClaw, Pi Agent, and Hermes Agent via `npx skills add` (or manual symlink for runtimes outside the `skills` CLI registry). README now includes a per-agent install table with the exact `--agent` flag, invocation pattern, and script-execution caveats. OpenCode reads `.claude/skills/` directly, so Claude Code users don't need a second install. The `/wiki:*` slash commands and marketplace manifest remain Claude Code-only.
-- Agent-memory integration during init. `/wiki:init` now proposes adding a canonical LLM Wiki stanza to the project's agent-memory file so the running agent remembers the wiki in future sessions without being re-told. The target file is agent-aware: `CLAUDE.md` for Claude Code, `AGENTS.md` for Codex / Cursor / OpenCode / Pi / OpenClaw, `GEMINI.md` for Gemini CLI, with `AGENTS.md` as the safe default for multi-agent projects. Full workflow, canonical stanza, three-line short variant, and the "never write without consent" protocol are in the new `references/agent-memory-integration.md`.
+- 複数のエージェントへのインストール方法を文書化した。`llm-wiki` スキルは agentskills.io の形式で、`npx skills add` で Codex、Cursor、Gemini CLI、OpenCode、OpenClaw、Pi Agent、Hermes Agent にインストールできる（`skills` CLI のレジストリにないランタイムには、手作業でシンボリックリンクを張る）。README に、エージェントごとのインストールの表を加え、正確な `--agent` フラグ、呼び出し方、スクリプトの実行についての注意を書いた。OpenCode は `.claude/skills/` を直接読むので、Claude Code のユーザーは2回インストールする必要がない。`/wiki:*` スラッシュコマンドとマーケットプレイスのマニフェストは、引き続き Claude Code 専用である。
+- 初期化のときに、エージェントのメモリと連携するようにした。`/wiki:init` は、プロジェクトのエージェント用のメモリファイルに、LLM Wiki の標準の記述を追加することを提案する。これで、実行中のエージェントは、改めて伝えなくても、次のセッション以降も wiki のことを覚えている。対象のファイルはエージェントに応じて選ぶ。Claude Code なら `CLAUDE.md`、Codex / Cursor / OpenCode / Pi / OpenClaw なら `AGENTS.md`、Gemini CLI なら `GEMINI.md` で、複数のエージェントを使うプロジェクトでは `AGENTS.md` を安全な既定とする。ワークフローの全体、標準の記述、3行の短い版、「同意なしに書き込まない」という取り決めは、新しい `references/agent-memory-integration.md` にある。
 
-### Notes for upgraders
+### アップグレードする人へ
 
-- Existing Claude Code installs pick up this release via `/plugin marketplace update` followed by `/plugin install llm-wiki@llm-wiki` (Claude Code detects the new version in the marketplace entry).
-- Existing `npx skills add` installs for other agents can be refreshed with `npx skills update llm-wiki` or by running the same `npx skills add praneybehl/llm-wiki-plugin -a <agent>` command again.
-- No wiki-format or schema changes; existing wikis keep working unchanged.
+- 既存の Claude Code のインストールは、`/plugin marketplace update` を実行してから `/plugin install llm-wiki@llm-wiki` を実行すれば、このリリースを取得できる（Claude Code がマーケットプレイスの項目で新しいバージョンを検出する）。
+- ほかのエージェントへの既存の `npx skills add` によるインストールは、`npx skills update llm-wiki` を実行するか、同じ `npx skills add praneybehl/llm-wiki-plugin -a <agent>` のコマンドをもう一度実行すれば更新できる。
+- wiki の形式やスキーマの変更はない。既存の wiki はそのまま動く。
 
 ## [0.1.0] — 2026-04-15
 
-Initial release.
+最初のリリース。
 
 ### Added
 
-- `llm-wiki` skill implementing Andrej Karpathy's LLM Wiki pattern as a Claude Code skill, with progressive-disclosure references for architecture, ingest workflow, query workflow, lint workflow, page conventions, and the scaling playbook.
-- Five slash commands: `/wiki:init` (bootstrap a wiki in the current project), `/wiki:ingest` (process a new source), `/wiki:query` (answer a question with citations), `/wiki:lint` (structural and semantic health check), `/wiki:stats` (size, link density, and scaling thresholds).
-- Four bundled Python scripts (stdlib only, Python 3.10+): `init_wiki.py`, `wiki_search.py` (BM25 with frontmatter filters, backlinks, and hub finding), `wiki_lint.py` (orphans, broken links, oversized pages, frontmatter validation, stale pages, page suggestions), `wiki_stats.py` (size and shape report with scaling-threshold recommendations).
-- Templates for `SCHEMA.md`, `index.md`, `log.md`, and a generic page — copied into the user's wiki on bootstrap and then evolved under their editing.
-- Marketplace manifest (`.claude-plugin/marketplace.json`) so the repo doubles as a single-plugin marketplace, installable via `/plugin marketplace add praneybehl/llm-wiki-plugin`.
+- Andrej Karpathy の LLM Wiki パターンを Claude Code のスキルとして実装した `llm-wiki` スキル。アーキテクチャ、取り込みのワークフロー、クエリのワークフロー、lint のワークフロー、ページの規約、スケーリングのプレイブックについて、必要に応じて段階的に読むリファレンスを備える。
+- 5つのスラッシュコマンド: `/wiki:init`（現在のプロジェクトに wiki を作る）、`/wiki:ingest`（新しいソースを処理する）、`/wiki:query`（出典つきで質問に答える）、`/wiki:lint`（構造と内容の健全性チェック）、`/wiki:stats`（規模、リンク密度、スケーリングの閾値）。
+- 同梱の4つの Python スクリプト（標準ライブラリだけを使い、Python 3.10 以上）: `init_wiki.py`、`wiki_search.py`（frontmatter のフィルター、被リンク、ハブの検出を備えた BM25）、`wiki_lint.py`（孤立ページ、リンク切れ、大きすぎるページ、frontmatter の検証、更新の止まったページ、ページの提案）、`wiki_stats.py`（規模と構成のレポートと、スケーリングの閾値にもとづく推奨）。
+- `SCHEMA.md`、`index.md`、`log.md`、汎用のページのテンプレート。初期化のときにユーザーの wiki にコピーし、その後はユーザーが編集して改訂していく。
+- マーケットプレイスのマニフェスト（`.claude-plugin/marketplace.json`）。リポジトリが単一プラグインのマーケットプレイスを兼ね、`/plugin marketplace add praneybehl/llm-wiki-plugin` でインストールできる。
 
-### Scalability design
+### スケーラビリティの設計
 
-- Atomic page sizing enforced by lint (400-line soft cap, 800-line hard cap).
-- Sharded indexes pattern documented and supported by `wiki_stats.py` threshold detection (triggers at ~150 pages or 300 index lines).
-- YAML frontmatter required on every page so `wiki_search.py` can filter without reading bodies.
-- Index-first navigation discipline documented in the query workflow; BM25 search as explicit fallback.
-- Surgical `str_replace` edits over rewrites to keep ingest token-cheap and diffs clean.
-- Chunked source ingestion guidance for large PDFs, transcripts, and long articles.
+- 1ページの大きさを lint で制限する（ソフト上限 400 行、ハード上限 800 行）。
+- インデックスを分割するパターンを文書化し、`wiki_stats.py` の閾値の検出で対応する（約 150 ページ、またはインデックス 300 行で発動する）。
+- `wiki_search.py` が本文を読まずにフィルターできるように、すべてのページに YAML の frontmatter を必須にする。
+- クエリのワークフローに、インデックスから先にたどる規律を書き、BM25 による検索を明示的なフォールバックにする。
+- 取り込みのトークン消費を抑え、差分をきれいに保つために、書き直しではなく `str_replace` で必要な箇所だけを編集する。
+- 大きい PDF、文字起こし、長い記事について、ソースを分割して取り込む方法を案内する。
 
 [2.0.0]: https://github.com/praneybehl/llm-wiki-plugin/releases/tag/v2.0.0
 [Unreleased]: https://github.com/praneybehl/llm-wiki-plugin/compare/v4.0.1...HEAD

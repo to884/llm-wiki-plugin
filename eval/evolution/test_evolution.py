@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Runnable stdlib checks for the complete evolution lifecycle; no model calls.
+"""スキル改善のライフサイクル全体を、標準ライブラリだけで確かめる実行可能なチェック。モデルは呼び出さない。
 
 python eval/evolution/test_evolution.py
-The deterministic runner tests orchestration, not model quality.
+決定的に動くランナーで確かめるのは処理の流れであり、モデルの品質ではない。
 """
 import importlib.util
 import json
@@ -49,7 +49,7 @@ def main():
         experience.write_text(e.encode(data))
         captured = e.capture(SimpleNamespace(raw=raw, record=experience))
         assert Path(captured['raw']).exists()
-        e.capture(SimpleNamespace(raw=raw, record=experience))  # exact retry is safe
+        e.capture(SimpleNamespace(raw=raw, record=experience))  # まったく同じ再試行は安全
         data['task']='different'; experience.write_text(e.encode(data))
         fails(lambda:e.capture(SimpleNamespace(raw=raw, record=experience)), 'Immutable')
         data['id']='../bad';experience.write_text(e.encode(data))
@@ -107,7 +107,7 @@ print(json.dumps({'answer':'correct' if 'candidate' in s else 'wrong',
             (skill/'SKILL.md').write_text('baseline\n')
             assert e.transition(state/'good')['status']=='accepted'
             assert (skill/'SKILL.md').read_text()=='candidate\n'
-            assert e.transition(state/'good')['status']=='accepted'  # idempotent retry
+            assert e.transition(state/'good')['status']=='accepted'  # 冪等な再試行
             (skill/'other.md').write_text('new concurrent file')
             fails(lambda:e.transition(state/'good',True), 'concurrent edits')
             (skill/'other.md').unlink()
@@ -135,7 +135,7 @@ print(json.dumps({'answer':'correct' if 'candidate' in s else 'wrong',
             fails(lambda:evaluate(state,'tamper'), 'snapshot changed')
             proposal(state,'recover')
             evaluate(state,'recover')
-            # Crash after replacement but before completion receipt.
+            # 置き換えのあと、完了の記録を書く前にクラッシュした場合。
             (state/'recover/transition.json').write_text(e.encode({'status':'applying'}))
             (skill/'SKILL.md').write_text('candidate\n')
             assert e.transition(state/'recover')['status']=='accepted'
@@ -153,7 +153,7 @@ print(json.dumps({'answer':'correct' if 'candidate' in s else 'wrong',
         invalid['cost']=float('nan');fails(lambda:e.score(suite['tasks'][0],invalid,corpus))
         suite['tasks'][1]['split']='validation';fails(lambda:e.suite_contract(suite,corpus), 'held-out')
         fails(lambda:e.run_runner([sys.executable,'-c','import time; time.sleep(10)'],{},root,0.05))
-        # Idempotent upgrade preserves schema and custom templates, while surfacing the new marker.
+        # 冪等なアップグレードは、スキーマとカスタマイズしたテンプレートを残したまま、新しいマーカーを知らせる。
         (wiki/'.experience-template.json').write_text('custom')
         with mock.patch.object(init_wiki,'install_runtime'):
             init_wiki.init_wiki(root,'wiki','raw',upgrade=True)

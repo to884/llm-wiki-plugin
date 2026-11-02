@@ -1,25 +1,25 @@
 ---
-title: Graph layer
-description: The optional compiled graph for typed, provenance-backed relationships over the markdown wiki.
+title: グラフ層
+description: markdown の wiki の上に、出典を裏づけに持つ型付きの関係を作る、任意のコンパイル済みグラフ。
 ---
 
 <!-- Adapted from: docs/graph.html (source: skills/llm-wiki/references/graph-workflow.md). -->
 
-# Graph layer
+# グラフ層 {#graph-layer}
 
-The graph is an optional compiled index over the markdown wiki. It makes typed, provenance-backed relationships machine-queryable while keeping markdown canonical, and it can be rebuilt from the pages at any time.
+グラフは、markdown の wiki をもとにコンパイルする、任意のインデックスである。正本は markdown のまま、出典を裏づけに持つ型付きの関係を機械的にクエリできるようにする。グラフはいつでもページから作り直せる。
 
 ::: info
-The graph is opt-in. If `wiki/graph/ontology.yaml` is absent, the wiki is pre-graph: don't run extract / lint / query and don't fabricate ontology files. Seed the layer first (via [`/wiki:graph`](/v3/commands#graph) or [`/wiki:init`](/v3/commands#init)) or proceed without it.
+グラフはオプトイン方式である。`wiki/graph/ontology.yaml` がなければ、その wiki はグラフ層を導入する前の状態である。extract、lint、query を実行したり、オントロジーのファイルをでっち上げたりしてはならない。先に（[`/wiki:graph`](/v3/commands#graph) か [`/wiki:init`](/v3/commands#init) で）グラフ層を初期化するか、グラフなしで進める。
 :::
 
-Markdown pages are canonical; every artifact below is generated and can be deleted and rebuilt at any time.
+正本は Markdown のページで、以下の成果物はすべて生成物である。いつ削除しても作り直せる。
 
 ```mermaid
 flowchart LR
-  md["markdown pages + frontmatter + wikilinks"] --> lintg["wiki_graph_lint.py"]
+  md["markdown のページ + frontmatter + wikilinks"] --> lintg["wiki_graph_lint.py"]
   md --> extract["wiki_graph_extract.py"]
-  lintg -. validates .-> extract
+  lintg -. 検証 .-> extract
   extract --> nodes["nodes.jsonl"]
   extract --> edges["edges.jsonl"]
   extract --> sqlite["graph.sqlite"]
@@ -30,23 +30,23 @@ flowchart LR
   queryg --> out["neighbors / edges / path / facts"]
 ```
 
-## What the graph captures
+## グラフが表すもの {#what-the-graph-captures}
 
-Three classes of edge come out of an extract:
+extract を実行すると、3種類のエッジができる。
 
-1. **Typed semantic edges** declared in a page's `graph.relationships[]` frontmatter (e.g. `founded`, `proposed`, `depends_on`). Each carries an explicit `source` (a source-page slug), an `evidence` quote, a `confidence` (high/medium/low), and a `status` (current/historical/proposed/disputed/superseded). The extractor never invents these.
-2. **`mentions` edges**: one per body `[[wikilink]]`, deduplicated per page, confidence `low`. They accelerate navigation but are not evidence of a typed relationship.
-3. **`sourced_from` and `summarizes_raw` edges**: from a non-source page's `sources:` list to the source page, and from a source page's `raw:` field to the raw file.
+1. **型付きのセマンティックなエッジ**: ページの frontmatter の `graph.relationships[]` で宣言したもの（例: `founded`、`proposed`、`depends_on`）。それぞれに、明示的な `source`（ソースページのスラッグ）、証拠となる引用の `evidence`、`confidence`（high/medium/low）、`status`（current/historical/proposed/disputed/superseded）が付く。抽出スクリプトがこれらを作り出すことはない。
+2. **`mentions` エッジ**: 本文の `[[wikilink]]` 1つにつき1本で、ページごとに重複を除き、confidence は `low` になる。目的のページを早く見つけるためのもので、型付きの関係の証拠にはならない。
+3. **`sourced_from` エッジと `summarizes_raw` エッジ**: 前者はソースページ以外のページの `sources:` リストからソースページへ、後者はソースページの `raw:` フィールドから raw ファイルへ張られる。
 
-## Frontmatter schema
+## frontmatter のスキーマ {#frontmatter-schema}
 
-Typed relationships live in a page's frontmatter:
+型付きの関係は、ページの frontmatter に書く。
 
 ```yaml
 graph:
-  node_id: person:praney-behl       # optional; default <node_type>:<slug>
-  node_type: person                 # optional; default mapped via ontology
-  canonical: true                   # when multiple slugs alias one entity
+  node_id: person:praney-behl       # 任意。既定は <node_type>:<slug>
+  node_type: person                 # 任意。既定はオントロジーの対応付けで決まる
+  canonical: true                   # 複数のスラッグが1つのエンティティの別名になっている場合
   aliases: [Praney, praney@example.com]
   relationships:
     - predicate: founded
@@ -57,44 +57,44 @@ graph:
       status: current
 ```
 
-Required relationship fields: `predicate`, `object`, `source`, `evidence`, `confidence`, `status`. A `node_id` is `<node_type>:<slug>`.
+関係の必須フィールドは、`predicate`、`object`、`source`、`evidence`、`confidence`、`status` である。`node_id` の形式は `<node_type>:<slug>` である。
 
-## The ontology
+## オントロジー {#the-ontology}
 
-`wiki/graph/ontology.yaml` is the contract. It declares `node_types[*].maps_from` (how a page's `type`/`kind` projects onto a node type) and `predicates[*]` (allowed predicates with their `subject_types`, `object_types`, and `requires_evidence`; `"*"` is a wildcard). Edit the ontology to add a domain predicate, then re-run lint to validate existing edges against it.
+`wiki/graph/ontology.yaml` は、グラフの約束事を定めるファイルである。`node_types[*].maps_from`（ページの `type` や `kind` をどのノードの種類に対応させるか）と、`predicates[*]`（使える述語と、それぞれの `subject_types`、`object_types`、`requires_evidence`。`"*"` はワイルドカード）を宣言する。分野固有の述語を追加するにはオントロジーを編集し、lint を再実行して既存のエッジを検証し直す。
 
-## Typed edge vs plain wikilink
+## 型付きエッジと通常の wikilink の使い分け {#typed-edge-vs-plain-wikilink}
 
-Add a **typed edge** when a specific source explicitly states the relationship, you can quote evidence, and the predicate is meaningful for downstream queries. Use a plain **`[[wikilink]]`** when the relationship is implicit, you can't pin it to a single quote, or it would just be a `mentions` edge. When in doubt, write the wikilink: lint surfaces missing evidence; it does not punish under-claiming.
+特定のソースが関係を明示的に述べていて、証拠を引用でき、その述語が後のクエリで意味を持つ場合は、**型付きエッジ**を追加する。関係が暗黙的な場合、1つの引用に結びつけられない場合、`mentions` エッジにしかならない場合は、通常の **`[[wikilink]]`** を使う。迷ったら wikilink を書く。lint は証拠の欠落を指摘するが、控えめに書いたことをとがめはしない。
 
-## Extract, lint, query
+## extract、lint、query {#extract-lint-query}
 
 ```bash
-# Validate typed metadata first; lint never edits.
+# まず型付きメタデータを検証する。lint はファイルを編集しない。
 uv run --script skills/llm-wiki/scripts/wiki_graph_lint.py wiki/
 
-# Compile to nodes.jsonl, edges.jsonl, graph.sqlite, graph.graphml.
+# nodes.jsonl、edges.jsonl、graph.sqlite、graph.graphml にコンパイルする。
 uv run --script skills/llm-wiki/scripts/wiki_graph_extract.py wiki/
 
-# Navigate.
+# グラフをたどる。
 python skills/llm-wiki/scripts/wiki_graph_query.py wiki/ neighbors --node product:konvy
 python skills/llm-wiki/scripts/wiki_graph_query.py wiki/ edges    --subject person:stephanie-emmanouel
 python skills/llm-wiki/scripts/wiki_graph_query.py wiki/ path     --from person:praney-behl --to product:konvy
 python skills/llm-wiki/scripts/wiki_graph_query.py wiki/ facts    --about product:konvy
 ```
 
-`--json` works on both lint and query commands. The same operations are available via the [`/wiki:graph`](/v3/commands#graph) slash command. Always cite the wiki page and its raw source in answers: the graph tells you which page to read; it is not itself the evidence.
+`--json` は lint とクエリの両方のコマンドで使える。同じ操作は [`/wiki:graph`](/v3/commands#graph) スラッシュコマンドでも行える。回答では、必ず wiki ページとその raw ソースを出典にする。グラフはどのページを読めばよいかを教えるもので、グラフそのものは証拠ではない。
 
-## Generated artifact policy
+## 生成物の扱い {#generated-artifact-policy}
 
-| File | Canonical? | Default tracking |
+| ファイル | 正本か | 既定の管理方法 |
 | --- | --- | --- |
-| `ontology.yaml` | Yes: edit by hand | Tracked |
-| `nodes.jsonl` | Generated | Optional: track for graph diffs in PRs |
-| `edges.jsonl` | Generated | Optional: same as above |
-| `graph.sqlite` | Generated | Gitignored by default (large, binary) |
-| `graph.graphml` | Generated | Gitignored by default |
+| `ontology.yaml` | 正本。手で編集する | Git で管理する |
+| `nodes.jsonl` | 生成物 | 任意。PR でグラフの差分を見たいなら管理する |
+| `edges.jsonl` | 生成物 | 任意。上と同じ |
+| `graph.sqlite` | 生成物 | 既定で gitignore（大きいバイナリのため） |
+| `graph.graphml` | 生成物 | 既定で gitignore |
 
 ::: info
-Graph lint and extraction carry pinned PyYAML 6.0.3 metadata and run with `uv run --script`; no manual `pip install` is needed. Graph query uses only Python's standard library.
+グラフの lint と抽出は、PyYAML 6.0.3 に固定したメタデータを持ち、`uv run --script` で実行される。手作業での `pip install` は不要である。グラフのクエリは、Python の標準ライブラリだけを使う。
 :::

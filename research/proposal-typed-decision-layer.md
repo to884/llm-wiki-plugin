@@ -1,58 +1,58 @@
-# Proposal: an optional typed-decision layer (Jev or local Laya)
+# 提案: 任意で使う型付きの判定レイヤー（Jev またはローカルの Laya）
 
-Status: draft, not scheduled · Date: 2026-09-27 · Scope: `skills/llm-wiki/scripts`, `eval/retrieval`
+ステータス: 草案、予定なし · 日付: 2026-09-27 · 範囲: `skills/llm-wiki/scripts`、`eval/retrieval`
 
-## Summary
+## 概要
 
-LLM Wiki's agent makes many small yes/no or pick-one decisions by reading prose instructions: which pages a new source touches, whether a search result is relevant, whether two claims contradict. A **typed-decision model** answers exactly that kind of question: state in, one choice with a probability out, no generated text.
+LLM Wiki のエージェントは、文章の指示を読みながら、はい・いいえや1つを選ぶ小さな判断を数多く行っている。新しいソースがどのページに関係するか、検索結果が関連しているか、2つの主張が矛盾しているか、といった判断である。**型付きの判定モデル**は、まさにこの種の質問に答える。状態を受け取り、確率つきで1つの選択を返し、文章は生成しない。
 
-Two backends speak the same request format:
+2つのバックエンドが、同じリクエストの形式に対応している。
 
-| Backend | Where it runs | Cost | Licence |
+| バックエンド | 動く場所 | 費用 | ライセンス |
 |---|---|---|---|
-| [TypeSafe Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev) | Hosted API | ~$0.042 per million input tokens | Closed |
-| [Laya](https://huggingface.co/convaiinnovations/laya) | Local (PyTorch, Apple MPS or CPU) | Free | Apache-2.0 |
+| [TypeSafe Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev) | ホスト型の API | 入力 100 万トークンあたり約 $0.042 | 非公開 |
+| [Laya](https://huggingface.co/convaiinnovations/laya) | ローカル（PyTorch、Apple MPS または CPU） | 無料 | Apache-2.0 |
 
-Laya ships `laya-serve`, which exposes the same `POST /v1/systemone` request and response **schema** as Jev. One client with a configurable base URL could therefore talk to either. Schema compatibility is not equal quality. Laya's own card says its base checkpoints are near chance zero-shot on typed decisions, ship over-confident until calibrated, and leave only ~320 tokens for state on the English checkpoint.
+Laya には `laya-serve` が付属していて、Jev と同じ `POST /v1/systemone` のリクエストとレスポンスの**スキーマ**を公開する。したがって、ベース URL を設定できる1つのクライアントで、どちらとも通信できるはずである。ただし、スキーマが互換でも、品質が同じとは限らない。Laya 自身のモデルカードには、ベースのチェックポイントは型付きの判定でゼロショットだとほぼ偶然と同じ精度であること、較正するまでは確信度が高すぎること、英語のチェックポイントでは状態に使えるのが約 320 トークンしかないことが書かれている。
 
-**Recommendation:** add one decision first, a relevance reranker on search candidates. Keep it off by default. On the existing retrieval suite, filtering showed **no demonstrated retrieval improvement** (see Measurements). Build a larger, manually labeled hard-negative eval before adopting any backend or threshold. Offer Laya as the local choice and Jev as the opt-in hosted choice.
+**推奨:** まず1つの判定だけを追加する。検索の候補に対する関連度の再ランキングである。既定では無効にしておく。既存の検索のスイートでは、ふるい分けによる**検索の改善は示されなかった**（「測定」を参照）。どのバックエンドや閾値を採用するにしても、その前に、手作業でラベルを付けた、より大きなハードネガティブの評価を作る。ローカルの選択肢として Laya を、オプトインのホスト型の選択肢として Jev を提供する。
 
-## Problem
+## 問題
 
-- `wiki_search.py` fuses BM25 and embedding ranks with RRF and always returns its top N. It has no relevance cutoff. On a personal wiki, a query with no answer still returns five confident-looking sections, and the agent reads them.
-- The retrieval eval already tracks this failure as `fp_rate` (`eval/retrieval/run_eval.py:53`, `:140`) and gates on it (`:224-225`). However, the fixture's five negative queries return no results at all, so the fixture cannot measure the problem it gates on.
-- Ingest, query, and lint decisions are prose judgments inside the agent (`references/ingest-workflow.md`, `query-workflow.md`, `lint-workflow.md`). They cost full-model tokens, vary run to run, and leave no record of what was chosen or why.
+- `wiki_search.py` は、BM25 と埋め込みの順位を RRF で統合し、常に上位 N 件を返す。関連度で切り捨てる仕組みがない。個人の wiki では、答えのないクエリでも、それらしく見えるセクションが5件返り、エージェントはそれを読んでしまう。
+- 検索の評価では、この失敗をすでに `fp_rate` として追跡し（`eval/retrieval/run_eval.py:53`、`:140`）、ゲートにも使っている（`:224-225`）。ところが、フィクスチャにある5件の負例のクエリはまったく結果を返さないので、フィクスチャでは、ゲートにしている問題そのものを測れない。
+- 取り込み、クエリ、lint での判断は、エージェントの中での文章による判断である（`references/ingest-workflow.md`、`query-workflow.md`、`lint-workflow.md`）。フルサイズのモデルのトークンを消費し、実行ごとにばらつき、何を選んだか、なぜ選んだかの記録が残らない。
 
-## Where a typed decision fits
+## 型付きの判定が向いている場面
 
-Ranked by value and by how easily it can be checked:
+価値の大きさと、確かめやすさの順に並べる。
 
-1. **Search relevance reranker** (query). Score a bounded candidate pool (for example the top 20 from hybrid search), then return the best 5. Filtering only the top 5 cannot recover a relevant page ranked 6th or lower. If nothing scores above the threshold, report "no sufficiently relevant result found" and broaden to the unfiltered search before concluding the wiki lacks an answer. The filter can discard a known answer (see q12 below), so an empty filtered set is never proof of absence.
-2. **Ingest candidate pages** (ingest). Score index entries against the new source to shortlist pages to read and flag likely duplicates. The agent still reads and edits the pages.
-3. **Claim relationship** (ingest and lint). For each pair of claims, choose `corroborates | contradicts | new-dimension | mentions`. This feeds the `## Contradictions` handling.
-4. **Closed-set fields**: page `type`, graph predicate, `confidence`, `status`. All come from `SCHEMA.md` or `ontology.yaml`, and `wiki_graph_lint.py` already validates them afterwards.
-5. **Evolution judge pre-filter** (`wiki_evolve_loop.py`). A cheap first pass before the LLM judge. It cannot replace the judge, because the judge must quote evidence verbatim and a typed model generates no text.
+1. **検索の関連度の再ランキング**（クエリ）。範囲を限った候補のまとまり（たとえばハイブリッド検索の上位 20 件）を採点し、上位5件を返す。上位5件だけをふるい分けても、6位以下にある関連ページは取り戻せない。閾値を超えるものがなければ、「十分に関連する結果は見つからなかった」と報告し、wiki に答えがないと結論づける前に、ふるい分けをしない検索に広げる。フィルターは既知の答えを捨てることがある（下の q12 を参照）ので、ふるい分けた結果が空でも、答えがないことの証明にはならない。
+2. **取り込みの候補ページ**（取り込み）。新しいソースに対してインデックスの項目を採点し、読むページの候補を絞り込み、重複していそうなページに印を付ける。ページを読んで編集するのは、引き続きエージェントである。
+3. **主張どうしの関係**（取り込みと lint）。主張の組ごとに、`corroborates | contradicts | new-dimension | mentions` から選ぶ。これを `## Contradictions` の扱いに使う。
+4. **選択肢が決まっているフィールド**: ページの `type`、グラフの述語、`confidence`、`status`。どれも `SCHEMA.md` か `ontology.yaml` から来ていて、`wiki_graph_lint.py` があとで検証している。
+5. **改善のジャッジの事前ふるい分け**（`wiki_evolve_loop.py`）。LLM のジャッジの前に行う安価な一次選別である。ジャッジは証拠をそのまま引用しなければならず、型付きのモデルは文章を生成しないので、ジャッジの代わりにはならない。
 
-**Not suitable:** writing, merging, or summarising pages, generating slugs, or answering questions. The host agent keeps all writing.
+**向いていない場面:** ページを書く、マージする、要約する、スラッグを作る、質問に答える。文章を書く作業は、すべてホストのエージェントが受け持つ。
 
-## Design contract
+## 設計上の取り決め
 
-This follows the "selector chooses, host checks" pattern from [Keel](https://github.com/codejunkie99/keel/blob/main/docs/decision-architecture.md):
+これは、[Keel](https://github.com/codejunkie99/keel/blob/main/docs/decision-architecture.md) の「選ぶのはセレクター、確かめるのはホスト」というパターンに従う。
 
-1. The script prepares the options. The model never invents a page, label, or predicate.
-2. The backend returns one choice (or a probability) per question.
-3. The script validates the answer against the current option set. It fails open: on a timeout, an error, an invalid label, or a missing backend it returns today's unfiltered results.
-4. A filter never deletes data and never blocks a write. It only reorders and narrows what the agent reads. Citations and local-only search stay the default.
-5. Output keeps both the kept rows and the count dropped, so the agent can ask for the full list.
-6. No threshold drives automatic dropping until a representative, labeled wiki-query eval and per-backend calibration support it.
+1. スクリプトが選択肢を用意する。モデルがページ、ラベル、述語を作り出すことはない。
+2. バックエンドは、質問ごとに1つの選択（または確率）を返す。
+3. スクリプトは、その時点の選択肢に照らして回答を検証する。失敗したときは処理を通す（fail open）。タイムアウト、エラー、無効なラベル、バックエンドがない場合は、現在と同じふるい分けなしの結果を返す。
+4. フィルターはデータを削除せず、書き込みを止めることもない。エージェントが読むものの順序を入れ替え、範囲を絞るだけである。出典の表示とローカルだけの検索は、引き続き既定である。
+5. 出力には、残した行と、除いた件数の両方を含める。エージェントは全件の一覧を求められる。
+6. 代表的な、ラベル付きの wiki のクエリの評価と、バックエンドごとの較正の裏づけが得られるまで、閾値で自動的に除くことはしない。
 
-Proposed surface for decision 1:
+判定 1 で提案するインターフェース:
 
 ```text
 wiki_search.py "query" --json --rerank [--rerank-pool 20] [--rerank-threshold <calibrated>]
 ```
 
-Proposed configuration:
+提案する設定:
 
 ```text
 LLM_WIKI_DECISIONS = off | laya | jev              (default off)
@@ -60,7 +60,7 @@ LLM_WIKI_DECISIONS_URL   (default http://127.0.0.1:8000 for laya, https://api.ty
 TYPESAFE_API_KEY         (jev only)
 ```
 
-Request shape (identical for both backends):
+リクエストの形（どちらのバックエンドでも同じ）:
 
 ```json
 {
@@ -72,51 +72,51 @@ Request shape (identical for both backends):
 }
 ```
 
-Use a two-option `choice` with neutral keys rather than a yes/no (`noul`) question. Laya's model card documents `noul` answers sticking to their labels on the English checkpoint ([laya#156](https://github.com/NandhaKishorM/laya/issues/156)).
+はい・いいえ（`noul`）の質問ではなく、中立的なキーを使った2択の `choice` にする。Laya のモデルカードには、英語のチェックポイントで `noul` の回答がラベルに張り付いてしまうことが書かれている（[laya#156](https://github.com/NandhaKishorM/laya/issues/156)）。
 
-## Exploratory measurements (2026-09-27)
+## 探索的な測定（2026-09-27）
 
-**Result: no demonstrated retrieval improvement on the existing suite.** On this fixture, the unfiltered baseline already has a negative-query false-positive rate of 0.0 (negatives return no results). Every filter lowered target recall@5 from 0.815 to 0.778 or worse. Nothing here shows that reranking fixes false positives.
+**結果: 既存のスイートでは、検索の改善は示されなかった。** このフィクスチャでは、ふるい分けをしないベースラインの時点で、負例のクエリの偽陽性率がすでに 0.0 である（負例は結果を返さない）。どのフィルターでも、対象の recall@5 が 0.815 から 0.778 以下に下がった。ここには、再ランキングで偽陽性が直ることを示すものは何もない。
 
-Method: all 32 queries in `eval/retrieval/queries.json` were run through hybrid `wiki_search.py --top 5 --json` over the synthetic fixture corpus. This gave 116 `(query, section)` pairs. Each backend scored every pair with the request above. No private wiki content was used.
+方法: `eval/retrieval/queries.json` の 32 件のクエリをすべて、合成したフィクスチャのコーパスに対してハイブリッドの `wiki_search.py --top 5 --json` で実行した。これで 116 組の `(query, section)` が得られた。各バックエンドで、上のリクエストを使ってすべての組を採点した。非公開の wiki の内容は使っていない。
 
-The `expected` slugs in `queries.json` are **query-level targets** used for recall in `run_eval.py`. They are not exhaustive relevance labels for every section. The "proxy" columns below treat every non-target section as irrelevant, so useful sections count as false positives. These numbers indicate relative ranking only. They are not accuracy, and they do not support a claim like "75% fewer irrelevant reads".
+`queries.json` の `expected` のスラッグは、`run_eval.py` で recall の計算に使う**クエリ単位の対象**である。すべてのセクションについて網羅した関連度のラベルではない。下の「代理」の列では、対象でないセクションをすべて無関係として扱っているので、役に立つセクションも偽陽性に数えられる。これらの数値が示すのは相対的な順位付けだけである。精度ではなく、「無関係な読み込みが 75% 減る」のような主張の裏づけにもならない。
 
-| Backend | Proxy AUROC (target vs non-target) | Rows kept at the highest threshold that still keeps recall@5 at 0.778 | Target recall@5 | Latency |
+| バックエンド | 代理の AUROC（対象と対象外） | recall@5 を 0.778 に保つもっとも高い閾値で残った行 | 対象の recall@5 | レイテンシ |
 |---|---|---|---|---|
-| Unfiltered baseline | – | 116 | 0.815 | – |
-| Jev `jev-1.13.0` (hosted) | 0.885 | 29 (threshold 0.38) | 0.778 | 1.4 s for all 116, batched |
-| Laya English, zero-shot (local) | 0.766 | 62 (threshold 0.51) | 0.778 | p50 110 ms per pair, M-series Mac |
-| Laya `typed-decisions`, zero-shot (local) | 0.756 | 56 (threshold 0.68) | 0.778 | p50 93 ms per pair |
+| ふるい分けなしのベースライン | – | 116 | 0.815 | – |
+| Jev `jev-1.13.0`（ホスト型） | 0.885 | 29（閾値 0.38） | 0.778 | 116 件すべてで 1.4 秒、バッチ処理 |
+| Laya 英語版、ゼロショット（ローカル） | 0.766 | 62（閾値 0.51） | 0.778 | 1組あたり p50 110 ms、M シリーズの Mac |
+| Laya `typed-decisions`、ゼロショット（ローカル） | 0.756 | 56（閾値 0.68） | 0.778 | 1組あたり p50 93 ms |
 
-What this does and doesn't show:
+この測定で分かることと、分からないこと:
 
-- Every backend lost the target for q12, an odd paraphrase whose target section has no heading. A filter can discard a known answer.
-- On this proxy, Jev ranked targets above non-targets more sharply than Laya zero-shot. Whether that reflects true relevance needs manual labels.
-- Thresholds were picked on the same 116 pairs, so they are optimistic and not reusable.
-- The fixture cannot test the motivating failure (plausible sections returned for a no-answer query). An earlier ad-hoc check on a private wiki suggested it happens, but that check sent private text to a hosted API and must not be repeated. Future checks use fixtures only.
-- Cost and latency: Jev about $0.002 for the run. Laya's first call downloaded each ~800 MB checkpoint (3–4 minutes).
+- どのバックエンドも、q12 の対象のセクションを結果から除いてしまった。q12 は変わった言い換えのクエリで、対象のセクションには見出しがない。フィルターは既知の答えを捨てることがある。
+- この代理の指標では、Jev のほうが Laya のゼロショットより、対象を対象外より上にはっきり順位付けた。それが本当の関連度を反映しているかは、手作業のラベルで確かめる必要がある。
+- 閾値は同じ 116 組で選んだので、楽観的な値であり、再利用できない。
+- このフィクスチャでは、きっかけになった失敗（答えのないクエリに、それらしいセクションが返る）を試せない。以前に非公開の wiki で行った場当たり的なチェックでは、それが起きることがうかがえたが、そのチェックは非公開のテキストをホスト型の API に送ったので、繰り返してはならない。今後のチェックにはフィクスチャだけを使う。
+- 費用とレイテンシ: Jev はこの実行で約 $0.002。Laya は最初の呼び出しで、約 800 MB のチェックポイントをそれぞれダウンロードした（3〜4分）。
 
-Laya's model card states the same limit: the base checkpoints are "a fast base to specialise, not a zero-shot decision engine". The card reports that fine-tuning plus fitting one calibration temperature per question type is what closes the gap. Laya's 512-token context on the English checkpoint (~320 tokens for state) is enough for search snippets but not for whole-source ingest decisions; `laya-multilingual` reads up to 8,192 tokens.
+Laya のモデルカードにも同じ限界が書かれている。ベースのチェックポイントは「特化させるための速いベースであり、ゼロショットの判定エンジンではない」。モデルカードによれば、差を埋めるのは、ファインチューニングと、質問の種類ごとに1つの較正用の温度を当てはめることである。英語のチェックポイントでの Laya の 512 トークンのコンテキスト（状態に約 320 トークン）は、検索の抜粋には足りるが、ソース全体を使う取り込みの判定には足りない。`laya-multilingual` は最大 8,192 トークンまで読める。
 
-## Privacy
+## プライバシー
 
-- **Laya:** everything stays on the machine, consistent with the README's promise of local search.
-- **Jev:** the query and section text go to TypeSafe. It must be an explicit opt-in with a clear statement of what is sent. It must never become a default and never run from `setup_wiki.py` or init.
-- `laya-serve` binds `0.0.0.0` with no authentication unless `LAYA_API_KEY` is set. Documentation must tell users to bind `127.0.0.1` or set the key.
+- **Laya:** すべてがマシンの中にとどまる。ローカルで検索するという README の約束と一致する。
+- **Jev:** クエリとセクションのテキストが TypeSafe に送られる。何を送るかをはっきり示したうえで、明示的なオプトインにしなければならない。既定にしてはならず、`setup_wiki.py` や init から実行してもならない。
+- `laya-serve` は、`LAYA_API_KEY` を設定しない限り、認証なしで `0.0.0.0` に bind する。ドキュメントで、`127.0.0.1` に bind するか、キーを設定するよう伝えなければならない。
 
-## Rollout
+## 導入の進め方
 
-1. **Labeled eval first.** Add at least 30 hard-negative queries that share vocabulary with the corpus but have no answer, plus manual relevance labels (relevant / partly / not) for every section in each query's top 20. Acceptance: unfiltered hybrid `fp_rate` > 0, and a second person has checked the labels.
-2. **Decision client.** One small module in `scripts/` that posts the request to the configured URL, times out quickly, and returns `None` on any failure. Acceptance: offline tests with a fake server cover a valid answer, an invalid label, a timeout, and the backend being off.
-3. **`--rerank` in `wiki_search.py`** behind the flag: score the top-20 pool, return the best 5, and fail open. Extend `run_eval.py` with a `hybrid+rerank` row. Acceptance, on the labeled set with calibration fitted on a held-out split: `fp_rate` falls, target recall@5 and recall@10 do not drop, and precision against the manual labels rises. With `off`, output is byte-identical to today.
-4. **Laya calibration.** Fit one temperature per question on the held-out split and re-measure. Decide from the numbers whether Laya is good enough to recommend. A fine-tune is a separate proposal.
-5. **Docs and release.** Document `laya-serve` setup, the Jev opt-in, and the privacy notes. Treat it as a minor version, per `AGENTS.md` release rules.
+1. **まずラベル付きの評価。** コーパスと語彙は共通だが答えのない、ハードネガティブのクエリを 30 件以上追加し、各クエリの上位 20 件のすべてのセクションに、手作業の関連度のラベル（関連する、一部関連する、関連しない）を付ける。受け入れ条件: ふるい分けなしのハイブリッドの `fp_rate` が 0 より大きいこと、ラベルを別の人が確認していること。
+2. **判定のクライアント。** `scripts/` に小さなモジュールを1つ作り、設定した URL にリクエストを送り、すぐにタイムアウトし、失敗したときは必ず `None` を返す。受け入れ条件: フェイクサーバーを使ったオフラインのテストで、有効な回答、無効なラベル、タイムアウト、バックエンドが無効な場合を確かめる。
+3. **`wiki_search.py` の `--rerank`**。フラグを指定したときだけ動くように実装する。上位 20 件の候補を採点し、上位5件を返し、失敗したときは処理を通す。`run_eval.py` に `hybrid+rerank` の行を追加する。受け入れ条件は、ラベル付きのセットで、取り分けておいた分割で較正したうえで、`fp_rate` が下がり、対象の recall@5 と recall@10 が下がらず、手作業のラベルに対する precision が上がることである。`off` のときは、出力が現在とバイト単位で同じであること。
+4. **Laya の較正。** 取り分けておいた分割で、質問ごとに1つの温度を当てはめ、測定し直す。Laya を推奨できるほどよいかは、数値で決める。ファインチューニングは別の提案にする。
+5. **ドキュメントとリリース。** `laya-serve` のセットアップ、Jev のオプトイン、プライバシーの注意点を記載する。`AGENTS.md` のリリースの規則に従い、マイナーバージョンとして扱う。
 
-Decisions 2–5 in the ranked list wait until decision 1 shows a measured gain on the labeled set.
+順位の一覧の判定 2〜5 は、判定 1 がラベル付きのセットで測定可能な改善を示すまで待つ。
 
-## Open questions
+## 未解決の問い
 
-- Should the filter be the default in the query workflow when a backend is configured, or stay a flag the agent chooses?
-- Should the plugin launch `laya-serve` itself or only document it? Launching adds a Python and PyTorch dependency, about 800 MB per checkpoint, to a plugin that currently needs only `uv`.
-- Is a fine-tuned wiki-relevance Laya checkpoint worth maintaining, or is Jev opt-in plus "off" enough?
+- バックエンドが設定されているとき、フィルターをクエリのワークフローの既定にするべきか。それとも、エージェントが選ぶフラグのままにするべきか。
+- プラグイン自身が `laya-serve` を起動するべきか、それともドキュメントで案内するだけにするべきか。起動するなら、現在は `uv` しか必要としないプラグインに、Python と PyTorch の依存関係と、チェックポイントごとに約 800 MB が加わる。
+- wiki の関連度向けにファインチューニングした Laya のチェックポイントを保守する価値はあるか。それとも、Jev のオプトインと「off」で十分か。

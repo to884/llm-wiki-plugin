@@ -1,24 +1,22 @@
 #!/usr/bin/env python3
 """
-init_wiki.py — Bootstrap or upgrade an LLM Wiki at a chosen filesystem location.
+init_wiki.py — 指定したファイルシステム上の場所に LLM Wiki を初期化、またはアップグレードする。
 
-Plain init creates the directory layout and drops in templates for SCHEMA.md,
-index.md, log.md, the page template, and the optional graph layer
-(graph/ontology.yaml, graph/README.md, graph/.gitignore). It is idempotent:
-re-running won't clobber existing files.
-Both modes then install and verify the pinned local runtime, model cache,
-parse cache, and vectors for every current wiki section through `uv`.
+通常の初期化では、ディレクトリ構成を作り、SCHEMA.md、index.md、log.md、ページのテンプレート、
+任意のグラフ層（graph/ontology.yaml、graph/README.md、graph/.gitignore）のテンプレートを置く。
+冪等なので、再実行しても既存のファイルは上書きしない。
+どちらのモードでも、そのあと `uv` を通じて、バージョンを固定したローカルの実行環境、
+モデルのキャッシュ、パースキャッシュ、現在の wiki の全セクションのベクトルをインストールし、検証する。
 
-`--upgrade` mode is for wikis bootstrapped under an older plugin version. It
-does the same idempotent file creation, then inspects the existing SCHEMA.md
-for sections introduced in newer versions and prints clear instructions for
-what to merge by hand. It never overwrites SCHEMA.md — the schema is
-co-evolved with the user.
+`--upgrade` モードは、古いバージョンのプラグインで初期化した wiki 向けである。
+同じく冪等にファイルを作成したあと、既存の SCHEMA.md に新しいバージョンで加わった
+セクションがあるかを調べ、手作業でマージすべき内容をわかりやすく表示する。
+SCHEMA.md は決して上書きしない。スキーマはユーザーと一緒に改訂していくものだからである。
 
-Usage:
+使い方:
     python init_wiki.py <base-dir> [--wiki-dir wiki] [--raw-dir raw] [--upgrade]
 
-Examples:
+例:
     python init_wiki.py .
     python init_wiki.py . --upgrade
     python init_wiki.py ~/research --wiki-dir kb --raw-dir sources
@@ -38,9 +36,9 @@ TEMPLATES = SKILL_ROOT / "assets"
 
 SUBDIRS = ["sources", "entities", "concepts", "synthesis", "graph"]
 
-# Markers used by --upgrade to detect SCHEMA.md sections introduced in
-# specific plugin versions. Each entry: (heading_marker, version_label,
-# template_anchor, blurb).
+# --upgrade が、特定のプラグインのバージョンで加わった SCHEMA.md のセクションを
+# 検出するためのマーカー。各項目は (heading_marker, version_label,
+# template_anchor, blurb) である。
 SCHEMA_SECTION_MARKERS = [
     {
         "marker": "## Skill evolution",
@@ -82,7 +80,7 @@ SCHEMA_SECTION_MARKERS = [
 
 
 def copy_template(src: Path, dst: Path, substitutions: dict | None = None) -> bool:
-    """Copy a template file to dst. Returns True if file was created, False if it already existed."""
+    """テンプレートのファイルを dst にコピーする。ファイルを作成したら True、すでにあれば False を返す。"""
     if dst.exists():
         return False
     text = src.read_text()
@@ -95,7 +93,7 @@ def copy_template(src: Path, dst: Path, substitutions: dict | None = None) -> bo
 
 
 def detect_schema_gaps(schema_path: Path) -> list[dict]:
-    """Return the SCHEMA_SECTION_MARKERS entries missing from the user's SCHEMA.md."""
+    """SCHEMA_SECTION_MARKERS のうち、ユーザーの SCHEMA.md にない項目を返す。"""
     if not schema_path.exists():
         return []
     text = schema_path.read_text(encoding="utf-8")
@@ -133,7 +131,7 @@ def print_schema_upgrade_guidance(schema_path: Path, gaps: list[dict]) -> None:
 
 
 def install_runtime(wiki: Path) -> None:
-    """Install pinned dependencies, cache the model, and synchronize the wiki index."""
+    """バージョンを固定した依存パッケージをインストールし、モデルをキャッシュし、wiki のインデックスを同期する。"""
     uv = shutil.which("uv")
     if not uv:
         print(
@@ -177,7 +175,7 @@ def init_wiki(project_root: Path, wiki_dir: str, raw_dir: str, upgrade: bool = F
     created = []
     skipped = []
 
-    # Create wiki subdirs
+    # wiki のサブディレクトリを作る
     for subdir in SUBDIRS:
         d = wiki / subdir
         if not d.exists():
@@ -186,7 +184,7 @@ def init_wiki(project_root: Path, wiki_dir: str, raw_dir: str, upgrade: bool = F
         else:
             skipped.append(f"{wiki_dir}/{subdir}/")
 
-    # Create raw + raw/assets
+    # raw と raw/assets を作る
     for d, label in [(raw, raw_dir), (raw / "assets", f"{raw_dir}/assets")]:
         if not d.exists():
             d.mkdir(parents=True)
@@ -194,7 +192,7 @@ def init_wiki(project_root: Path, wiki_dir: str, raw_dir: str, upgrade: bool = F
         else:
             skipped.append(f"{label}/")
 
-    # Copy templates
+    # テンプレートをコピーする
     template_map = [
         ("SCHEMA.md.template", wiki / "SCHEMA.md"),
         ("index.md.template", wiki / "index.md"),
@@ -218,7 +216,7 @@ def init_wiki(project_root: Path, wiki_dir: str, raw_dir: str, upgrade: bool = F
         else:
             skipped.append(str(dst.relative_to(project_root)))
 
-    # Report
+    # 結果を報告する
     if created:
         print("Created:")
         for path in created:

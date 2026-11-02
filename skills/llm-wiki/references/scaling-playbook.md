@@ -1,92 +1,92 @@
-# Scaling Playbook
+# スケーリングの手引き
 
-Thresholds at which the wiki's structure needs to evolve, and the migration steps. The goal is to keep the wiki's context cost roughly constant per query as the wiki grows — the LLM should never need to read more pages or larger pages just because the wiki got bigger.
+wiki の構造を変える必要が出てくる閾値と、その移行の手順をまとめる。目的は、wiki が大きくなっても、1回のクエリにかかるコンテキストの量をほぼ一定に保つことである。wiki が大きくなったからといって、LLM が読むページの数やページの大きさが増えるようではいけない。
 
-## The bottleneck
+## ボトルネック
 
-Naive LLM Wiki implementations break at scale because of a few specific failure modes, each of which has a structural fix:
+素朴な LLM Wiki の実装は、規模が大きくなると、いくつかの決まった失敗で破綻する。それぞれに構造上の対策がある。
 
-- **The index file becomes too large to read cheaply.** Fix: shard the index by category.
-- **Pages grow unboundedly as more sources mention them.** Fix: enforce the page size cap; split when violated.
-- **Index summaries become too vague to disambiguate candidates.** Fix: tighten summaries; introduce frontmatter filtering via the search script.
-- **Brute-force grep over the wiki replaces index-first navigation.** Fix: make the index actually useful and use the search script as the explicit fallback.
+- **インデックスのファイルが大きくなりすぎ、安く読めなくなる。** 対策: カテゴリごとにインデックスを分割する。
+- **多くのソースが言及するにつれて、ページが際限なく大きくなる。** 対策: ページのサイズの上限を守らせ、超えたら分割する。
+- **インデックスの要約があいまいになりすぎ、候補を見分けられなくなる。** 対策: 要約を引き締め、検索スクリプトによる frontmatter での絞り込みを導入する。
+- **インデックスを先に読むナビゲーションの代わりに、wiki 全体を力任せに grep するようになる。** 対策: インデックスを実際に役立つものにし、明示的な代替手段として検索スクリプトを使う。
 
-## Threshold 1: ~50 pages
+## 閾値 1: 約 50 ページ
 
-Below this scale, you need almost no structure. A flat `wiki/` directory with `index.md` and `log.md` is enough. The categorical subdirectories (`entities/`, `concepts/`, etc.) are still worth using from the start because they're free, but the index doesn't need sharding and the search script is overkill.
+この規模までは、構造はほとんど要らない。`index.md` と `log.md` のある階層のない `wiki/` ディレクトリで足りる。種類ごとのサブディレクトリ（`entities/`、`concepts/` など）は手間がかからないので最初から使う価値があるが、インデックスの分割は不要で、検索スクリプトも過剰である。
 
-## Threshold 2: ~150 pages OR `index.md` over 300 lines
+## 閾値 2: 約 150 ページ、または `index.md` が 300 行を超えたとき
 
-Time to **shard the index**. The migration:
+**インデックスを分割する**ときである。移行の手順は次のとおりである。
 
-1. Create `wiki/indexes/` directory.
-2. Split `index.md` by category into `indexes/sources.md`, `indexes/entities.md`, `indexes/concepts.md`, `indexes/synthesis.md` (and any custom types from the schema). Each shard is a list of pages of that type, with the same one-line summaries.
-3. Rewrite the top-level `index.md` to be a directory of shards: each shard linked, with a one-line description of what's in it and a count.
-4. Update the schema to document the sharded structure.
-5. Update the ingest workflow in your working memory: now you update `indexes/<type>.md`, not `index.md` directly.
+1. `wiki/indexes/` ディレクトリを作る。
+2. `index.md` をカテゴリごとに、`indexes/sources.md`、`indexes/entities.md`、`indexes/concepts.md`、`indexes/synthesis.md`（と、スキーマにある独自の種類のファイル）に分ける。それぞれのファイルは、その種類のページを、同じ1行の要約つきで並べたものにする。
+3. トップレベルの `index.md` を、分割したファイルの一覧に書き直す。それぞれへのリンクと、中身を説明する1行と、件数を書く。
+4. スキーマを更新して、分割した構造を記す。
+5. 作業中に覚えている取り込みのワークフローを更新する。今後は `index.md` を直接更新するのではなく、`indexes/<type>.md` を更新する。
 
-The top-level `index.md` should now be tiny — under 50 lines — and the shards are each bounded by the type-specific volume.
+これでトップレベルの `index.md` は 50 行未満の小さなものになり、分割したそれぞれのファイルの大きさは、種類ごとの量で決まる上限に収まる。
 
-If a single shard later exceeds 300 lines (most likely `entities.md` or `concepts.md` if the wiki has a strong topical focus), shard *that* by sub-category: `indexes/entities-people.md`, `indexes/entities-papers.md`, etc. The principle generalizes.
+あとで1つのファイルが 300 行を超えたら（wiki の話題がはっきり絞られていれば、`entities.md` か `concepts.md` である可能性が高い）、*そのファイル*をさらに下位のカテゴリで分割する。`indexes/entities-people.md`、`indexes/entities-papers.md` などである。この原則はどの段階にも当てはまる。
 
-## Threshold 3: ~300 pages
+## 閾値 3: 約 300 ページ
 
-Time to use the **search script as a routine fallback**. Index navigation still works for direct lookups, while fuzzy queries benefit from default local semantic + BM25 ranking.
+**検索スクリプトを日常的な代替手段として使う**ときである。直接の参照にはインデックスによるナビゲーションが引き続き使えるが、あいまいなクエリでは、既定のローカルのセマンティック検索と BM25 による順位付けが役に立つ。
 
-`scripts/wiki_search.py` provides:
+`scripts/wiki_search.py` には次の機能がある。
 
-- `uv run --script scripts/wiki_search.py "query terms"` — section-level local hybrid results.
-- `python scripts/wiki_search.py "query terms" --no-embed` — dependency-free lexical BM25 (bypasses PEP 723 dependency resolution).
-- `--type concept` — filter by frontmatter type.
-- `--tag <tag>` — filter by tag.
-- `--since 2026-01-01` — filter by `updated` date.
-- `--backlinks <slug>` — find pages that link to a given page.
-- `--top-linked N` — find the N most-linked-to pages (hubs).
+- `uv run --script scripts/wiki_search.py "query terms"`: セクション単位のローカルのハイブリッド検索の結果。
+- `python scripts/wiki_search.py "query terms" --no-embed`: 依存パッケージを使わない語彙ベースの BM25（PEP 723 による依存解決を通さない）。
+- `--type concept`: frontmatter の type で絞り込む。
+- `--tag <tag>`: タグで絞り込む。
+- `--since 2026-01-01`: `updated` の日付で絞り込む。
+- `--backlinks <slug>`: 指定したページにリンクしているページを探す。
+- `--top-linked N`: もっとも多くリンクされている N 個のページ（ハブ）を探す。
 
-The model cache is shared under `~/.cache/llm-wiki/fastembed/`; per-wiki vectors stay in `.wiki-cache/embeddings.sqlite`. Future sessions should reach for this bounded retrieval path instead of recursive grep.
+モデルのキャッシュは `~/.cache/llm-wiki/fastembed/` で共有され、wiki ごとのベクトルは `.wiki-cache/embeddings.sqlite` に置かれる。今後のセッションでは、再帰的な grep ではなく、読む量に上限のあるこの検索の経路を使うべきである。
 
-## Threshold 4: ~500 pages
+## 閾値 4: 約 500 ページ
 
-At this scale, two things start to matter:
+この規模になると、次の2つが重要になる。
 
-**Structural lint cadence becomes weekly or per-N-ingests.** Manual oversight stops scaling. Rely on `wiki_lint.py` to surface structural drift and triage with the user.
+**構造の lint を、週1回か N 回の取り込みごとに行う。** 人の目による監督では追いつかなくなる。`wiki_lint.py` で構造のずれを洗い出し、ユーザーと一緒に仕分ける。
 
-**The search script may want a persistent parse cache.** The default `wiki_search.py` rebuilds its BM25 index on every run, which is fine up to a few thousand pages. Beyond that, pass `--cache` to persist an incremental parse cache to disk (default `wiki/.wiki-cache/search-index.json`). It's keyed by each file's content hash, so only changed pages are reparsed and results are guaranteed identical to a cold, cacheless run.
+**検索スクリプトには、永続的なパースキャッシュがあったほうがよい場合がある。** 既定の `wiki_search.py` は実行のたびに BM25 のインデックスを作り直すが、数千ページまではそれで問題ない。それを超える場合は、`--cache` を付けて、差分更新のパースキャッシュをディスクに保存する（既定は `wiki/.wiki-cache/search-index.json`）。キャッシュは各ファイルの内容のハッシュをキーにしているので、変更されたページだけが再パースされ、結果はキャッシュを使わない初回の実行と同じになることが保証される。
 
-Also consider whether the wiki has organically split into distinct topic clusters that don't really cross-reference each other. If so, a single wiki may be the wrong shape — splitting into per-topic wikis (each with its own `SCHEMA.md`, `index.md`, etc.) may be cleaner. The user should make this call.
+あわせて、wiki が、互いにほとんど相互参照しない別々の話題のまとまりに自然と分かれていないかも検討する。分かれているなら、1つの wiki という形が合っていない可能性がある。話題ごとの wiki（それぞれに `SCHEMA.md`、`index.md` などを持つ）に分けたほうがすっきりするかもしれない。この判断はユーザーが行う。
 
-## Threshold 5: ~1,000+ pages
+## 閾値 5: 約 1,000 ページ以上
 
-At this scale, the question is whether the LLM Wiki pattern is still the right tool. Markdown + grep + frontmatter scales further than people expect (the gist author reports a wiki of ~100 articles and ~400K words working fine), but at some point a real database with structured queries beats markdown. Signals it's time to consider migrating:
+この規模では、LLM Wiki のパターンがまだ適切なツールかどうかが問題になる。Markdown、grep、frontmatter の組み合わせは、思われているよりも大きな規模まで使える（gist の著者は、約 100 本の記事と約 40 万語の wiki で問題なく動いていると報告している）。しかし、ある時点からは、構造化されたクエリを使える本物のデータベースのほうが markdown より優れる。移行を検討すべき兆候は次のとおりである。
 
-- The user's queries are predominantly relational ("show me all papers from author X cited by papers in topic Y published after date Z"). A graph database serves this better.
-- Lint reports are too long to triage even at high cadence.
-- The schema has grown to specify dozens of types and hundreds of tags — at that point you've manually built a database schema in markdown.
+- ユーザーのクエリの多くが関係を問うものである（「トピック Y の論文に引用され、日付 Z より後に発表された、著者 X のすべての論文を示して」）。これにはグラフデータベースのほうが向いている。
+- lint を高い頻度で行っても、レポートが長すぎて仕分けられない。
+- スキーマが何十もの種類と何百ものタグを定めるほど大きくなっている。そうなると、markdown の中に手作業でデータベースのスキーマを作ったのと同じである。
 
-If the user wants to migrate, the markdown wiki is excellent input for the migration: every page has frontmatter and `[[wikilinks]]` that map cleanly to a property graph.
+ユーザーが移行を望むなら、markdown の wiki は移行の入力としてとても優れている。どのページにも frontmatter と `[[wikilinks]]` があり、プロパティグラフにそのまま対応付けられる。
 
-## When to *not* shard
+## 分割*しない*ほうがよいとき
 
-Sharding is irreversible-ish (you can un-shard, but it's annoying), so don't do it preemptively. Wait for the actual threshold. A wiki of 80 pages with a sharded index has worse usability than the same wiki with a flat index, because the shards add a navigation step without enough volume to justify it.
+分割は元に戻しにくい（戻すことはできるが手間がかかる）ので、先回りして行わない。実際に閾値に達するまで待つ。80 ページの wiki でインデックスを分割すると、同じ wiki で階層のないインデックスを使う場合より使いにくくなる。分割するとナビゲーションの手順が1つ増えるのに、それに見合うだけの量がないからである。
 
-## When to introduce custom page types
+## 独自のページの種類を追加するとき
 
-The default types (`source`, `entity`, `concept`, `synthesis`) cover most use cases. Add a custom type only when the user has a clear category of pages that don't fit any default and that benefits from being a distinct subdirectory (queryable, distinct lint rules, distinct templates). Examples that justify it:
+既定の種類（`source`、`entity`、`concept`、`synthesis`）で、ほとんどの用途を賄える。独自の種類を追加するのは、どの既定の種類にもうまく当てはまらないページのカテゴリがはっきりしていて、独立したサブディレクトリにすると役立つ（クエリしやすい、lint のルールやテンプレートを分けられる）場合だけにする。追加が正当化される例は次のとおりである。
 
-- `decision` pages for a team that documents architectural decisions
-- `experiment` pages for a research lab logging trial results
-- `character` pages for a fan wiki tracking a fictional cast
-- `meeting` pages for a team logging meetings
+- アーキテクチャの決定を記録するチームの `decision` のページ
+- 試行の結果を記録する研究室の `experiment` のページ
+- 架空の登場人物を追うファンの wiki の `character` のページ
+- 会議を記録するチームの `meeting` のページ
 
-Don't add a type for a one-off — use tags instead. Adding a type is a schema change that affects the index, the lint script, and every future ingest.
+1回限りのもののために種類を追加してはならない。その場合はタグを使う。種類の追加はスキーマの変更であり、インデックス、lint のスクリプト、今後のすべての取り込みに影響する。
 
-## Detecting "we've outgrown our conventions"
+## 規約に収まらなくなったことに気づく
 
-Some signals that the schema needs revision rather than just more lint:
+lint を増やすだけでなく、スキーマを見直す必要がある兆候には次のものがある。
 
-- The same kind of frontmatter issue keeps reappearing — the field needs to be optional, or the bootstrap template needs an example.
-- Pages keep getting created that don't fit cleanly into any existing type — a new type is wanted.
-- The tag list has grown unmanageable — prune, consolidate, or formalize the taxonomy.
-- The user keeps overriding the LLM on a particular kind of decision — encode their preference in the schema so it persists across sessions.
+- 同じ種類の frontmatter の問題が繰り返し起きる。そのフィールドを任意にするか、初期化のテンプレートに例を入れる必要がある。
+- どの既存の種類にもうまく当てはまらないページが作られ続ける。新しい種類が求められている。
+- タグの一覧が管理できないほど増えている。整理するか、まとめるか、体系を正式に決める。
+- 特定の種類の判断で、ユーザーが LLM の判断を繰り返し覆している。セッションをまたいで残るように、ユーザーの好みをスキーマに書く。
 
-Schema revision is healthy. A schema that doesn't change after the first few weeks of a wiki's life is probably not being used.
+スキーマの見直しは健全なことである。wiki を使い始めて最初の数週間のあとにスキーマが一度も変わらないなら、おそらくスキーマが使われていない。

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression tests for mandatory init and upgrade runtime setup."""
+"""init と upgrade で必ず行う実行環境のセットアップの回帰テスト。"""
 
 import contextlib
 import io

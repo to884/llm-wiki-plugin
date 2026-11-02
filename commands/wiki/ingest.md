@@ -1,30 +1,30 @@
 ---
-description: Ingest a source (paper, article, transcript, PDF, notes) into the LLM Wiki.
-argument-hint: "<source-path-or-url-or-description>"
+description: ソース（論文、記事、文字起こし、PDF、メモ）を LLM Wiki に取り込む。
+argument-hint: "<ソースのパス、URL、または説明>"
 ---
 
-Ingest the source into the wiki using the `llm-wiki` skill's ingest workflow.
+`llm-wiki` スキルの取り込みワークフローに従い、ソースを wiki に取り込む。
 
-Source: $ARGUMENTS
+ソース: $ARGUMENTS
 
-Follow the full ingest procedure documented in the skill:
+スキルに書かれている取り込みの手順をすべて実行する。
 
-0. Resolve `<WIKI_ROOT>` and `<RAW_ROOT>` from an explicit user path, the nearest project instructions, global agent instructions, or finally the current project's `wiki/` and `raw/`. Never assume `${PWD}/wiki` when instructions name another wiki, and never combine two wikis silently.
-1. Read `<WIKI_ROOT>/SCHEMA.md` first if you haven't this session: it may override default conventions.
-2. Place the raw source in `<RAW_ROOT>/` if it isn't already there. Use a slugified filename.
-3. Read the source. Chunk-read if it's large (over ~5000 words / a long PDF): never load the whole thing into context if it would consume more than ~25% of the context window.
-4. Briefly discuss the key takeaways with me before writing anything to the wiki: what stands out, what connects to existing pages, what's surprising.
-5. Survey the wiki to identify which existing pages this source touches; read each candidate to confirm.
-6. Write the source-summary page in `<WIKI_ROOT>/sources/`, surgically update touched entity/concept pages with `str_replace`, create new pages for new entities/concepts (each with at least one inbound link), update the index, append one line to `log.md`.
-7. If `<WIKI_ROOT>/graph/ontology.yaml` exists and the ingest added or could add typed `graph.relationships[]`: add typed edges only when the source explicitly supports them (predicate, source-page slug, evidence quote, confidence, status). Then run `uv run --script "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_graph_lint.py" "<WIKI_ROOT>"`, triage findings with me, and run `uv run --script "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_graph_extract.py" "<WIKI_ROOT>"`. Append a `   graph: +N nodes, +M typed edges` sub-line under the ingest entry in `log.md`.
-8. Tell me what you did when you're done: pages touched, pages created, contradictions flagged, follow-ups worth investigating.
+0. `<WIKI_ROOT>` と `<RAW_ROOT>` は、ユーザーが明示したパス、もっとも近いプロジェクトの指示、グローバルなエージェントの指示の順に探し、どれにもなければ現在のプロジェクトの `wiki/` と `raw/` とする。指示が別の wiki を指定しているときに `${PWD}/wiki` を前提にしてはならず、2つの wiki を黙って混ぜてもならない。
+1. このセッションでまだ読んでいなければ、最初に `<WIKI_ROOT>/SCHEMA.md` を読む。既定の規約がここで上書きされていることがある。
+2. raw ソースがまだ `<RAW_ROOT>/` にない場合は、そこに置く。ファイル名はスラッグ化したものにする。
+3. ソースを読む。大きい場合（約 5000 語を超える、または長い PDF）は分割して読む。コンテキストウィンドウの約 25% を超えるなら、全体を一度にコンテキストに読み込んではならない。
+4. wiki に何かを書く前に、要点をユーザーと簡単に話し合う。目立つ点、既存のページとつながる点、意外な点を挙げる。
+5. wiki を調べて、このソースが関係する既存のページを洗い出す。候補のページはそれぞれ読んで確かめる。
+6. `<WIKI_ROOT>/sources/` にソースの要約ページを書く。関係するエンティティやコンセプトのページは、`str_replace` で必要な箇所だけを更新する。新しいエンティティやコンセプトには新しいページを作り、それぞれに少なくとも1つの被リンクを付ける。インデックスを更新し、`log.md` に1行追記する。
+7. `<WIKI_ROOT>/graph/ontology.yaml` があり、今回の取り込みで型付きの `graph.relationships[]` を追加した、または追加できる場合は、ソースが明示的に裏づけている場合に限って型付きのエッジを追加する（述語、ソースページのスラッグ、証拠となる引用、確信度、ステータスを付ける）。次に `uv run --script "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_graph_lint.py" "<WIKI_ROOT>"` を実行し、検出結果をユーザーと一緒に仕分けてから、`uv run --script "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_graph_extract.py" "<WIKI_ROOT>"` を実行する。`log.md` の取り込みの行の下に、`   graph: +N nodes, +M typed edges` というサブ行を追記する。
+8. 作業が終わったら、何をしたかをユーザーに伝える。更新したページ、作成したページ、指摘した矛盾、追って調べる価値のある点を報告する。
 
-**Hosted wiki.** If the resolved wiki is a hosted URL (or the instructions name one), use hosted mode from `skills/llm-wiki/references/hosted-mode.md`: the MCP tools, or `python3 "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_remote.py"` when MCP is not available. Use these forms of the steps above:
+**ホスト型 wiki。** 特定した wiki がホスト型の URL である場合（または指示でホスト型の URL が指定されている場合）は、`skills/llm-wiki/references/hosted-mode.md` のホストモードを使う。MCP ツールを使い、MCP が使えないときは `python3 "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_remote.py"` を使う。上の手順は、次のように置き換える。
 
-- Step 1: call `wiki_overview`. It returns `SCHEMA.md` and `index.md`.
-- Step 2: upload the file with `wiki_remote.py raw put <file>`, or save a text source with `wiki_raw` `put_text`. If the server has no raw storage, keep the file local and record its path and SHA-256 in the source page.
-- Step 3: read large raw files in parts with `wiki_raw` `read`, `offset` and `length`.
-- Step 6: send one `wiki_commit`. Use `create` for new pages, `edit` (the hosted `str_replace`) with `base_rev` for touched pages, and `append` for the index line and the `log.md` line. After a conflict, read the page again and retry. Never replace another agent's change.
-- Step 7: do not run extract. The server updates the graph in the same commit. Run `wiki_lint` and triage the graph findings with me.
+- 手順 1: `wiki_overview` を呼び出す。`SCHEMA.md` と `index.md` が返る。
+- 手順 2: ファイルは `wiki_remote.py raw put <file>` でアップロードし、テキストのソースは `wiki_raw` の `put_text` で保存する。サーバーに raw ストレージがない場合は、ファイルをローカルに置いたままにし、そのパスと SHA-256 をソースページに記録する。
+- 手順 3: 大きい raw ファイルは、`wiki_raw` の `read` に `offset` と `length` を指定して分割して読む。
+- 手順 6: `wiki_commit` を1回送る。新しいページには `create`、更新するページには `base_rev` を付けた `edit`（ホスト版の `str_replace`）、インデックスの行と `log.md` の行には `append` を使う。競合が起きたら、ページを読み直して再試行する。ほかのエージェントの変更を上書きしてはならない。
+- 手順 7: extract は実行しない。サーバーが同じコミットの中でグラフを更新する。`wiki_lint` を実行し、グラフの検出結果をユーザーと一緒に仕分ける。
 
-If the wiki doesn't exist yet, suggest `/wiki:init --global` for one personal cross-project wiki, `/wiki:init` for a project wiki, or `/wiki:init --hosted <url>` for a hosted wiki.
+wiki がまだない場合は、プロジェクトをまたいで使う個人用の wiki なら `/wiki:init --global`、プロジェクト用の wiki なら `/wiki:init`、ホスト型の wiki なら `/wiki:init --hosted <url>` を提案する。

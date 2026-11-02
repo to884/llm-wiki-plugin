@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Capture experience and validate evidence-linked, skill improvements.
+"""経験を記録し、証拠にもとづくスキルの改善を検証する。
 
-Stdlib only. Candidates run in copies; the installed skill changes only with
-`apply`. `rollback` restores the accepted experiment's original file, refusing
-concurrent edits. The local runner is a trusted executable, not a sandbox.
+標準ライブラリのみ。候補はコピーの中で実行し、インストール済みのスキルが変わるのは
+`apply` のときだけである。`rollback` は、採用した実験の元のファイルを復元し、
+同時に行われた編集があれば拒否する。ローカルのランナーは信頼された実行ファイルであり、サンドボックスではない。
 
-Examples:
+例:
   python wiki_evolve.py capture --raw ~/wiki/raw --record experience.json
   python wiki_evolve.py --wiki ~/wiki propose --id query-v1 --skill ./my-skill \
     --target references/query.md --candidate /tmp/query.md \
@@ -124,7 +124,7 @@ def locked(wiki):
     require(not state.is_symlink(), 'Evolution directory cannot be a symlink')
     state.mkdir(exist_ok=True)
     lock = state / 'lock'
-    # ponytail: one wiki-wide lock; use per-experiment locks if concurrent runs matter.
+    # ponytail: wiki 全体で1つのロックを使う。同時実行が問題になるなら、実験ごとのロックにする。
     try:
         lock.mkdir()
     except FileExistsError:
@@ -296,9 +296,9 @@ def run_runner(argv, request, cwd, timeout):
         return json.loads(stdout)
     except BaseException:
         if os.name == 'posix':
-            # Native CLIs can detach shell tools into another process group.
-            # Snapshot descendants BEFORE killing their parent, or they become
-            # unidentifiable orphans. The host must permit process inspection.
+            # ネイティブな CLI は、シェルのツールを別のプロセスグループに切り離すことがある。
+            # 親を kill する前に子孫プロセスのスナップショットを取る。そうしないと、
+            # 特定できない孤児プロセスになる。ホストはプロセスの調査を許可している必要がある。
             try:
                 rows = subprocess.check_output(['ps', '-eo', 'pid=,ppid='], text=True, stderr=subprocess.DEVNULL)
                 parents = {int(pid): int(ppid) for pid, ppid in (line.split() for line in rows.splitlines())}
@@ -339,12 +339,12 @@ def evaluate(args, exp):
     require(args.repeats >= 1 and args.timeout > 0, 'Positive repeats and timeout required')
     require(args.model.strip() and args.tools.strip(), 'Model and tool versions required')
     suite_contract(suite, corpus)
-    # Preserve inputs before invoking a runner, including for failed/interrupted trials.
+    # ランナーを呼び出す前に入力を保存する。失敗した試行や中断した試行も対象にする。
     event(exp, 'inputs', {'suite': suite, 'model': args.model, 'tools': args.tools,
                           'runner': runner, 'repeats': args.repeats, 'timeout': args.timeout,
                           'proposal_sha256': digest((exp / 'proposal.json').read_bytes())})
     corpus_hash = copy_tree(corpus, exp / 'corpus')
-    # Every rollout receives a fresh copy of the archived inputs.
+    # 実行のたびに、アーカイブした入力の新しいコピーを渡す。
     with tempfile.TemporaryDirectory(prefix='wiki-evaluation-') as tmp:
         workspace = Path(tmp)
         require(copy_tree(exp / 'corpus', workspace / 'corpus') == corpus_hash,
@@ -354,7 +354,7 @@ def evaluate(args, exp):
         try:
             for repeat in range(args.repeats):
                 for task in tasks:
-                    # Alternate order to reduce systematic warm-up/order effects.
+                    # ウォームアップや実行順による系統的な影響を減らすため、順序を交互にする。
                     variants = ('baseline', 'candidate') if repeat % 2 == 0 else ('candidate', 'baseline')
                     for variant in variants:
                         with tempfile.TemporaryDirectory(dir=workspace) as run_dir:
@@ -366,7 +366,7 @@ def evaluate(args, exp):
                                        'model': args.model, 'tools': args.tools}
                             output = run_runner(runner, request, run, args.timeout)
                             result = score(task, output, run / 'wiki')
-                            # A query runner must not change its evidence or procedure.
+                            # クエリのランナーは、証拠や手順を変更してはならない。
                             require(tree(run / 'wiki') == corpus_hash, 'Runner modified the evaluation corpus')
                             require(tree(run / 'skill') == value[variant], 'Runner modified the skill')
                             rows.append({'task': task['id'], 'split': task['split'], 'repeat': repeat,
@@ -439,7 +439,7 @@ def promote(exp, value, rollback):
         atomic(journal, encode({'status': done}).encode())
         return {'id': value['id'], 'status': done}
     if current['status'] == pending:
-        # A crash may leave a mixture of the two snapshots. Only those exact file states are recoverable.
+        # クラッシュすると、2つのスナップショットが混ざった状態が残ることがある。復旧できるのは、それらとまったく同じファイルの状態だけである。
         require(set(actual) <= set(value[before]) | set(value[after]), 'Unexpected files during recovery')
         for name in set(value[before]) | set(value[after]):
             require(actual.get(name) in (value[before].get(name), value[after].get(name)),
@@ -488,7 +488,7 @@ def history(state):
 
 
 def export_bundle(exp, destination):
-    """Keep executable skill and portable audit evidence in separate directories."""
+    """実行できるスキルと、持ち運べる監査用の証拠を、別々のディレクトリに置く。"""
     records = run_records(exp)
     require((exp / 'selection.json').is_file() and records and records[-1].get('status') == 'completed',
             'Export requires a completed loop run')

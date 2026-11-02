@@ -1,80 +1,80 @@
-# LLM Wiki: a second brain for AI agents
+# LLM Wiki: AI エージェントのための第二の脳
 
-Turn PDFs, articles, transcripts, and notes into a shared wiki that your AI agents can search, cite, and keep up to date. Add a source once. Ask questions later. Keep the useful answers.
+PDF、記事、文字起こし、メモを、AI エージェントが検索し、出典を示し、最新の状態に保てる共有の wiki に変える。ソースは一度追加するだけでよい。あとから質問し、役に立った回答は残しておける。
 
-Works with Claude Code, Codex, Cursor, Gemini CLI, OpenCode, OpenClaw, Pi, OMP, and Hermes. [Read the documentation](https://praneybehl.github.io/llm-wiki-plugin/).
+Claude Code、Codex、Cursor、Gemini CLI、OpenCode、OpenClaw、Pi、OMP、Hermes で動く。[ドキュメントを読む](https://praneybehl.github.io/llm-wiki-plugin/)。
 
-## What is LLM Wiki?
+## LLM Wiki とは
 
-AI agents are good at the task in front of them, but a new session starts with limited context. LLM Wiki gives them a shared memory that can live in one personal wiki across all projects or inside a specific project.
+AI エージェントは目の前のタスクには強いが、新しいセッションは限られたコンテキストから始まる。LLM Wiki はエージェントに共有のメモリを与える。このメモリは、すべてのプロジェクトで使う1つの個人用 wiki に置くことも、特定のプロジェクトの中に置くこともできる。
 
-When you add a source, the agent turns it into linked Markdown pages. Later, it can find the right section and answer with citations. Useful answers can be saved back into the wiki, so the knowledge grows instead of being rebuilt from scratch.
+ソースを追加すると、エージェントはそれをリンクでつながった Markdown ページに変える。あとで適切なセクションを見つけ、出典つきで答えられる。役に立った回答は wiki に保存し直せるので、知識は毎回ゼロから組み立て直されるのではなく、積み重なっていく。
 
-Everything canonical stays in readable Markdown. Default semantic search is local, with no hosted vector database or embedding service. An optional [hosted wiki](#hosted-wiki) on your own Cloudflare account lets agents on many machines share one wiki.
+正本はすべて、読める Markdown のまま残る。既定のセマンティック検索はローカルで動き、ホスト型のベクトルデータベースや埋め込みサービスは使わない。自分の Cloudflare アカウントに置く任意の[ホスト型 wiki](#ホスト型-wiki) を使えば、複数のマシンのエージェントで1つの wiki を共有できる。
 
-## What's new in v4
+## v4 の新機能
 
-- **Optional hosted wiki.** Deploy one Cloudflare Worker to your own account with one click. Agents on any machine read and write the wiki over MCP or a JSON API. See [Hosted wiki](#hosted-wiki).
-- **Safe shared writes.** Every change is an atomic commit with an author and a revision. Surgical `edit` and `append` operations rarely conflict. A conflict tells the agent to read the page again and retry.
-- **Migration and mirror.** `/wiki:migrate` moves a local wiki, verifies every uploaded file by SHA-256, and reports the files that the import skipped. `wiki_remote.py pull --git` keeps a read-only local mirror for Git history and Obsidian.
-- **Optional decision models.** Small models can gate search relevance, check graph evidence and flag untrusted text. Off by default. See [Decision layer](#decision-layer-optional).
-- **Local mode is unchanged.** Existing wikis, scripts and commands work as before.
+- **任意で使えるホスト型 wiki。** ワンクリックで、自分のアカウントに Cloudflare Worker を1つデプロイできる。どのマシンのエージェントも、MCP か JSON API で wiki を読み書きできる。[ホスト型 wiki](#ホスト型-wiki) を参照。
+- **安全な共有の書き込み。** 変更はすべて、作成者とリビジョンを持つアトミックなコミットになる。必要な箇所だけを変える `edit` と `append` の操作は、めったに競合しない。競合したときは、エージェントにページを読み直して再試行するよう伝える。
+- **移行とミラー。** `/wiki:migrate` はローカルの wiki を移行し、アップロードしたすべてのファイルを SHA-256 で検証し、インポートがスキップしたファイルを報告する。`wiki_remote.py pull --git` は、Git の履歴や Obsidian で使える読み取り専用のローカルミラーを保つ。
+- **任意で使える判定モデル。** 小さなモデルで、検索結果を関連度でふるい分けたり、グラフの証拠をチェックしたり、信頼できないテキストにフラグを立てたりできる。既定では無効。[任意の判定レイヤー](#任意の判定レイヤー)を参照。
+- **ローカルモードは変わらない。** 既存の wiki、スクリプト、コマンドは、これまでどおり動く。
 
-v3.2.0 added learning from completed work: `/wiki:learn` captures verified experience, and `/wiki:evolve` proposes, tests, applies and rolls back skill changes. See [Learning and skill evolution](https://praneybehl.github.io/llm-wiki-plugin/evolution.html). The evolution workflow adapts [WikiSkill: Compiling Agent Experience into Persistent Knowledge for Skill Evolution](https://arxiv.org/html/2608.27454v1) (Google Research and Virginia Tech, 2026). See [what we adapted and changed](docs/evolution.md#research-basis-and-adaptation) and the [measured results](eval/evolution/workflows/README.md). Our study rejected both proposals; no quality improvement was demonstrated.
+v3.2.0 では、完了した作業から学ぶ機能が加わった。`/wiki:learn` は検証済みの経験を記録し、`/wiki:evolve` はスキルの変更を提案、テスト、適用し、ロールバックする。[学習とスキルの改善](https://praneybehl.github.io/llm-wiki-plugin/evolution.html)を参照。改善のワークフローは、[WikiSkill: Compiling Agent Experience into Persistent Knowledge for Skill Evolution](https://arxiv.org/html/2608.27454v1)（Google Research と Virginia Tech、2026）を応用したものである。[取り入れた点と変えた点](https://praneybehl.github.io/llm-wiki-plugin/evolution.html#research-basis-and-adaptation)と[測定結果](eval/evolution/workflows/README.md)を参照。私たちの調査では2つの提案がどちらも却下され、品質の向上は示されなかった。
 
-## Why use it?
+## 使う理由
 
-- **Stop repeating project context.** Your agent can read the knowledge you already collected.
-- **Use the same wiki across agents.** The files are plain Markdown, not tied to one model or tool.
-- **Trace every answer.** Citations point back to the wiki page and original source.
-- **Keep the wiki healthy.** The agent updates links, summaries, and contradictions as new sources arrive.
-- **Stay in control.** Your pages remain readable, editable, and versionable.
+- **プロジェクトのコンテキストを繰り返し説明しなくて済む。** エージェントは、すでに集めた知識を読める。
+- **複数のエージェントで同じ wiki を使える。** ファイルはただの Markdown で、特定のモデルやツールに縛られない。
+- **すべての回答の出所をたどれる。** 出典から、wiki のページと元のソースに戻れる。
+- **wiki を健全に保てる。** 新しいソースが入るたびに、エージェントがリンク、要約、矛盾を更新する。
+- **主導権を手放さない。** ページは読むことも、編集することも、バージョン管理することもできる。
 
-LLM Wiki works best for knowledge that grows over time: research, meeting notes, customer calls, papers, articles, and project decisions. Use a regular database when your main problem is structured records and transactions.
+LLM Wiki がもっとも役立つのは、時間とともに増えていく知識である。調査、会議のメモ、顧客との通話、論文、記事、プロジェクトの決定事項がこれに当たる。構造化されたレコードやトランザクションが主な課題なら、ふつうのデータベースを使う。
 
-## Installation
-`uv` is the only prerequisite: it creates the pinned script environments on every supported platform. Install it using the [official uv instructions](https://docs.astral.sh/uv/getting-started/installation/) before running `/wiki:init` or the natural-language equivalent.
+## インストール
+前提として必要なのは `uv` だけである。`uv` は、対応しているすべてのプラットフォームで、バージョンを固定したスクリプトの実行環境を作る。`/wiki:init` や、それに当たる自然言語での依頼を実行する前に、[uv の公式の手順](https://docs.astral.sh/uv/getting-started/installation/)でインストールしておく。
 
-Plugin/skill installation copies all agent-facing commands and bundled tools. Wiki initialization then performs mandatory runtime setup: FastEmbed `0.8.0`, sqlite-vec `0.1.9`, PyYAML `6.0.3`, the local `BAAI/bge-small-en-v1.5` model, the parse cache, and vectors for every existing section. Upgrade runs the same setup again, incrementally synchronizing changed and deleted sections.
+プラグインやスキルをインストールすると、エージェントが使うコマンドと同梱のツールがすべてコピーされる。そのあと wiki の初期化で、必須の実行環境のセットアップを行う。対象は、FastEmbed `0.8.0`、sqlite-vec `0.1.9`、PyYAML `6.0.3`、ローカルの `BAAI/bge-small-en-v1.5` モデル、パースキャッシュ、既存の全セクションのベクトルである。アップグレードでも同じセットアップを再実行し、変更されたセクションと削除されたセクションを差分で同期する。
 
 
-### Claude Code: full plugin
+### Claude Code: プラグイン一式
 
-The native path: the skill, the ten `/wiki:*` slash commands, and the marketplace manifest all ship in one install.
+ネイティブの方法である。スキル、10個の `/wiki:*` スラッシュコマンド、マーケットプレイスのマニフェストが、1回のインストールでそろう。
 
 ```
 /plugin marketplace add praneybehl/llm-wiki-plugin
 /plugin install llm-wiki@llm-wiki
 ```
 
-Once installed, the plugin works in any project. Installation does not decide where your wiki lives.
+インストールすると、プラグインはどのプロジェクトでも使える。インストールしただけでは、wiki をどこに置くかは決まらない。
 
-### Other coding agents: skill only
+### ほかのコーディングエージェント: スキルのみ
 
-The `llm-wiki` skill uses the standard [agentskills.io](https://agentskills.io) format, so it installs cleanly into any agent supported by the [`skills` CLI](https://github.com/vercel-labs/skills). Pick the `--agent` flag that matches your setup:
+`llm-wiki` スキルは標準の [agentskills.io](https://agentskills.io) 形式なので、[`skills` CLI](https://github.com/vercel-labs/skills) が対応しているどのエージェントにもそのままインストールできる。環境に合った `--agent` フラグを選ぶ。
 
 ```bash
-# Install globally so the skill is available across all projects
+# グローバルにインストールし、すべてのプロジェクトでスキルを使えるようにする
 npx skills add praneybehl/llm-wiki-plugin -a <agent> -g
 
-# Or install into the current project only
+# または、現在のプロジェクトだけにインストールする
 npx skills add praneybehl/llm-wiki-plugin -a <agent>
 ```
 
-| Agent | `--agent` value | Invoke via | Scripts run |
+| エージェント | `--agent` の値 | 呼び出し方 | スクリプトの実行 |
 |-------|-----------------|------------|:-----------:|
-| Claude Code | `claude-code` | `/wiki:*` slash commands (bundled) or natural language | ✅ |
-| Codex (OpenAI) | `codex` | `/skills` or `$llm-wiki` / natural language | ✅ |
-| Cursor | `cursor` | `/llm-wiki` or natural language | ✅ |
-| Gemini CLI | `gemini-cli` | `/skills` management commands / natural language | ✅ |
-| OpenCode | `opencode` | natural language (agent invokes the native `skill` tool) | ✅ |
-| OpenClaw | `openclaw` | auto-exposed as a user command | ✅ |
-| Pi Agent | `pi` | `/skill:llm-wiki` or natural language | ✅ |
-| OMP ("Oh My Pi") | manual (see below) | natural language (skills auto-surface via `skill://`) | ✅ |
+| Claude Code | `claude-code` | `/wiki:*` スラッシュコマンド（同梱）または自然言語 | ✅ |
+| Codex (OpenAI) | `codex` | `/skills` または `$llm-wiki` / 自然言語 | ✅ |
+| Cursor | `cursor` | `/llm-wiki` または自然言語 | ✅ |
+| Gemini CLI | `gemini-cli` | `/skills` の管理コマンド / 自然言語 | ✅ |
+| OpenCode | `opencode` | 自然言語（エージェントがネイティブの `skill` ツールを呼び出す） | ✅ |
+| OpenClaw | `openclaw` | ユーザーコマンドとして自動で公開される | ✅ |
+| Pi Agent | `pi` | `/skill:llm-wiki` または自然言語 | ✅ |
+| OMP ("Oh My Pi") | 手動（下記を参照） | 自然言語（スキルは `skill://` から自動で見つかる） | ✅ |
 
-OpenCode also reads `.claude/skills/` and `~/.claude/skills/`, so if you already installed the skill for Claude Code you can use it in OpenCode without a second install.
+OpenCode は `.claude/skills/` と `~/.claude/skills/` も読むので、Claude Code 用にスキルをインストール済みなら、OpenCode で使うために改めてインストールする必要はない。
 
-**Hermes Agent** (Nous Research), **OMP** ("Oh My Pi"), and other agentskills.io-compatible runtimes that aren't yet in the `npx skills` registry can still use this skill: clone the repo and symlink or copy `skills/llm-wiki/` into the agent's skills directory. Hermes reads from `~/.hermes/skills/`; OMP reads managed/user skills from `~/.omp/agent/skills/` and surfaces them via `skill://`.
+**Hermes Agent**（Nous Research）、**OMP**（"Oh My Pi"）など、まだ `npx skills` のレジストリにない agentskills.io 互換のランタイムでも、このスキルは使える。リポジトリをクローンし、`skills/llm-wiki/` をエージェントのスキルディレクトリにシンボリックリンクするかコピーする。Hermes は `~/.hermes/skills/` から読む。OMP は、管理されたスキルとユーザーのスキルを `~/.omp/agent/skills/` から読み、`skill://` で公開する。
 
 ```bash
 git clone https://github.com/praneybehl/llm-wiki-plugin.git
@@ -83,175 +83,175 @@ ln -s "$(pwd)/llm-wiki-plugin/skills/llm-wiki" ~/.hermes/skills/llm-wiki
 ln -s "$(pwd)/llm-wiki-plugin/skills/llm-wiki" ~/.omp/agent/skills/llm-wiki
 ```
 
-A few things to know when using the skill outside Claude Code:
+Claude Code 以外でスキルを使うときに知っておくべきことは次のとおり。
 
-- **Slash commands are Claude Code-only.** The ten `/wiki:*` commands live in `commands/wiki/` as Claude Code plugin manifests. In other agents, invoke the skill by natural language ("add this paper to the wiki", "what does the wiki say about X", "lint the wiki"): the SKILL.md handles the rest.
-- **All bundled tools are agent-accessible.** Every listed agent can invoke `setup_wiki.py`, hybrid/lexical search, lint, stats, graph lint/extract/query, and initialization through the installed skill. Dependency-bearing scripts carry pinned PEP 723 metadata and run with `uv run --script`; initialization and upgrade verify the full runtime before reporting readiness.
-- **The wiki itself is agent-agnostic.** It's just a directory of markdown files. You can ingest with one agent and query with another; nothing in `wiki/` ties it to a specific runtime.
+- **スラッシュコマンドは Claude Code 専用である。** 10個の `/wiki:*` コマンドは、Claude Code プラグインのマニフェストとして `commands/wiki/` にある。ほかのエージェントでは、自然言語でスキルを呼び出す（「この論文を wiki に追加して」「X について wiki には何が書いてある？」「wiki に lint をかけて」）。あとは SKILL.md が処理する。
+- **同梱のツールはすべて、エージェントから使える。** 一覧のどのエージェントも、インストールしたスキルを通じて、`setup_wiki.py`、ハイブリッド検索と語彙ベースの検索、lint、stats、グラフの lint・抽出・クエリ、初期化を実行できる。依存パッケージを持つスクリプトには、バージョンを固定した PEP 723 のメタデータがあり、`uv run --script` で実行する。初期化とアップグレードでは、準備が整ったと報告する前に実行環境一式を検証する。
+- **wiki 自体はエージェントに依存しない。** ただの Markdown ファイルのディレクトリである。あるエージェントで取り込み、別のエージェントでクエリしてもよい。`wiki/` の中に、特定のランタイムに縛るものは何もない。
 
-### Choose where the wiki lives
+### wiki を置く場所を選ぶ
 
-Skill scope and wiki scope are separate choices. A global skill install makes the skill available in every project; it does not create or select a global wiki.
+スキルの適用範囲と wiki の適用範囲は、別々に選ぶ。スキルをグローバルにインストールすると、すべてのプロジェクトでスキルが使えるようになるが、グローバルな wiki が作られたり選ばれたりするわけではない。
 
-- **One personal wiki across projects:** keep it at a stable user-level path such as `~/wiki/`, keep raw sources under `~/wiki/raw/`, and point your agent's global instructions there. Work from any project can then be deliberately ingested into the same wiki.
-- **One wiki for a project:** keep `wiki/` and `raw/` in the project and point the project's agent-memory file to them. Choose this when the knowledge should be isolated or versioned with that repository.
+- **プロジェクトをまたいで使う個人用の wiki を1つ置く場合:** `~/wiki/` のような、ユーザーレベルの固定のパスに置き、raw のソースは `~/wiki/raw/` の下に置き、エージェントのグローバルな指示でそこを指す。こうすると、どのプロジェクトでの作業も、意図して同じ wiki に取り込める。
+- **プロジェクトごとに wiki を1つ置く場合:** `wiki/` と `raw/` をプロジェクトの中に置き、プロジェクトのエージェントのメモリファイルでそれらを指す。知識をそのリポジトリと切り離しておきたい場合や、リポジトリと一緒にバージョン管理したい場合に選ぶ。
 
-A global wiki does not automatically crawl or ingest every project. The agent adds project facts, decisions, and source material when you ask it to ingest them or when your global instructions explicitly tell it to preserve durable findings.
+グローバルな wiki があっても、すべてのプロジェクトを自動で巡回して取り込むことはない。エージェントがプロジェクトの事実、決定事項、ソースを追加するのは、ユーザーが取り込みを頼んだときか、グローバルな指示で残しておくべき知見を保存するよう明示しているときである。
 
-## Quick start
+## クイックスタート
 
-For one personal wiki shared across projects:
+プロジェクトをまたいで共有する個人用の wiki を1つ作る場合:
 
 ```
 /wiki:init --global
 ```
 
-This initializes `~/wiki/` with raw sources under `~/wiki/raw/` and proposes a matching stanza for your agent's global instructions.
+これは、raw のソースを `~/wiki/raw/` の下に置く構成で `~/wiki/` を初期化し、エージェントのグローバルな指示に追加する記述を提案する。
 
-For a wiki isolated to the current project:
+現在のプロジェクトだけで使う wiki を作る場合:
 
 ```
 /wiki:init
 ```
 
-Already have a wiki from an earlier plugin version? Run `/wiki:upgrade` instead. Init and upgrade both install and verify the complete pinned local runtime, cache the embedding model, build the parse cache, and synchronize all current vectors. They add missing wiki files idempotently and never overwrite existing pages or `SCHEMA.md`.
+以前のバージョンのプラグインで作った wiki がすでにある場合は、代わりに `/wiki:upgrade` を実行する。init と upgrade はどちらも、バージョンを固定したローカルの実行環境一式をインストールして検証し、埋め込みモデルをキャッシュし、パースキャッシュを作り、現在のすべてのベクトルを同期する。足りない wiki のファイルは冪等に追加し、既存のページや `SCHEMA.md` を上書きすることはない。
 
-Initialization bootstraps the selected wiki and raw-source roots with `SCHEMA.md`, `index.md`, `log.md`, and a page template, then emits a JSON runtime report. Setup is complete only when it reports `"status": "ready"`.
+初期化では、選んだ wiki と raw のソースのルートに、`SCHEMA.md`、`index.md`、`log.md`、ページのテンプレートを用意したあと、実行環境の JSON のレポートを出力する。セットアップが完了したのは、レポートが `"status": "ready"` を示したときだけである。
 
-As part of the same step, the skill proposes a location pointer so the agent remembers the wiki in future sessions: global instructions for a personal global wiki, or the project's agent-memory file for a project wiki. The skill never writes to a memory file without your approval; see `skills/llm-wiki/references/agent-memory-integration.md` for both variants.
+同じ手順の中で、スキルは、エージェントが今後のセッションでも wiki を覚えているように、wiki の場所を示す記述を提案する。個人用のグローバルな wiki ならグローバルな指示に、プロジェクトの wiki ならプロジェクトのエージェントのメモリファイルに書く。スキルは、ユーザーの承認なしにメモリファイルに書き込むことはない。両方の書き方は `skills/llm-wiki/references/agent-memory-integration.md` を参照。
 
-Drop your first source into the configured raw root (for example `~/wiki/raw/` in the global layout), then:
+最初のソースを、設定した raw のルート（グローバルな構成なら `~/wiki/raw/` など）に置いてから、次を実行する。
 
 ```
 /wiki:ingest ~/wiki/raw/your-source.pdf
 ```
 
-Claude reads the source (chunk-reading if it's large), discusses the takeaways with you, writes a summary page, identifies which existing entity and concept pages it touches, surgically updates them with `str_replace`, creates new pages for new entities and concepts (each with at least one inbound link), updates the index, and appends to the log.
+Claude はソースを読み（大きい場合は分割して読む）、要点をユーザーと話し合い、要約ページを書き、関係する既存のエンティティとコンセプトのページを洗い出し、`str_replace` で必要な箇所だけを更新する。新しいエンティティとコンセプトには新しいページを作り（それぞれに少なくとも1つの被リンクを付ける）、インデックスを更新し、ログに追記する。
 
-Once you have a few sources in:
+ソースがいくつか入ったら、次のように質問する。
 
 ```
 /wiki:query What does my wiki say about X?
 ```
 
-Claude reads the index to find candidate pages, reads them, synthesizes an answer with `[[wikilink]]` citations, and offers to file substantive answers back into `wiki/synthesis/` so the exploration compounds.
+Claude はインデックスを読んで候補のページを見つけ、それらを読み、`[[wikilink]]` の出典つきで回答をまとめる。中身のある回答は、調べた結果が積み重なるように `wiki/synthesis/` に保存することを提案する。
 
-Periodically, run a health check:
+定期的に、健全性のチェックを実行する。
 
 ```
 /wiki:lint
 ```
 
-This catches orphan pages, broken wikilinks, oversized pages, missing frontmatter, and stale claims. Findings are presented as proposed edits: Claude doesn't rewrite your wiki silently.
+これは、孤立ページ、リンク切れの wikilink、大きすぎるページ、frontmatter の欠落、古くなった主張を検出する。検出結果は編集案として示され、Claude が黙って wiki を書き換えることはない。
 
-## Commands
+## コマンド
 
-| Command | What it does |
+| コマンド | 内容 |
 |---------|--------------|
-| `/wiki:init [--global]` | Bootstrap a personal global wiki or a wiki in the current project (both include the graph layer). |
-| `/wiki:ingest <source>` | Process a new source into the wiki; refreshes the graph layer when present. |
-| `/wiki:query <question>` | Answer a question from the wiki with citations; consults `graph.sqlite` for relational questions when available. |
-| `/wiki:lint` | Structural and semantic health check; also runs graph lint when `wiki/graph/ontology.yaml` exists. |
-| `/wiki:stats` | Show wiki size, link density, and which scaling threshold the wiki is at. |
-| `/wiki:graph <action>` | `extract` / `lint` / `neighbors` / `edges` / `path` / `facts` against the compiled graph layer. |
-| `/wiki:learn <task artifacts>` | Capture verified experience and consolidate reusable, evidence-linked patterns. |
-| `/wiki:evolve <goal or action>` | Propose, evaluate, inspect, apply or roll back a skill improvement; retain all trial results. |
-| `/wiki:init --hosted <url>` | Connect this agent to a hosted wiki: store the token, print the MCP configuration and propose the memory stanza. |
-| `/wiki:migrate [<wiki-dir>]` | Move a local wiki to a hosted wiki, verify every uploaded file by SHA-256, check the skipped files, and keep a read-only `pull` mirror. |
-| `/wiki:upgrade` | Upgrade an existing wiki to the current plugin version (idempotent file ops + walked SCHEMA.md merge). |
+| `/wiki:init [--global]` | 個人用のグローバルな wiki か、現在のプロジェクトの wiki を初期化する（どちらもグラフ層を含む）。 |
+| `/wiki:ingest <source>` | 新しいソースを wiki に取り込む。グラフ層があれば更新する。 |
+| `/wiki:query <question>` | wiki をもとに出典つきで質問に答える。関係を問う質問では、使える場合は `graph.sqlite` も参照する。 |
+| `/wiki:lint` | 構造と内容の健全性をチェックする。`wiki/graph/ontology.yaml` があればグラフの lint も実行する。 |
+| `/wiki:stats` | wiki の規模、リンク密度、スケーリングのどの閾値に達しているかを表示する。 |
+| `/wiki:graph <action>` | コンパイル済みのグラフ層に対して `extract` / `lint` / `neighbors` / `edges` / `path` / `facts` を実行する。 |
+| `/wiki:learn <task artifacts>` | 検証済みの経験を記録し、根拠にリンクした再利用できるパターンにまとめる。 |
+| `/wiki:evolve <goal or action>` | スキルの改善案を作成・評価・確認・適用し、ロールバックする。すべての試行の結果を残す。 |
+| `/wiki:init --hosted <url>` | このエージェントをホスト型 wiki に接続する。トークンを保存し、MCP の設定を出力し、メモリに書く記述を提案する。 |
+| `/wiki:migrate [<wiki-dir>]` | ローカルの wiki をホスト型 wiki に移行し、アップロードしたすべてのファイルを SHA-256 で検証し、スキップされたファイルを確認し、読み取り専用の `pull` ミラーを残す。 |
+| `/wiki:upgrade` | 既存の wiki を現在のプラグインのバージョンにアップグレードする（冪等なファイル操作と、手順を追った SCHEMA.md のマージ）。 |
 
-You don't have to use the commands: Claude triggers the underlying skill on natural-language requests too ("add this paper to my wiki", "what does the wiki say about diffusion", "lint the wiki"). The commands are there when you want explicit invocation.
+コマンドを使わなくてもよい。Claude は、自然言語での依頼（「この論文を wiki に追加して」「拡散モデルについて wiki には何が書いてある？」「wiki に lint をかけて」）でも、裏にあるスキルを起動する。コマンドは、明示的に呼び出したいときのためにある。
 
-## Architecture
+## アーキテクチャ
 
-The wiki has three layers and three operations.
+wiki は3つの層と3つの操作でできている。
 
-**The three layers** are *raw sources* (your immutable source material in `raw/`), *the wiki* (LLM-owned markdown pages in `wiki/`, organized into `sources/`, `entities/`, `concepts/`, `synthesis/`), and *the schema* (`wiki/SCHEMA.md`, the configuration file that documents the conventions for this specific wiki and that you co-evolve with Claude over time).
+**3つの層**は、*raw のソース*（`raw/` に置く、変更しない元の資料）、*wiki*（`wiki/` にある、LLM が管理する Markdown ページ。`sources/`、`entities/`、`concepts/`、`synthesis/` に分けて置く）、*スキーマ*（`wiki/SCHEMA.md`。その wiki 固有の規約を記した設定ファイルで、ユーザーが Claude と一緒に少しずつ改訂していく）である。
 
-**The three operations** are *ingest* (compile a new source into the wiki, touching ten or fifteen pages in one pass), *query* (navigate the wiki to answer a question, with the option to file the answer back as a new synthesis page), and *lint* (periodic health check on structural and semantic integrity).
+**3つの操作**は、*取り込み*（新しいソースを wiki にコンパイルする。1回で10〜15ページに手を入れる）、*クエリ*（wiki をたどって質問に答える。回答を新しいシンセシスのページとして保存することもできる）、*lint*（構造と内容の整合性を定期的にチェックする）である。
 
-There is also an **optional fourth layer**: the graph at `wiki/graph/`. Pages can declare typed `graph:` metadata in frontmatter (e.g. `founded`, `proposed`, `depends_on`) with an explicit source-page slug and evidence quote. A bundled extractor compiles every page into `nodes.jsonl`, `edges.jsonl`, `graph.sqlite`, and `graph.graphml`. **Markdown stays canonical**: the graph can be deleted and rebuilt at any time. Use `/wiki:graph` for relational queries that the index alone can't answer cheaply ("what's connected to X", "who proposed Y", "shortest path A → B").
+**任意の4つ目の層**として、`wiki/graph/` のグラフもある。ページの frontmatter には、型付きの `graph:` メタデータ（`founded`、`proposed`、`depends_on` など）を、明示的なソースページのスラッグと証拠となる引用とともに宣言できる。同梱の抽出スクリプトは、すべてのページを `nodes.jsonl`、`edges.jsonl`、`graph.sqlite`、`graph.graphml` にコンパイルする。**正本は Markdown のまま**で、グラフはいつでも削除して作り直せる。インデックスだけでは安く答えられない関係を問うクエリ（「X とつながっているものは？」「Y を提案したのは誰？」「A → B の最短経路」）には、`/wiki:graph` を使う。
 
-For the full architecture write-up including page types, frontmatter conventions, the rationale behind each design choice, and the workflow procedures, see the reference docs inside the skill at `skills/llm-wiki/references/`. The graph layer is documented in `skills/llm-wiki/references/graph-workflow.md`.
+ページの種類、frontmatter の規約、各設計判断の理由、ワークフローの手順を含むアーキテクチャの詳しい説明は、スキルの中のリファレンス `skills/llm-wiki/references/` を参照。グラフ層については `skills/llm-wiki/references/graph-workflow.md` に書いてある。
 
-## Learning from experience
+## 経験から学ぶ
 
-The optional evolution workflow connects immutable task evidence to ordinary source/concept patterns, then to measured skill changes. Candidate skills are isolated during evaluation. The durable `.evolution/` archive is excluded from normal wiki retrieval; cited lessons and summaries remain searchable. Use `wiki_evolve.py --help` or the [agent workflow](skills/llm-wiki/references/evolution-workflow.md). Model runners may incur remote inference costs; capture and the harness itself are stdlib-only.
+任意で使う改善のワークフローは、変更不可のタスクの証拠を、通常のソースとコンセプトのパターンに結びつけ、さらに測定にもとづくスキルの変更に結びつける。評価の間、候補のスキルは隔離される。消えずに残る `.evolution/` のアーカイブは、通常の wiki の検索からは除外されるが、出典つきの教訓と要約は検索できる。`wiki_evolve.py --help` か[エージェント向けのワークフロー](skills/llm-wiki/references/evolution-workflow.md)を参照。モデルのランナーでは、リモートの推論に費用がかかることがある。記録とハーネスそのものは、標準ライブラリだけで動く。
 
-## How it scales
+## スケーリングの仕組み
 
-The single biggest failure mode of the LLM Wiki pattern is the wiki becoming a context bottleneck as it grows. The plugin's design is shaped largely around avoiding that failure.
+LLM Wiki パターンで最大の失敗は、wiki が大きくなるにつれて、コンテキストのボトルネックになることである。このプラグインの設計は、主にこの失敗を避けるように組み立てている。
 
-**Atomic pages.** Every page is about one concept. Soft cap 400 lines, hard cap 800 lines. The lint script enforces this. Any single page read is bounded, so even at a thousand pages a query that reads five pages stays well within context.
+**アトミックなページ。** 1ページで扱うのは1つのコンセプトだけである。ソフト上限は 400 行、ハード上限は 800 行で、lint スクリプトがこれを強制する。1ページを読む量には上限があるので、ページが1000あっても、5ページを読むクエリは十分にコンテキストに収まる。
 
-**Sharded indexes.** When `wiki/index.md` exceeds 300 lines or the wiki passes ~150 pages, the index shards into per-type files under `wiki/indexes/`. The top-level index becomes a tiny directory of shards. Reading the index is now a two-step lookup but each step is bounded.
+**分割したインデックス。** `wiki/index.md` が 300 行を超えるか、wiki が約 150 ページを超えると、インデックスは `wiki/indexes/` の下の種類ごとのファイルに分割される。トップレベルのインデックスは、分割したファイルの小さな目次になる。インデックスを読むのは2段階の検索になるが、各段階の量には上限がある。
 
-**YAML frontmatter on every page.** The `wiki_search.py` script can filter on `type`, `tags`, and `updated` without reading page bodies, so retrieval scales independently of total wiki size.
+**すべてのページに YAML の frontmatter。** `wiki_search.py` スクリプトは、ページの本文を読まずに `type`、`tags`、`updated` で絞り込めるので、検索は wiki 全体の大きさとは関係なくスケールする。
 
-**Index-first navigation.** Queries read the index first, identify candidate pages from one-line summaries, and only read those. The index is the cache that makes the whole pattern scalable.
+**インデックスを先に読むナビゲーション。** クエリでは最初にインデックスを読み、1行の要約から候補のページを見つけ、それだけを読む。インデックスは、このパターン全体をスケールさせるキャッシュである。
 
-**Local hybrid search.** When index summaries are insufficient, `uv run --script skills/llm-wiki/scripts/wiki_search.py "query terms"` ranks Markdown sections with local FastEmbed semantic vectors plus BM25, fused through RRF. sqlite-vec stores content-hashed vectors in `wiki/.wiki-cache/embeddings.sqlite`; only changed sections are re-embedded. No API key, provider, or outbound wiki/query text is involved. `--json` emits evidence rows and `--cache` persists parsed sections. For the genuinely dependency-free path, invoke `python skills/llm-wiki/scripts/wiki_search.py "query terms" --no-embed`; `--granularity page` restores whole-page ranking.
+**ローカルのハイブリッド検索。** インデックスの要約で足りないときは、`uv run --script skills/llm-wiki/scripts/wiki_search.py "query terms"` が、ローカルの FastEmbed によるセマンティックなベクトルと BM25 の結果を RRF で統合して、Markdown のセクションに順位を付ける。sqlite-vec は、内容のハッシュを付けたベクトルを `wiki/.wiki-cache/embeddings.sqlite` に保存し、変更されたセクションだけをベクトル化し直す。API キーもプロバイダーも不要で、wiki やクエリのテキストを外部に送ることもない。`--json` は証拠の行を出力し、`--cache` はパースしたセクションを保存する。依存パッケージをまったく使わない方法では、`python skills/llm-wiki/scripts/wiki_search.py "query terms" --no-embed` を実行する。`--granularity page` を付けると、ページ単位の順位付けに戻る。
 
-**Surgical edits.** When updating a page during ingest, Claude uses `str_replace` to touch the relevant section, not rewrite the page. Fast, token-efficient, and preserves diff quality if you keep the wiki in git.
+**必要な箇所だけの編集。** 取り込みの間にページを更新するとき、Claude は `str_replace` で該当するセクションだけを変え、ページ全体を書き直さない。速く、トークンの消費が少なく、wiki を git で管理していれば差分も読みやすいまま保てる。
 
-**Chunked source ingestion.** Large raw sources (long PDFs, multi-hour transcripts) are read in chunks during ingest, not loaded whole. The ingest workflow handles this automatically.
+**ソースの分割取り込み。** 大きな raw のソース（長い PDF、何時間もの文字起こし）は、取り込みの間に分割して読み、全体を一度に読み込まない。取り込みのワークフローが、これを自動で行う。
 
-The `/wiki:stats` command surfaces which threshold you're at and what migration to do next. The full scaling playbook with thresholds and migration procedures is at `skills/llm-wiki/references/scaling-playbook.md`.
+`/wiki:stats` コマンドで、どの閾値に達しているかと、次に行う移行が分かる。閾値と移行の手順をまとめたスケーリングの手引きは `skills/llm-wiki/references/scaling-playbook.md` にある。
 
-## What it doesn't try to be
+## 目指していないもの
 
-This is a markdown-based personal knowledge base, not a database. If your domain is fundamentally relational (tracking 100,000 customer records, complex org structures, financial ledgers with strict referential integrity), a real database serves better. Markdown plus grep plus frontmatter scales further than people expect (Karpathy's own wiki was about 100 articles and 400K words working fine), but at some point the right tool changes.
+これは Markdown にもとづく個人用のナレッジベースであり、データベースではない。扱う領域が本質的にリレーショナルなら（10万件の顧客レコードの管理、複雑な組織構造、厳密な参照整合性が必要な会計の台帳など）、本物のデータベースのほうが向いている。Markdown と grep と frontmatter の組み合わせは、思ったよりもスケールする（Karpathy 自身の wiki は約 100 記事、40 万語で問題なく動いていた）が、どこかで適したツールは変わる。
 
-Failure modes to know about, all discussed in `skills/llm-wiki/SKILL.md`: silent corruption (a misreading of one source becomes an authoritative-looking wiki page that influences subsequent ingests; mitigated by mandatory `sources:` frontmatter and lint), the wiki-reads-its-own-output drift (Claude treating prior wiki pages as ground truth rather than checking against raw sources; mitigated by the ingest workflow's instruction to re-read raw sources when updating claims), and the maintenance ratchet (lint reports growing faster than you can review; mitigated by the scalability discipline, but if it happens, the schema needs revision).
+知っておくべき失敗のパターンは次の3つで、どれも `skills/llm-wiki/SKILL.md` で扱っている。1つ目は、気づかないうちに内容が壊れることである。1つのソースを読み違えると、それが権威のある wiki ページのように見え、その後の取り込みに影響する。これは、必須の `sources:` frontmatter と lint で抑える。2つ目は、wiki が自分の出力を読むことによるずれである。Claude が raw のソースと照らし合わせずに、以前の wiki ページを正しいものとして扱ってしまう。これは、主張を更新するときに raw のソースを読み直すよう求める取り込みのワークフローの指示で抑える。3つ目は、保守の負担が増え続けることである。lint のレポートが、ユーザーがレビューできるより速く増えていく。これはスケーリングのための規律で抑えるが、それでも起きるなら、スキーマを見直す必要がある。
 
-## Hosted wiki
+## ホスト型 wiki
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/praneybehl/llm-wiki-plugin/tree/main/server)
 
-The hosted wiki is optional. It puts your wiki on a Cloudflare Worker in your own account, so agents on many machines, remote agents and agents without file access can share one wiki.
+ホスト型 wiki は任意で使うものである。wiki を自分のアカウントの Cloudflare Worker に置くので、複数のマシンのエージェント、リモートのエージェント、ファイルにアクセスできないエージェントで1つの wiki を共有できる。
 
-- **One click to deploy.** The button creates the Worker, a SQLite Durable Object for each wiki, KV, R2, Vectorize and Workers AI. On the form, you enter `ADMIN_TOKEN` and the Vectorize settings (`384` dimensions, `cosine` metric). No step is necessary after the deploy. The server runs on the Workers Free plan.
-- **MCP for every agent.** Eight tools at `/mcp`: `wiki_overview`, `wiki_read`, `wiki_search`, `wiki_commit`, `wiki_history`, `wiki_graph`, `wiki_lint`, `wiki_raw`. A JSON API at `/api/v1` serves scripts and CI.
-- **Per-agent access.** Each agent gets its own token with scopes, and its label is the commit author. MCP clients that support OAuth can connect without a token.
-- **Markdown stays canonical.** Hybrid search (FTS5 BM25 plus Workers AI `bge-small-en-v1.5` vectors, fused with RRF), links and the graph update on each commit.
-- **History and backup.** Every commit keeps a revision. Revert makes a new commit. `export` writes all pages. Durable Objects keep 30 days of point-in-time recovery.
-- **Browser reader** at `/ui/<wiki>/` with folder tree, search, backlinks, history, diffs and review flags. The `/setup` page makes wikis, tokens and MCP configuration for each client.
+- **ワンクリックでデプロイできる。** ボタンを押すと、Worker、wiki ごとの SQLite Durable Object、KV、R2、Vectorize、Workers AI が作成される。フォームでは、`ADMIN_TOKEN` と Vectorize の設定（`384` 次元、`cosine` 指標）を入力する。デプロイのあとに必要な作業はない。サーバーは Workers の Free プランで動く。
+- **どのエージェントからも MCP で使える。** `/mcp` に8つのツールがある: `wiki_overview`、`wiki_read`、`wiki_search`、`wiki_commit`、`wiki_history`、`wiki_graph`、`wiki_lint`、`wiki_raw`。スクリプトや CI からは、`/api/v1` の JSON API を使う。
+- **エージェントごとのアクセス。** エージェントごとにスコープ付きのトークンを発行し、そのラベルがコミットの作成者になる。OAuth に対応した MCP クライアントは、トークンなしで接続できる。
+- **正本は Markdown のまま。** ハイブリッド検索（FTS5 の BM25 と Workers AI の `bge-small-en-v1.5` のベクトルを RRF で統合）、リンク、グラフは、コミットのたびに更新される。
+- **履歴とバックアップ。** すべてのコミットがリビジョンとして残る。revert は新しいコミットを作る。`export` はすべてのページを書き出す。Durable Objects では、30 日分のポイントインタイムリカバリーが使える。
+- **ブラウザー用のリーダー**が `/ui/<wiki>/` にあり、フォルダーツリー、検索、被リンク、履歴、差分、レビューフラグを表示できる。`/setup` のページでは、wiki、トークン、クライアントごとの MCP の設定を作れる。
 
-Get started:
+始め方:
 
-1. Click the button above, or deploy from the CLI with `npm run deploy` in `server/` (see the guide for the first-deploy secret).
-2. Open `https://<your-worker>/setup`, sign in with `ADMIN_TOKEN`, create the wiki and one token for each agent.
-3. In each agent, run `/wiki:init --hosted https://<your-worker>`.
-4. To move an existing wiki, run `/wiki:migrate`.
+1. 上のボタンを押すか、`server/` で `npm run deploy` を実行して CLI からデプロイする（初回のデプロイで使うシークレットについてはガイドを参照）。
+2. `https://<your-worker>/setup` を開き、`ADMIN_TOKEN` でサインインし、wiki と、エージェントごとのトークンを作る。
+3. 各エージェントで `/wiki:init --hosted https://<your-worker>` を実行する。
+4. 既存の wiki を移すには、`/wiki:migrate` を実行する。
 
-Read the [hosted wiki guide](https://praneybehl.github.io/llm-wiki-plugin/hosted.html) for MCP set-up for each agent, OAuth, Free and Paid plan limits, costs and security.
+エージェントごとの MCP のセットアップ、OAuth、Free プランと Paid プランの制限、費用、セキュリティについては、[ホスト型 wiki のガイド](https://praneybehl.github.io/llm-wiki-plugin/hosted.html)を参照。
 
-## Decision layer (optional)
+## 任意の判定レイヤー
 
-Small decision models answer closed questions that code prepares, for example "does this section help answer the query?". LLM Wiki can use them to gate search relevance, check the evidence of typed graph edges, screen contradictions, shortlist pages during ingest and flag source text that gives orders to AI agents.
+小さな判定モデルは、コードが用意した選択式の問い（たとえば「このセクションはクエリに答える助けになるか？」）に答える。LLM Wiki はこれを使って、検索結果を関連度でふるい分けたり、型付きのグラフのエッジの証拠をチェックしたり、矛盾を洗い出したり、取り込みの間にページの候補を絞り込んだり、AI エージェントに命令するようなソースのテキストにフラグを立てたりできる。
 
-The layer is off by default. A decision never writes a page or blocks a write. Read paths fail open. Backends: a local Liquid `d1-2B` model through `llama-server` (no data leaves the machine), TypeSafe Jev, OpenRouter, the Liquid API, or Jev on Workers AI for a hosted wiki. Hosted backends receive wiki text, so you turn them on yourself. Read [Decision models](https://praneybehl.github.io/llm-wiki-plugin/decisions.html) for privacy, licence terms and costs.
+このレイヤーは既定では無効である。判定の結果でページが書き込まれたり、書き込みが止められたりすることはない。読み取りの処理では、判定に失敗しても処理を通す（fail-open）。バックエンドは、`llama-server` で動かすローカルの Liquid `d1-2B` モデル（データはマシンの外に出ない）、TypeSafe Jev、OpenRouter、Liquid API、ホスト型 wiki では Workers AI 上の Jev から選べる。ホスト型のバックエンドには wiki のテキストが送られるので、有効にするかは自分で決める。プライバシー、ライセンスの条件、費用については[判定モデル](https://praneybehl.github.io/llm-wiki-plugin/decisions.html)を参照。
 
-## Tooling
+## ツール
 
-Once the wiki is set up, you can read and edit pages with any markdown viewer. [Obsidian](https://obsidian.md) is a particularly good fit because of its graph view, `[[wikilinks]]` syntax, and Web Clipper extension, but it isn't required: the wiki is just a directory of markdown files in your project.
+wiki をセットアップしたら、どの Markdown ビューアーでもページを読んで編集できる。[Obsidian](https://obsidian.md) は、グラフビュー、`[[wikilinks]]` の構文、Web Clipper 拡張機能があるので特に相性がよいが、必須ではない。wiki はプロジェクトの中にある、ただの Markdown ファイルのディレクトリである。
 
-The tools require Python 3.10+ and `uv`. Initialization and upgrade invoke `setup_wiki.py`, whose PEP 723 environment pins FastEmbed 0.8.0, sqlite-vec 0.1.9, and PyYAML 6.0.3; it caches the model and synchronizes the complete wiki index. Search, graph lint, and graph extraction also carry their own pinned script metadata. Lexical `wiki_search.py --no-embed`, `wiki_lint.py`, `wiki_stats.py`, and graph queries remain directly runnable with stdlib Python. The bundled scripts live in `skills/llm-wiki/scripts/` after install.
+ツールには Python 3.10 以上と `uv` が必要である。初期化とアップグレードでは `setup_wiki.py` を呼び出す。その PEP 723 の環境では、FastEmbed 0.8.0、sqlite-vec 0.1.9、PyYAML 6.0.3 のバージョンを固定しており、モデルをキャッシュし、wiki のインデックス全体を同期する。検索、グラフの lint、グラフの抽出も、それぞれバージョンを固定したスクリプトのメタデータを持つ。語彙ベースの `wiki_search.py --no-embed`、`wiki_lint.py`、`wiki_stats.py`、グラフのクエリは、標準ライブラリだけの Python で直接実行できる。同梱のスクリプトは、インストール後は `skills/llm-wiki/scripts/` にある。
 
-## Credits
+## クレジット
 
-The optional skill-evolution workflow is adapted from the [WikiSkill paper](https://arxiv.org/html/2608.27454v1). The [adaptation map](docs/evolution.md#research-basis-and-adaptation) distinguishes the research ideas, our implementation choices and validation limits.
+任意で使うスキルの改善のワークフローは、[WikiSkill の論文](https://arxiv.org/html/2608.27454v1)を応用したものである。[応用の対応表](https://praneybehl.github.io/llm-wiki-plugin/evolution.html#research-basis-and-adaptation)では、研究のアイデア、このプロジェクトの実装上の選択、検証の限界を区別している。
 
-The pattern is from Andrej Karpathy's [llm-wiki gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), April 2026. This plugin is one implementation of the pattern; others worth looking at include [vanillaflava/llm-wiki-claude-skills](https://github.com/vanillaflava/llm-wiki-claude-skills), [skyllwt/OmegaWiki](https://github.com/skyllwt/OmegaWiki), and [axoviq-ai/synthadoc](https://github.com/axoviq-ai/synthadoc).
+このパターンは、Andrej Karpathy の [llm-wiki gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f)（2026 年 4 月）にもとづく。このプラグインは、そのパターンの実装の1つである。ほかに見ておく価値のある実装として、[vanillaflava/llm-wiki-claude-skills](https://github.com/vanillaflava/llm-wiki-claude-skills)、[skyllwt/OmegaWiki](https://github.com/skyllwt/OmegaWiki)、[axoviq-ai/synthadoc](https://github.com/axoviq-ai/synthadoc) がある。
 
-The v2 retrieval architecture was informed by Cerebras's engineering article, [How We Built Our Knowledge Base](https://www.cerebras.ai/blog/how-we-built-our-knowledge-base), especially its section-level retrieval, multi-retriever fusion, evidence packaging, and evaluation approach.
+v2 の検索のアーキテクチャは、Cerebras のエンジニアリングの記事 [How We Built Our Knowledge Base](https://www.cerebras.ai/blog/how-we-built-our-knowledge-base) を参考にした。特に、セクション単位の検索、複数の検索器の結果の統合、証拠のまとめ方、評価の方法を参考にしている。
 
-The v3 local retrieval cutover was evaluated against [Basic Memory](https://github.com/basicmachines-co/basic-memory). LLM Wiki adopts the same local-first shape (FastEmbed, SQLite vector search, and incremental derived indexes) while keeping its existing Markdown schema, typed graph, RRF ranking, and agent-native workflows instead of adding Basic Memory's application and MCP service as a second canonical system.
+v3 でローカルの検索に切り替えるときは、[Basic Memory](https://github.com/basicmachines-co/basic-memory) と比べて評価した。LLM Wiki は、同じローカルファーストの形（FastEmbed、SQLite のベクトル検索、差分で更新する派生インデックス）を取り入れている。一方で、Basic Memory のアプリケーションと MCP サービスを2つ目の正本のシステムとして加えることはせず、既存の Markdown のスキーマ、型付きグラフ、RRF による順位付け、エージェントに合わせたワークフローを残している。
 
-## License
+## ライセンス
 
-MIT: see [LICENSE](./LICENSE).
+MIT。[LICENSE](./LICENSE) を参照。
 
-## Contributing
+## コントリビュート
 
-Issues and PRs welcome. The skill itself is at `skills/llm-wiki/`; the slash commands at `commands/wiki/`; the hosted server at `server/`. See [CONTRIBUTING.md](./CONTRIBUTING.md). Before opening a PR, please run the bundled scripts against a small test wiki to verify nothing broke.
+Issue と PR を歓迎する。スキル本体は `skills/llm-wiki/`、スラッシュコマンドは `commands/wiki/`、ホスト型のサーバーは `server/` にある。[CONTRIBUTING.md](./CONTRIBUTING.md) を参照。PR を出す前に、同梱のスクリプトを小さなテスト用の wiki に対して実行し、何も壊れていないことを確かめてほしい。

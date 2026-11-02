@@ -1,79 +1,79 @@
-# Query Workflow
+# クエリのワークフロー
 
-The user is asking a question against the wiki. The job is to answer it from the wiki, with citations, scaling navigation to the wiki's size, and to file the answer back as a synthesis page when warranted.
+ユーザーが wiki に対して質問している。やるべきことは、wiki をもとに出典つきで答え、wiki の規模に応じてたどり方を変え、必要なら回答をシンセシスのページとして保存することである。
 
-## Step 0: Check the schema
+## 手順 0: スキーマを確認する
 
-Read `wiki/SCHEMA.md` if you haven't this session. Some wikis declare query-specific conventions (e.g. "always answer with a comparison table when the question is comparative", "answers go in `wiki/synthesis/qa/` not `wiki/synthesis/`"). Schema overrides defaults.
+このセッションでまだ読んでいなければ、`wiki/SCHEMA.md` を読む。wiki によっては、クエリ専用の規約を定めている（たとえば「比較を問う質問には、必ず比較表で答える」「回答は `wiki/synthesis/` ではなく `wiki/synthesis/qa/` に置く」）。スキーマは既定の動作より優先される。
 
-Each step shows the local form first. For a hosted wiki, use the **Hosted** form (see `hosted-mode.md`). **Hosted:** call `wiki_overview`. It returns `SCHEMA.md` and `index.md`.
+各手順では、まずローカルでの形を示す。ホスト型 wiki では **ホスト型** の形を使う（`hosted-mode.md` を参照）。**ホスト型:** `wiki_overview` を呼び出す。`SCHEMA.md` と `index.md` が返る。
 
-## Step 1: Read the index
+## 手順 1: インデックスを読む
 
-Always start at `wiki/index.md`. If the index has been sharded into `wiki/indexes/`, read the top-level `index.md` first to identify which shard(s) are relevant, then read those.
+必ず `wiki/index.md` から始める。インデックスが `wiki/indexes/` に分割されている場合は、先にトップレベルの `index.md` を読んで、どの分割されたインデックスが関係するかを見つけ、それを読む。
 
-The index is engineered for this: one line per page with a tight summary. You should be able to identify candidate pages from the index alone in most cases. If a query touches multiple shards (e.g. "compare the methodologies in papers A and B"), read all relevant shards.
+インデックスは、まさにこのために作ってある。1ページにつき1行で、短い要約が付いている。たいていの場合、インデックスだけで候補のページを見つけられるはずである。クエリが複数の分割されたインデックスにまたがる場合（たとえば「論文 A と B の方法論を比べて」）は、関係するものをすべて読む。
 
-## Step 2: Identify candidate pages
+## 手順 2: 候補のページを絞り込む
 
-From the index, build a short list of pages that look relevant to the query. Be selective: reading 30 pages to answer a question is a sign you've fallen back to brute-force search, which doesn't scale. If the index summaries don't disambiguate well, that's a signal that the index entries are too terse: note it for the next lint pass.
+インデックスから、クエリに関係しそうなページの短い一覧を作る。厳選すること。1つの質問に答えるために 30 ページも読むなら、力任せの検索に戻ってしまっている兆候であり、それではスケールしない。インデックスの要約で候補を見分けにくい場合は、インデックスの項目が簡潔すぎるという兆候である。次の lint のときのために記録しておく。
 
-If the index doesn't surface good candidates (the query uses fuzzy or domain-specific language that doesn't match the index summaries), fall back to the search script:
+インデックスからよい候補が見つからない場合（クエリがあいまいな言葉や分野特有の言葉を使っていて、インデックスの要約と一致しない場合）は、検索スクリプトを使う。
 
 ```bash
 uv run --script scripts/wiki_search.py "your query terms" --top 10 --cache --json
 ```
 
-This returns section-level hybrid results by default: local FastEmbed semantic ranking and BM25 are fused with RRF, and each JSON row carries its `heading_path`, snippet, and retrieval provenance. The first semantic run downloads the pinned model; section vectors live in `wiki/.wiki-cache/embeddings.sqlite` and only changed sections are re-embedded. No wiki or query text leaves the machine. For dependency-free lexical BM25, run `python scripts/wiki_search.py "your query terms" --no-embed`; use optional frontmatter filters (`--type concept`, `--tag llms`, `--since 2026-01-01`) or pass `--granularity page` for whole-page lexical ranking.
+既定では、セクション単位のハイブリッド検索の結果が返る。ローカルの FastEmbed によるセマンティックな順位付けと BM25 を RRF で統合し、JSON の各行には `heading_path`、抜粋、検索の出所が付く。初回のセマンティック検索では、バージョンを固定したモデルをダウンロードする。セクションのベクトルは `wiki/.wiki-cache/embeddings.sqlite` に保存され、変更されたセクションだけがベクトル化し直される。wiki やクエリのテキストがマシンの外に出ることはない。依存パッケージを使わない語彙ベースの BM25 にしたい場合は、`python scripts/wiki_search.py "your query terms" --no-embed` を実行する。必要に応じて frontmatter のフィルター（`--type concept`、`--tag llms`、`--since 2026-01-01`）を使い、ページ単位の語彙ベースの順位付けにしたいときは `--granularity page` を指定する。
 
-**Hosted:** call `wiki_search` with `query`, `top` and the same optional filters (`type`, `tag`, `since`, `granularity`). The rows have the same shape. A response with `vector_lag` above 0 means that some new sections are searchable by keyword only.
+**ホスト型:** `query`、`top` と、同じ任意のフィルター（`type`、`tag`、`since`、`granularity`）を指定して `wiki_search` を呼び出す。返る行の形は同じである。レスポンスの `vector_lag` が 0 より大きい場合は、新しいセクションの一部がまだキーワードでしか検索できないことを示す。
 
-If the user enabled the optional decision layer, add `--decide` (local) or `decide: true` (hosted). The gate removes rows that only share words with the query. An empty gated result means that the wiki probably has no answer. If the result reports `failed_open: true`, the gate did not run. See `decision-models.md`.
+ユーザーが任意の判定レイヤーを有効にしている場合は、`--decide`（ローカル）または `decide: true`（ホスト型）を付ける。このふるい分けは、クエリと単語が共通しているだけの行を取り除く。ふるい分けた結果が空なら、wiki にはおそらく答えがない。結果が `failed_open: true` を報告している場合は、ふるい分けが実行されていない。`decision-models.md` を参照。
 
-## Step 2b: Graph-assisted lookup (only if `wiki/graph/graph.sqlite` exists)
+## 手順 2b: グラフを使って調べる（`wiki/graph/graph.sqlite` がある場合のみ）
 
-For relational questions ("what's connected to X", "who proposed Y", "trace the path from A to B"), query the compiled graph after the index pass and before reading pages:
+関係を問う質問（「X とつながっているものは？」「Y を提案したのは誰？」「A から B への経路をたどって」）では、インデックスを読んだあと、ページを読む前に、コンパイル済みのグラフにクエリをかける。
 
 ```bash
 python scripts/wiki_graph_query.py wiki/ neighbors --node <node-id>
 python scripts/wiki_graph_query.py wiki/ facts    --about <node-id>
 ```
 
-Use the structured neighbors/facts to pick the right wiki pages to read, but never answer from graph rows alone for high-stakes claims. The graph accelerates navigation; the wiki page and its raw source remain the evidence. If `graph.sqlite` is older than the most recent `## [YYYY-MM-DD] ingest |` entry in `log.md`, regenerate first with `wiki_graph_extract.py`. Full reference: `references/graph-workflow.md`.
+構造化された隣接ノードや事実は、読むべき wiki ページを選ぶのに使う。ただし、重要な主張については、グラフの行だけをもとに答えてはならない。グラフは目的のページを早く見つけるためのものであり、証拠になるのは wiki ページとその raw ソースである。`graph.sqlite` が `log.md` にある最新の `## [YYYY-MM-DD] ingest |` の項目より古い場合は、先に `wiki_graph_extract.py` で作り直す。詳しいリファレンス: `references/graph-workflow.md`。
 
-**Hosted:** call `wiki_graph` with the same operation (`neighbors`, `facts`, `edges`, `path`). The server graph is always current.
+**ホスト型:** 同じ操作（`neighbors`、`facts`、`edges`、`path`）を指定して `wiki_graph` を呼び出す。サーバーのグラフは常に最新である。
 
-## Step 3: Read the candidate pages
+## 手順 3: 候補のページを読む
 
-Read each candidate page in full (**Hosted:** `wiki_read` with one or more `paths`, or a `heading` for one section). While reading, note any `[[wikilinks]]` to other pages that look relevant: those are pre-curated leads. Follow the most promising ones, but don't recursively chase every link or you'll exhaust your context window on tangentially-relevant pages.
+候補のページをそれぞれ全文読む（**ホスト型:** 1つ以上の `paths` を指定して `wiki_read` を呼び出す。1つのセクションだけなら `heading` を指定する）。読みながら、関係しそうなほかのページへの `[[wikilinks]]` を控えておく。それらは、あらかじめ整理された手がかりである。見込みのありそうなものはたどるが、すべてのリンクを再帰的に追いかけてはならない。そうすると、あまり関係のないページでコンテキストウィンドウを使い果たしてしまう。
 
-If a page references a source-summary page in its frontmatter and the answer hinges on what that source actually said, read the source-summary page too. Avoid going all the way back to the raw source unless the wiki summaries are clearly insufficient: the whole point of the wiki is that the synthesis is already done.
+あるページが frontmatter でソースの要約ページを参照していて、答えがそのソースの実際の記述にかかっている場合は、ソースの要約ページも読む。wiki の要約で明らかに足りない場合を除き、raw ソースまで戻ることは避ける。統合はすでに済んでいるというのが、wiki の要点だからである。
 
-## Step 4: Find backlinks if needed
+## 手順 4: 必要なら被リンクを探す
 
-If the query is "what does my wiki say about X" or "where is X mentioned", and X has its own page, the inbound links are often more interesting than the page itself. Find them with:
+クエリが「X について wiki には何が書いてある？」や「X はどこで言及されている？」で、X に専用のページがある場合は、そのページ自体よりも、そこへの被リンクのほうが興味深いことが多い。次のコマンドで見つける。
 
 ```bash
 grep -rl "\[\[<page-slug>\]\]" wiki/
 ```
 
-This is faster than reading pages to look for mentions. Note that the bundled `wiki_search.py` has a `--backlinks <slug>` mode that does this and returns ranked results.
+ページを読んで言及を探すより速い。付属の `wiki_search.py` には、同じことをして順位付きの結果を返す `--backlinks <slug>` モードもある。
 
-**Hosted:** call `wiki_search` with `backlinks: "<page-slug>"`.
+**ホスト型:** `backlinks: "<page-slug>"` を指定して `wiki_search` を呼び出す。
 
-## Step 5: Synthesize the answer
+## 手順 5: 回答をまとめる
 
-Write the answer in your own words, with `[[wikilink]]` citations to the wiki pages you used and (where helpful) `raw/<file>` references to specific raw sources. The citations matter: they let the user verify the answer and follow up.
+回答は自分の言葉で書き、使った wiki ページへの `[[wikilink]]` を出典として付ける。役に立つ場合は、特定の raw ソースを `raw/<file>` で参照する。出典は重要である。ユーザーは出典を使って回答を検証し、さらに調べられる。
 
-If the wiki contains contradicting claims, surface the contradiction explicitly rather than picking one and presenting it as settled. The wiki's value is partly in tracking what's known versus what's contested.
+wiki に矛盾する主張がある場合は、どちらか一方を選んで確定したことのように示さず、矛盾をそのまま示す。wiki の価値の一部は、分かっていることと議論が分かれていることを区別して追跡できる点にある。
 
-If the wiki has no relevant content for the query, say so plainly. Do not confabulate: that's the surest way to corrupt the wiki when the answer gets filed back. Instead, suggest sources the user could ingest to fill the gap.
+wiki にクエリに関係する内容がない場合は、そうはっきり伝える。話をでっち上げてはならない。でっち上げた回答が保存されると、それが wiki を汚すもっとも確実な原因になる。代わりに、足りない部分を補うためにユーザーが取り込めるソースを提案する。
 
-## Step 6: Offer to file the answer back
+## 手順 6: 回答の保存を提案する
 
-If the synthesized answer represents new connection-making (a comparison the wiki didn't already contain, an analysis that pulls together threads from multiple pages, an answer to a recurring question), offer to file it as a synthesis page. The user will say no for trivial answers and yes for substantive ones. Default to offering.
+まとめた回答が新しいつながりを見いだすものである場合（wiki にまだない比較、複数のページの内容をまとめた分析、繰り返し出る質問への回答など）は、シンセシスのページとして保存することを提案する。ささいな回答ならユーザーは断り、中身のある回答なら受け入れるはずである。提案するのを基本とする。
 
-The file-back creates `wiki/synthesis/<answer-slug>.md` with frontmatter:
+保存すると、次の frontmatter を持つ `wiki/synthesis/<answer-slug>.md` を作成する。
 
 ```yaml
 ---
@@ -85,30 +85,30 @@ tags: [...]
 ---
 ```
 
-Body: the answer as you gave it to the user, possibly lightly edited for the wiki's voice. Add the new synthesis page to the relevant index. Append to `log.md` with prefix `## [YYYY-MM-DD] query | <question-summary>`.
+本文は、ユーザーに伝えた回答そのものである。wiki の文体に合わせて軽く手を入れてもよい。新しいシンセシスのページを、該当するインデックスに追加する。`log.md` には、`## [YYYY-MM-DD] query | <question-summary>` で始まる行を追記する。
 
-**Hosted:** use one `wiki_commit` with a `create` operation for the synthesis page, an `append` operation for the index line and an `append` operation for the `log.md` line.
+**ホスト型:** `wiki_commit` を1回送る。シンセシスのページには `create` 操作、インデックスの行と `log.md` の行にはそれぞれ `append` 操作を使う。
 
-A filed synthesis page is itself queryable: the next time the user asks an adjacent question, the synthesis page may be the most relevant candidate. This is how exploration compounds.
+保存したシンセシスのページも、それ自体がクエリの対象になる。次にユーザーが近い質問をしたとき、そのシンセシスのページがもっとも関係の深い候補になるかもしれない。こうして調べた内容が積み重なっていく。
 
-## Special query types
+## 特殊なクエリの種類
 
-**"What's missing on topic X?"**: Read existing pages on X, identify open questions or unstated assumptions, and propose ingest candidates. This is essentially a per-topic micro-lint.
+**「トピック X について足りないものは？」**: X についての既存のページを読み、未解決の問いや、明示されていない前提を見つけ、取り込むとよいソースの候補を提案する。これは実質的に、トピックごとの小さな lint である。
 
-**"Compare X and Y"**: Read both pages, look for explicit comparison pages already in `synthesis/`, generate a comparison table or contrast prose. Strong file-back candidate.
+**「X と Y を比べて」**: 両方のページを読み、`synthesis/` にすでに明示的な比較のページがないかを探し、比較表か対比の文章を作る。保存する候補として有力である。
 
-**"Show me the timeline of X"**: Use `log.md` to reconstruct chronology of ingests touching X, supplement with `created`/`updated` frontmatter on relevant pages.
+**「X の時系列を見せて」**: `log.md` を使って、X に関係する取り込みの時系列を組み立て直し、関係するページの frontmatter の `created`/`updated` で補う。
 
-**"What did source X say about Y?"**: Read `wiki/sources/<x>.md` for the source's summary; if it doesn't directly answer, read `raw/<x>` (chunk-read if large).
+**「ソース X は Y について何と言っている？」**: ソースの要約を見るために `wiki/sources/<x>.md` を読む。それで直接答えられなければ、`raw/<x>` を読む（大きければ分割して読む）。
 
-**"Lint check on this answer"**: Before filing back, ask the user to verify a key claim by pointing to its raw source. Especially valuable for high-stakes wikis (medical, legal, financial).
+**「この回答を lint でチェックして」**: 保存する前に、重要な主張の raw ソースを示して、ユーザーにその主張を検証してもらう。重要度の高い wiki（医療、法律、金融）では特に役立つ。
 
-## Anti-patterns to avoid
+## 避けるべきパターン
 
-**Reading every page in the wiki to be safe.** This doesn't scale and produces vague answers. Trust the index; if the index fails, fix the index, don't bypass it.
+**念のために wiki のページを全部読む。** スケールせず、回答もあいまいになる。インデックスを信頼する。インデックスがうまく機能しないなら、迂回せずにインデックスを直す。
 
-**Citing the wiki without citing the underlying sources for hard claims.** The wiki page is a paraphrase; for any claim the user might need to verify, the citation should chain back to the raw source.
+**確かな裏づけが必要な主張で、wiki だけを引用し、元のソースを引用しない。** wiki のページは言い換えである。ユーザーが検証する必要がありそうな主張では、引用を raw ソースまでたどれるようにする。
 
-**Filing back trivial answers.** Not every Q&A is worth a permanent page. If the answer is a one-line lookup or restates an existing page, don't pollute synthesis/. The threshold is "would I want to find this when I ask a similar question in three months?"
+**ささいな回答を保存する。** すべての質疑応答が、残しておくページに値するわけではない。1行で調べがつく回答や、既存のページを言い直しただけの回答なら、synthesis/ を散らかさない。判断の基準は、「3か月後に似た質問をしたとき、これを見つけたいと思うか」である。
 
-**Confabulating when the wiki is silent.** Better to say "the wiki doesn't cover this" than to invent an answer that gets filed back as authoritative.
+**wiki に情報がないのに、話をでっち上げる。** でっち上げた回答が信頼できる情報として保存されるより、「wiki はこれを扱っていない」と伝えるほうがよい。

@@ -1,211 +1,211 @@
 ---
 name: llm-wiki
 description: |
-  Build and maintain an LLM-curated knowledge base from papers, articles, transcripts, notes and project findings. Ingest sources into linked Markdown, answer questions with citations, lint or upgrade a wiki, and preserve useful synthesis across sessions and agents. Also capture verified task experience, consolidate success/failure patterns, and propose, evaluate, apply or roll back evidence-linked skill improvements. Trigger on "add this to my wiki", "what does the wiki say", "learn from this task", "improve this procedure", /wiki:learn or /wiki:evolve. Works on a local folder or a hosted wiki URL (MCP). Use index-first navigation, atomic pages and hybrid search.
+  論文、記事、文字起こし、メモ、プロジェクトでの調査結果から、LLM が整理するナレッジベースを構築し、保守する。ソースをリンクされた Markdown に取り込み、出典つきで質問に答え、wiki を lint またはアップグレードし、役に立つシンセシスをセッションやエージェントをまたいで残す。検証済みのタスクの経験を記録し、成功と失敗のパターンをまとめ、根拠にもとづくスキルの改善案を作成・評価・適用し、必要に応じてロールバックすることもできる。"add this to my wiki"、"what does the wiki say"、"learn from this task"、"improve this procedure"、/wiki:learn、/wiki:evolve で起動する。ローカルのフォルダーでも、ホスト型 wiki の URL（MCP）でも動く。インデックスを先に読むナビゲーション、アトミックなページ、ハイブリッド検索を使う。
 ---
 
 # LLM Wiki
 
-A skill for building and maintaining an LLM-curated knowledge base at any user-chosen filesystem location, following the pattern Andrej Karpathy described in his April 2026 gist. One personal wiki can compound knowledge across projects, or a wiki can be isolated inside one project. The user curates sources and asks questions; the LLM does the bookkeeping.
+ユーザーが選んだファイルシステム上の任意の場所に、LLM が整理するナレッジベースを構築し、保守するためのスキル。Andrej Karpathy が 2026 年 4 月の gist で説明したパターンに従う。1つの個人用 wiki にプロジェクトをまたいで知識を積み重ねることも、1つのプロジェクトの中に wiki を分けて置くこともできる。ユーザーはソースを選び、質問をする。記録の整理は LLM が行う。
 
-## The pattern in one paragraph
+## パターンの要点
 
-Conventional RAG re-derives knowledge from raw chunks on every query; nothing accumulates. The LLM Wiki pattern flips this: when a new source arrives, the LLM compiles it once into a persistent, structured wiki: extracting concepts, writing entity pages, updating cross-references, flagging contradictions. Subsequent queries read the pre-synthesized wiki rather than the raw sources. Knowledge compounds. The user is in charge of sourcing and asking good questions; the LLM handles the summarizing, linking, and consistency work that humans abandon wikis over.
+従来の RAG は、クエリのたびに raw のチャンクから知識を導き直すので、何も蓄積しない。LLM Wiki のパターンはこれを逆にする。新しいソースが届いたら、LLM はそれを一度だけ、永続的で構造化された wiki にコンパイルする。コンセプトを抜き出し、エンティティのページを書き、相互参照を更新し、矛盾を指摘する。以降のクエリは、raw のソースではなく、統合済みの wiki を読む。知識が積み重なっていく。ソースを集め、よい質問をするのはユーザーの役目である。要約、リンク付け、一貫性の維持といった、人が wiki を放り出す原因になる作業は LLM が受け持つ。
 
-## When to use this skill
+## このスキルを使う場面
 
-The trigger surface is broad. Any time the user is accumulating textual material over time (research papers, articles, transcripts, meeting notes, book chapters, customer calls, code repos, journal entries) and would benefit from having that material organized rather than dumped into a chat each session, this skill applies. It is equally useful for one source ("ingest this paper") and for the steady-state operations against an existing wiki ("what does my wiki say about diffusion models", "lint the wiki", "what's missing").
+使う場面は広い。研究論文、記事、文字起こし、会議のメモ、書籍の章、顧客との通話、コードリポジトリ、日誌などのテキストを、ユーザーが時間をかけて蓄積していて、毎回のセッションでチャットに貼るより整理しておいたほうが役立つなら、いつでもこのスキルが当てはまる。1つのソースの取り込み（"ingest this paper"）にも、既存の wiki に対する日常の操作（"what does my wiki say about diffusion models"、"lint the wiki"、"what's missing"）にも同じように使える。
 
-Resolve the wiki before doing anything else. Prefer, in order: a path or URL named by the user, a path or URL in the nearest project instructions, a path or URL in global agent instructions, then `wiki/` in the current project. Read the resolved wiki's `SCHEMA.md`; it may override defaults documented here. Never silently combine two wikis. If no wiki exists, run the bootstrap step below.
+ほかの作業の前に、対象の wiki を特定する。優先順位は、ユーザーが指定したパスまたは URL、もっとも近いプロジェクトの指示にあるパスまたは URL、グローバルなエージェントの指示にあるパスまたは URL、最後に現在のプロジェクトの `wiki/` の順である。特定した wiki の `SCHEMA.md` を読む。ここに書いた既定値が上書きされていることがある。2つの wiki を黙って混ぜてはならない。wiki がない場合は、下の初期化の手順を実行する。
 
-All relative `wiki/` and `raw/` paths in this skill refer to the resolved wiki and raw-source roots, not necessarily the current working directory.
+このスキルに出てくる `wiki/` と `raw/` の相対パスは、特定した wiki と raw ソースのルートを指す。現在の作業ディレクトリとは限らない。
 
-## Backends: local folder or hosted URL
+## バックエンド: ローカルのフォルダーかホスト型の URL
 
-A wiki has one of two backends. The workflows, page conventions and `SCHEMA.md` are the same for both.
+wiki のバックエンドは2種類のどちらかである。ワークフロー、ページの規約、`SCHEMA.md` は、どちらでも同じである。
 
-- **Local folder.** Pages are files. Use file reads, `str_replace` and the bundled scripts.
-- **Hosted URL.** Pages are on an LLM Wiki server (a Cloudflare Worker). Use the MCP tools `wiki_overview`, `wiki_read`, `wiki_search`, `wiki_commit`, `wiki_history`, `wiki_graph`, `wiki_lint` and `wiki_raw`. Without MCP, use `python3 scripts/wiki_remote.py` (stdlib only).
+- **ローカルのフォルダー。** ページはファイルである。ファイルの読み込み、`str_replace`、付属のスクリプトを使う。
+- **ホスト型の URL。** ページは LLM Wiki のサーバー（Cloudflare Worker）上にある。MCP ツールの `wiki_overview`、`wiki_read`、`wiki_search`、`wiki_commit`、`wiki_history`、`wiki_graph`、`wiki_lint`、`wiki_raw` を使う。MCP がなければ、`python3 scripts/wiki_remote.py`（標準ライブラリのみ）を使う。
 
-Select the hosted backend when the instructions give a wiki URL, or when the `wiki_overview` tool is available and no local path is given. In hosted mode:
+指示に wiki の URL がある場合、またはローカルのパスの指定がなく `wiki_overview` ツールが使える場合は、ホスト型のバックエンドを選ぶ。ホストモードでは次のようにする。
 
-1. Call `wiki_overview` first. It returns `SCHEMA.md` and `index.md`.
-2. Make surgical changes with `wiki_commit` `edit` operations. Each `old` text must occur once.
-3. Add `log.md` and index lines with `append` operations. They never conflict.
-4. After a conflict (HTTP 409 or `isError`), read the page again, make the change again and retry. Never overwrite another agent's change.
-5. Do not run extract or cache scripts. The server updates search, links and the graph on each commit.
+1. 最初に `wiki_overview` を呼び出す。`SCHEMA.md` と `index.md` が返る。
+2. 必要な箇所だけの変更は、`wiki_commit` の `edit` 操作で行う。各 `old` のテキストは、ページ内に1回だけ現れるものでなければならない。
+3. `log.md` とインデックスの行は `append` 操作で追加する。`append` は競合しない。
+4. 競合（HTTP 409 または `isError`）が起きたら、ページを読み直し、変更を作り直して再試行する。ほかのエージェントの変更を上書きしてはならない。
+5. extract やキャッシュのスクリプトは実行しない。サーバーがコミットのたびに、検索、リンク、グラフを更新する。
 
-A `pull` mirror of a hosted wiki is read-only. Do not edit it. Full procedure, tool map and limits: `references/hosted-mode.md`.
+ホスト型 wiki の `pull` ミラーは読み取り専用である。編集してはならない。詳しい手順、ツールの対応表、制限は `references/hosted-mode.md` にある。
 
-**Optional decision layer.** Small decision models can gate search relevance and flag weak graph evidence or untrusted text. The layer is off by default and never writes pages. Enable it only on the user's request: `references/decision-models.md`.
+**任意の判定レイヤー。** 小さな判定モデルを使って、検索結果を関連度でふるい分けたり、グラフの弱い証拠や信頼できないテキストにフラグを立てたりできる。このレイヤーは既定では無効で、ページを書き込むことはない。ユーザーが求めたときだけ有効にする。`references/decision-models.md` を参照。
 
-## Architecture: three layers, three operations
+## アーキテクチャ: 3つの層と3つの操作
 
-The wiki has three layers and three operations. Internalize this vocabulary because the rest of the skill assumes it.
+wiki には3つの層と3つの操作がある。スキルの残りの部分はこの用語を前提にしているので、しっかり押さえておく。
 
-The three layers are **raw sources** (the user's curated source material: articles, papers, PDFs, transcripts; immutable, the LLM reads but never modifies them), **the wiki** (a directory of LLM-generated markdown pages: entity pages, concept pages, comparisons, summaries; the LLM owns this layer entirely), and **the schema** (a `SCHEMA.md` file at the wiki root that documents the conventions for this particular wiki: page types, naming rules, tag taxonomy, ingest workflow customizations; co-evolved with the user).
+3つの層は次のとおりである。**raw ソース**は、ユーザーが選んだ元の資料（記事、論文、PDF、文字起こし）で、変更不可である。LLM は読むだけで、変更しない。**wiki** は、LLM が生成した markdown ページ（エンティティのページ、コンセプトのページ、比較、要約）のディレクトリで、この層はすべて LLM が受け持つ。**スキーマ**は、wiki のルートにある `SCHEMA.md` ファイルで、その wiki 固有の規約（ページの種類、命名規則、タグの体系、取り込みのワークフローのカスタマイズ）を記す。スキーマはユーザーと一緒に改訂していく。
 
-The three operations are **ingest** (a new source arrives; the LLM reads it, writes a summary page, updates relevant entity and concept pages, appends to the log), **query** (the user asks a question; the LLM navigates the wiki via the index, reads the relevant pages, and synthesizes an answer, often filing the answer back as a new page so the exploration compounds), and **lint** (a periodic health check; the LLM scans for contradictions, stale claims, orphan pages, missing concepts, broken links).
+3つの操作は次のとおりである。**取り込み（ingest）**では、新しいソースが届くと、LLM がそれを読み、要約ページを書き、関係するエンティティとコンセプトのページを更新し、ログに追記する。**クエリ（query）**では、ユーザーが質問すると、LLM がインデックスから wiki をたどり、関係するページを読み、回答をまとめる。回答を新しいページとして保存し、調べた内容を積み重ねていくことも多い。**lint** は定期的な健全性チェックで、LLM が矛盾、古くなった主張、孤立ページ、足りないコンセプト、リンク切れを探す。
 
-For the canonical write-up of these operations, read `references/architecture.md`. For the step-by-step procedures, read `references/ingest-workflow.md`, `references/query-workflow.md`, and `references/lint-workflow.md` as needed.
+これらの操作の正式な説明は `references/architecture.md` にある。手順の詳細は、必要に応じて `references/ingest-workflow.md`、`references/query-workflow.md`、`references/lint-workflow.md` を読む。
 
-## Graph layer (compiled, optional)
+## グラフ層（コンパイルで生成する任意の層）
 
-Pages can carry typed `graph:` metadata in frontmatter. A bundled extractor compiles every page into `wiki/graph/`: `nodes.jsonl`, `edges.jsonl`, `graph.sqlite`, `graph.graphml`. **Markdown is canonical**; the graph is a regenerable index. Pages without `graph:` still appear as nodes (derived from their `type`/`kind`) and contribute low-confidence `mentions` edges from body wikilinks. Typed semantic edges (e.g. `founded`, `proposed`, `depends_on`) require an explicit source and evidence quote: never emit one inferred from training data.
+ページの frontmatter には、型付きの `graph:` メタデータを書ける。付属の抽出スクリプトが、すべてのページを `wiki/graph/` の `nodes.jsonl`、`edges.jsonl`、`graph.sqlite`、`graph.graphml` にコンパイルする。**正本は Markdown である。**グラフは作り直せるインデックスにすぎない。`graph:` のないページも、`type` と `kind` から導いたノードとして現れ、本文の wikilink から確信度の低い `mentions` エッジを生む。型付きの意味的なエッジ（`founded`、`proposed`、`depends_on` など）には、明示的なソースと証拠となる引用が必要である。学習データから推測したエッジを書いてはならない。
 
-The conventions for the graph layer (predicate vocabulary, node id format, required fields) live in `wiki/graph/ontology.yaml`. The full reference is `references/graph-workflow.md`. Run the bundled scripts after substantive ingests:
+グラフ層の規約（述語の語彙、ノード ID の形式、必須のフィールド）は `wiki/graph/ontology.yaml` にある。詳しいリファレンスは `references/graph-workflow.md` である。中身のある取り込みのあとで、付属のスクリプトを実行する。
 
 ```bash
-uv run --script scripts/wiki_graph_lint.py wiki/      # check ontology + evidence + alias collisions
-uv run --script scripts/wiki_graph_extract.py wiki/   # rebuild nodes.jsonl, edges.jsonl, graph.sqlite, graph.graphml
+uv run --script scripts/wiki_graph_lint.py wiki/      # オントロジー、証拠、エイリアスの衝突をチェックする
+uv run --script scripts/wiki_graph_extract.py wiki/   # nodes.jsonl、edges.jsonl、graph.sqlite、graph.graphml を作り直す
 python scripts/wiki_graph_query.py wiki/ neighbors --node product:konvy
 ```
 
-If `wiki/graph/ontology.yaml` does not exist, the wiki is pre-graph and you should treat the graph step as a no-op: don't fabricate it.
+`wiki/graph/ontology.yaml` がない場合は、グラフ層を導入する前の wiki である。グラフの手順は何もしないものとして扱い、でっち上げてはならない。
 
-## Storage scope and layout
+## 保存の範囲とディレクトリ構成
 
-Wiki storage scope is independent of skill installation scope. Installing the skill globally only makes it available across projects; it does not create or select a global wiki.
+wiki を保存する範囲は、スキルをインストールする範囲とは関係がない。スキルをグローバルにインストールしても、プロジェクトをまたいで使えるようになるだけで、グローバルな wiki が作られたり選ばれたりはしない。
 
-Use one of two layouts:
+構成は次の2つのどちらかを使う。
 
-- **Personal global wiki:** a stable root such as `~/wiki/`, with raw sources at `~/wiki/raw/`. Point the agent's global instructions to that user-level path. This lets work from any project be deliberately ingested into one compounding knowledge base.
-- **Project wiki:** `wiki/` and `raw/` live in the project and are referenced by that project's agent-memory file. Use this when knowledge needs repository-level isolation or versioning.
+- **個人用のグローバルな wiki:** `~/wiki/` のような固定のルートに置き、raw ソースは `~/wiki/raw/` に置く。エージェントのグローバルな指示で、そのユーザーレベルのパスを指定する。こうすると、どのプロジェクトの作業でも、意図して1つのナレッジベースに取り込んで積み重ねられる。
+- **プロジェクトの wiki:** `wiki/` と `raw/` をプロジェクトの中に置き、そのプロジェクトのエージェントのメモリファイルから参照する。知識をリポジトリ単位で分けたり、リポジトリと一緒にバージョン管理したりしたいときに使う。
 
-A global wiki does not crawl or ingest projects automatically. Add project sources and durable findings when the user requests ingestion or their global instructions require those findings to be preserved.
+グローバルな wiki が、プロジェクトを自動で巡回して取り込むことはない。プロジェクトのソースや残すべき調査結果は、ユーザーが取り込みを求めたとき、またはグローバルな指示でそれらを残すよう求められているときに追加する。
 
-The project-local default is:
+プロジェクトでの既定の構成は次のとおりである。
 
 ```
 <project-root>/
 ├── wiki/
-│   ├── SCHEMA.md              ← conventions, the "config file": read this FIRST
-│   ├── index.md               ← entry point: catalog of all pages with one-line summaries
-│   ├── log.md                 ← append-only chronological log of ingests/queries/lints
-│   ├── indexes/               ← (appears once index.md shards) per-category indexes
-│   ├── entities/              ← pages about specific things (people, products, papers, places)
-│   ├── concepts/              ← pages about ideas, methods, frameworks
-│   ├── sources/               ← per-source summary pages (one per ingested source)
-│   └── synthesis/             ← cross-cutting analyses, comparisons, query results filed back
-├── raw/                       ← the user's source material (PDFs, .md clippings, images)
-│   └── assets/                ← downloaded images referenced by raw clippings
+│   ├── SCHEMA.md              ← 規約。「設定ファイル」に当たる。最初に読む
+│   ├── index.md               ← 入り口。全ページを1行の要約つきで並べた目録
+│   ├── log.md                 ← 取り込み、クエリ、lint を時系列で追記していくログ
+│   ├── indexes/               ← （index.md を分割すると現れる）カテゴリ別のインデックス
+│   ├── entities/              ← 具体的なもの（人、製品、論文、場所）のページ
+│   ├── concepts/              ← 考え方、手法、フレームワークのページ
+│   ├── sources/               ← ソースごとの要約ページ（取り込んだソース1つにつき1ページ）
+│   └── synthesis/             ← 横断的な分析、比較、保存したクエリの結果
+├── raw/                       ← ユーザーの元の資料（PDF、.md のクリップ、画像）
+│   └── assets/                ← raw のクリップから参照される、ダウンロードした画像
 └── ...
 ```
 
-This layout is a default, not a requirement. A global wiki can put `raw/` inside the wiki root, and either scope can use another name such as `kb/`, `notes/`, or `vault/`. Follow `SCHEMA.md`.
+この構成は既定値であり、必須ではない。グローバルな wiki では `raw/` を wiki のルートの中に置いてもよく、どちらの範囲でも `kb/`、`notes/`、`vault/` のような別の名前を使ってよい。`SCHEMA.md` に従う。
 
-## The scalability discipline
+## スケーラビリティのための規律
 
-The single biggest failure mode of the LLM Wiki pattern is the wiki itself becoming a context bottleneck. Naive implementations break around a few hundred pages: the LLM either reads too many pages per query or starts hallucinating because it skipped the relevant ones. This skill's design is shaped almost entirely by avoiding that failure. The principles below are non-negotiable; ignoring them is what makes the pattern collapse at scale.
+LLM Wiki のパターンでもっとも大きな失敗は、wiki そのものがコンテキストのボトルネックになることである。素朴な実装は、数百ページのあたりで破綻する。LLM が1回のクエリで読むページが多すぎるか、関係するページを読み飛ばしたせいでハルシネーションを起こし始める。このスキルの設計は、ほぼすべてがこの失敗を避けるためのものである。以下の原則は譲れない。これを無視すると、規模が大きくなったときにパターンが崩れる。
 
-**Atomic pages.** Every wiki page is about one concept and stays small: soft cap 400 lines or roughly 2,000 words, hard cap 800 lines. When a page outgrows this, split it: extract sub-concepts into their own pages and have the parent link to them. A page that takes up 30% of the context window on its own is a design smell.
+**アトミックなページ。** wiki のページはどれも1つのコンセプトだけを扱い、小さく保つ。ソフト上限は 400 行（約 2,000 語）、ハード上限は 800 行である。ページがこれを超えたら分割する。下位のコンセプトを独立したページに切り出し、親のページからリンクする。1ページだけでコンテキストウィンドウの 30% を占めるなら、設計に問題がある兆候である。
 
-**Index-first navigation.** Never grep or glob the wiki blindly when answering a query. Always read `index.md` (or the relevant sharded index under `indexes/`) first to identify candidate pages, then drill into only those. The index is engineered to be cheap to read (one line per page, no bodies), and it is the cache that makes the whole pattern scalable.
+**インデックスを先に読むナビゲーション。** クエリに答えるときに、wiki をやみくもに grep や glob で探してはならない。必ず最初に `index.md`（または `indexes/` 以下の該当する分割済みのインデックス）を読んで候補のページを見つけ、そのページだけを詳しく読む。インデックスは安く読めるように作ってあり（1ページにつき1行で、本文は含まない）、パターン全体をスケールさせるキャッシュの役割を果たす。
 
-**Sharded indexes.** When `index.md` itself exceeds ~300 lines or the wiki passes ~150 pages, shard it: move category-specific entries into `indexes/<category>.md` files (e.g. `indexes/entities.md`, `indexes/concepts.md`, `indexes/sources.md`, or finer domain shards), and have the top-level `index.md` become a directory of those shards. Now reading the index is a two-step lookup but each step is bounded.
+**分割したインデックス。** `index.md` が約 300 行を超えるか、wiki が約 150 ページを超えたら、インデックスを分割する。カテゴリ別の項目を `indexes/<category>.md` ファイル（`indexes/entities.md`、`indexes/concepts.md`、`indexes/sources.md`、またはより細かい分野別のファイル）に移し、トップレベルの `index.md` は分割したファイルの一覧にする。インデックスを読むのは2段階になるが、各段階で読む量には上限がある。
 
-**YAML frontmatter on every page.** Every wiki page begins with frontmatter that includes at minimum `type`, `tags`, `sources`, and `updated`. The bundled `wiki_search.py` script can filter on these without reading page bodies. See `references/page-conventions.md`.
+**すべてのページに YAML の frontmatter を付ける。** wiki のページはどれも、少なくとも `type`、`tags`、`sources`、`updated` を含む frontmatter で始める。付属の `wiki_search.py` スクリプトは、ページの本文を読まずにこれらで絞り込める。`references/page-conventions.md` を参照。
 
-**Surgical edits, not rewrites.** When updating a page (e.g. adding a new cross-reference because a freshly ingested source mentions an existing entity), use `str_replace` to touch only the relevant section. Rewriting whole pages is slow, expensive in tokens, and risks losing prior nuance.
+**書き直さず、必要な箇所だけを編集する。** ページを更新するとき（新しく取り込んだソースが既存のエンティティに触れているので相互参照を追加する、など）は、`str_replace` で関係するセクションだけを変更する。ページ全体を書き直すと、遅く、トークンを多く使い、以前の細かいニュアンスを失うおそれがある。
 
-**Backlink discovery via grep.** To find every page that references a given entity, run `grep -rl "\[\[entity-name\]\]" wiki/` rather than reading pages to look for mentions. The bundled scripts make this easy.
+**被リンクは grep で探す。** あるエンティティを参照しているページをすべて見つけるには、ページを読んで言及を探すのではなく、`grep -rl "\[\[entity-name\]\]" wiki/` を実行する。付属のスクリプトを使えば簡単にできる。
 
-**Chunked source ingestion.** Large raw sources (long PDFs, book chapters, lengthy transcripts) should be read in chunks during ingest, not loaded whole. The ingest workflow handles this: see `references/ingest-workflow.md`.
+**ソースは分割して取り込む。** 大きい raw ソース（長い PDF、書籍の章、長い文字起こし）は、取り込みのときに全体を一度に読み込まず、分割して読む。取り込みのワークフローがこれを扱う。`references/ingest-workflow.md` を参照。
 
-**Search script for large wikis.** Once the wiki passes ~300 pages, plain index lookup may not surface the right pages for fuzzy queries. Use `scripts/wiki_search.py` for section-level hybrid retrieval with optional frontmatter filters and structured `--json` evidence rows. The default path runs the local `BAAI/bge-small-en-v1.5` FastEmbed model, stores derived vectors in `wiki/.wiki-cache/embeddings.sqlite` through sqlite-vec, and fuses semantic and BM25 ranks with RRF. Initialization and upgrade run `scripts/setup_wiki.py` through `uv`, installing pinned FastEmbed, sqlite-vec, and PyYAML, caching the model, and synchronizing every section before setup is reported ready. No wiki or query text leaves the machine. For dependency-free BM25, bypass PEP 723 resolution with `python scripts/wiki_search.py "query" --no-embed`.
+**大きい wiki には検索スクリプトを使う。** wiki が約 300 ページを超えると、あいまいなクエリでは、インデックスを引くだけでは適切なページが見つからないことがある。`scripts/wiki_search.py` を使うと、セクション単位のハイブリッド検索を、任意の frontmatter のフィルターと、構造化された `--json` の証拠の行つきで実行できる。既定の経路では、ローカルの `BAAI/bge-small-en-v1.5` FastEmbed モデルを実行し、生成したベクトルを sqlite-vec で `wiki/.wiki-cache/embeddings.sqlite` に保存し、セマンティック検索と BM25 の順位を RRF で統合する。初期化とアップグレードでは、`uv` を通じて `scripts/setup_wiki.py` を実行し、バージョンを固定した FastEmbed、sqlite-vec、PyYAML をインストールし、モデルをキャッシュし、すべてのセクションを同期してから、セットアップの完了を報告する。wiki やクエリのテキストがマシンの外に出ることはない。依存パッケージを使わない BM25 にするには、`python scripts/wiki_search.py "query" --no-embed` で PEP 723 による依存解決を通さずに実行する。
 
-For the full scaling playbook including thresholds and migration steps, read `references/scaling-playbook.md`.
+閾値と移行の手順を含むスケーリングの詳しい手引きは、`references/scaling-playbook.md` を読む。
 
-## Initializing a new wiki
+## 新しい wiki を初期化する
 
-Ask whether the user wants one global personal wiki or a project wiki. Then run the bootstrap script against the selected base directory:
+グローバルな個人用 wiki とプロジェクトの wiki のどちらにするかをユーザーに聞く。そのうえで、選んだベースディレクトリに対して初期化スクリプトを実行する。
 
 ```bash
-# Project wiki: <project-root>/wiki and <project-root>/raw
+# プロジェクトの wiki: <project-root>/wiki と <project-root>/raw
 python scripts/init_wiki.py <project-root> [--wiki-dir wiki] [--raw-dir raw]
 
-# Personal global wiki: ~/wiki with raw sources at ~/wiki/raw
+# 個人用のグローバルな wiki: ~/wiki、raw ソースは ~/wiki/raw
 python scripts/init_wiki.py <home-directory> --wiki-dir wiki --raw-dir wiki/raw
 ```
 
-This creates the directory structure, drops in templates for `SCHEMA.md`, `index.md`, and `log.md`, then runs mandatory local runtime setup. Setup installs the pinned dependencies through `uv`, downloads `BAAI/bge-small-en-v1.5` when absent, builds the parse cache, and embeds every current section. Do not treat initialization or upgrade as complete unless setup emits `"status": "ready"`.
+このスクリプトは、ディレクトリ構造を作り、`SCHEMA.md`、`index.md`、`log.md` のテンプレートを置き、そのあと必須のローカル実行環境のセットアップを行う。セットアップでは、`uv` を通じてバージョンを固定した依存パッケージをインストールし、`BAAI/bge-small-en-v1.5` がなければダウンロードし、パースキャッシュを作り、現在のすべてのセクションのベクトルを作る。セットアップが `"status": "ready"` を出力しない限り、初期化やアップグレードが完了したものとして扱ってはならない。
 
-Before running the bootstrap, use the grouped interview in `references/retrieval-setup.md` to confirm paths, model-cache location, graph usage, and agent-memory integration. Do not ask for API keys or provider consent: there is no remote embedding path. `--no-embed` remains the deterministic lexical escape hatch for later searches, not a way to skip mandatory setup.
+初期化スクリプトを実行する前に、`references/retrieval-setup.md` にある質問をまとめて聞き、パス、モデルキャッシュの場所、グラフを使うか、エージェントのメモリとの連携を確認する。API キーやプロバイダーへの同意は求めない。リモートで埋め込みを行う経路はない。`--no-embed` は、あとの検索で決定的な語彙ベースの検索に切り替えるための手段であり、必須のセットアップを省く方法ではない。
 
-Then propose wiring the wiki into agent memory so future sessions can find it: global instructions with a stable user-level path for a personal global wiki, or the project's memory file with a relative path for a project wiki. The filename depends on the agent: `CLAUDE.md` for Claude Code, `AGENTS.md` for Codex / Cursor / OpenCode / Pi / OpenClaw, and `GEMINI.md` for Gemini CLI. Full workflow and both stanza variants are in `references/agent-memory-integration.md`. Never write to a memory file without the user's approval.
+そのあと、今後のセッションで wiki を見つけられるように、エージェントのメモリに wiki を登録することを提案する。個人用のグローバルな wiki なら、ユーザーレベルの固定パスを使ってグローバルな指示に書き、プロジェクトの wiki なら、相対パスを使ってプロジェクトのメモリファイルに書く。ファイル名はエージェントによって異なり、Claude Code なら `CLAUDE.md`、Codex、Cursor、OpenCode、Pi、OpenClaw なら `AGENTS.md`、Gemini CLI なら `GEMINI.md` である。詳しい手順と、2種類の定型文は `references/agent-memory-integration.md` にある。ユーザーの承認なしにメモリファイルに書き込んではならない。
 
-## The ingest workflow (summary)
+## 取り込みのワークフロー（概要）
 
-The full workflow is in `references/ingest-workflow.md`; what follows is the shape of it. When a new source arrives, first write the source itself into `raw/` (verbatim; if it's a web article, use the markdown form). Then read the source, chunked if large, and write a single source-summary page in `wiki/sources/`, named after the source slug, with full frontmatter and citations back to the raw file. Then identify which existing entity and concept pages this source touches; for each, surgically update the relevant section using `str_replace` rather than rewriting. Identify any new entities or concepts the source introduces and create new pages for them, linking from related existing pages so they don't become orphans. Update `index.md` (or the relevant shard) with the new pages. Append a single line to `log.md` with the date, operation type, and source title. Discuss the takeaways with the user as a final step, what surprised them, what's worth following up on, and offer to file that discussion back as a synthesis page.
+詳しいワークフローは `references/ingest-workflow.md` にあり、ここではその流れを示す。新しいソースが届いたら、まずソースそのものを `raw/` に書き込む（そのままの内容で書く。Web の記事なら markdown 形式にする）。次にソースを読み（大きければ分割して読む）、`wiki/sources/` にソースの要約ページを1つ書く。ページ名はソースのスラッグにし、frontmatter をすべて埋め、raw ファイルへの出典を付ける。次に、このソースが関係する既存のエンティティとコンセプトのページを洗い出し、それぞれ書き直さずに、`str_replace` で関係するセクションだけを更新する。ソースが持ち込む新しいエンティティやコンセプトを洗い出して新しいページを作り、孤立しないように、関係する既存のページからリンクする。新しいページを `index.md`（または該当する分割済みのファイル）に追加する。`log.md` に、日付、操作の種類、ソースのタイトルを書いた1行を追記する。最後に、要点をユーザーと話し合い、意外だった点や追って調べる価値のある点を挙げ、その話し合いをシンセシスのページとして保存することを提案する。
 
-## The query workflow (summary)
+## クエリのワークフロー（概要）
 
-Full version in `references/query-workflow.md`. To answer a query against the wiki: read `index.md` (or the relevant shard) first; identify candidate pages from one-line summaries; read those pages (and any backlinks they list that look relevant); synthesize the answer with `[[wikilink]]` citations to the pages you used; offer to file the synthesized answer back into `synthesis/` so future queries benefit. If the index doesn't surface good candidates, run `uv run --script <skill-root>/scripts/wiki_search.py "query terms" --wiki <absolute-wiki-root>` for ranked local hybrid retrieval; add `--no-embed` only for dependency-free lexical BM25. Keep the installed skill path and target wiki path explicit. If the wiki appears to lack coverage of the topic, say so plainly rather than confabulating: flag it as a candidate ingest target.
+詳しい内容は `references/query-workflow.md` にある。wiki をもとにクエリに答えるには、最初に `index.md`（または該当する分割済みのファイル）を読み、1行の要約から候補のページを見つけ、そのページ（と、そこに挙がっている被リンクのうち関係がありそうなもの）を読み、使ったページへの `[[wikilink]]` を出典として付けて回答をまとめる。今後のクエリで役立つように、まとめた回答を `synthesis/` に保存することを提案する。インデックスから適切な候補が見つからない場合は、`uv run --script <skill-root>/scripts/wiki_search.py "query terms" --wiki <absolute-wiki-root>` を実行して、ローカルのハイブリッド検索で順位付けした結果を得る。依存パッケージを使わない語彙ベースの BM25 にしたいときだけ `--no-embed` を付ける。インストールしたスキルのパスと、対象の wiki のパスは明示する。wiki にその話題の内容が足りないようなら、話をでっち上げず、そうはっきり伝え、取り込むべき候補として挙げる。
 
-## The lint workflow (summary)
+## lint のワークフロー（概要）
 
-Full version in `references/lint-workflow.md`. Lint is best run on a cadence (after every N ingests or weekly), not on every operation. The bundled `python scripts/wiki_lint.py` finds the structural issues automatically: orphan pages, broken `[[wikilinks]]`, oversized pages, missing or malformed frontmatter, stale `updated` dates. Then for the semantic checks that need an LLM: read recently-updated pages and look for contradictions with older claims, identify concepts mentioned but lacking their own page, and suggest gaps the user might want to fill via web search or new sources. Always present lint findings as proposed edits for the user to approve, not as faits accomplis: the wiki is the user's, and silent rewrites erode trust.
+詳しい内容は `references/lint-workflow.md` にある。lint は、操作のたびではなく、一定の頻度（N 回の取り込みごと、または週1回）で行うのがよい。付属の `python scripts/wiki_lint.py` は、構造上の問題を自動で見つける。孤立ページ、リンク切れの `[[wikilinks]]`、大きすぎるページ、frontmatter の欠落や形式の誤り、`updated` の日付が古いページである。そのあと、LLM が必要な内容面のチェックを行う。最近更新されたページを読んで古い主張との矛盾を探し、言及されているのに専用のページがないコンセプトを洗い出し、Web 検索や新しいソースで補うとよい不足をユーザーに提案する。lint の検出結果は、すでに済ませたこととしてではなく、ユーザーが承認する編集案として必ず示す。wiki はユーザーのものであり、黙って書き換えると信頼が損なわれる。
 
-## Failure modes to guard against
+## 防ぐべき失敗
 
-The community discussion around the gist surfaced several failure modes worth internalizing because they are how this pattern goes wrong. Read them so you know what to actively avoid.
+gist をめぐるコミュニティの議論で、いくつかの失敗が指摘された。このパターンがうまくいかなくなるのはこれらが原因なので、しっかり押さえておく。何を積極的に避けるべきかを知るために読んでおくこと。
 
-The first is **silent corruption**: a misreading of one source becomes an authoritative-looking wiki page, which then influences how subsequent sources are interpreted, and the error compounds invisibly. Mitigation: every wiki claim must carry a `sources:` frontmatter entry pointing back to the raw file, and the lint pass should surface any claim whose source can't be located. When in doubt during ingest, hedge in the wiki text ("the source claims X, though this is not yet corroborated by other sources") rather than asserting.
+1つ目は**気づかれない汚染**である。1つのソースを読み違えた内容が、もっともらしい wiki のページになり、それが以降のソースの解釈に影響し、誤りが目に見えないまま積み重なる。対策として、wiki のすべての主張に、raw ファイルを指す `sources:` の frontmatter の項目を付け、lint では、ソースを見つけられない主張を洗い出す。取り込みのときに迷ったら、断定せず、wiki の文章で留保を付ける（「ソースは X と主張しているが、wiki のほかのソースではまだ裏づけられていない」）。
 
-The second is **wiki-reads-its-own-output drift**: the LLM begins treating prior wiki pages as ground truth and stops checking them against raw sources. Mitigation: during ingest, when updating an existing page, re-read the relevant raw source for the existing claim before merging the new one. Don't take the wiki's word for what the source said.
+2つ目は、**wiki が自分の出力を読むことによるずれ**である。LLM が以前の wiki のページを正しいものとして扱い始め、raw のソースと照らし合わせなくなる。対策として、取り込みで既存のページを更新するときは、新しい主張を統合する前に、既存の主張の元になった raw ソースを読み直す。ソースが何を言っていたかについて、wiki の記述をそのまま信じてはならない。
 
-The third is **the maintenance ratchet**: a critic in the gist comments noted that LLM-Wikis can require more human work over time, not less, because the LLM's output needs increasing supervision as the wiki grows. The mitigation is the scalability discipline above (sharded indexes, atomic pages, frontmatter, lint scripts) plus a strong cadence of lint passes. If lint reports start exceeding what the user can review, the wiki has outgrown its conventions and the schema needs revision.
+3つ目は、**保守の負担が増え続けること**である。gist のコメントで、ある批判者が、LLM-Wiki は時間がたつにつれて人の作業が減るどころか増えることがあると指摘した。wiki が大きくなるほど、LLM の出力に多くの監督が必要になるためである。対策は、上に挙げたスケーラビリティのための規律（分割したインデックス、アトミックなページ、frontmatter、lint のスクリプト）と、lint を確実に一定の頻度で行うことである。lint のレポートがユーザーの確認できる量を超え始めたら、wiki が今の規約に収まらなくなっているので、スキーマを見直す必要がある。
 
-The fourth is **scope creep into bad fits**: the pattern shines for accumulating textual research and degrades for highly relational data (org charts, financial ledgers, structured datasets) where a real database would serve better. If the user's domain is fundamentally relational, say so and suggest a better tool rather than forcing markdown to do the wrong job.
+4つ目は、**向いていない用途への範囲の広がり**である。このパターンは、テキストの調査結果を蓄積する用途で力を発揮し、関係性の強いデータ（組織図、会計の元帳、構造化されたデータセット）では劣る。そうしたデータには本物のデータベースのほうが向いている。ユーザーの扱う分野が本質的に関係データであれば、そう伝え、markdown に合わない仕事をさせるのではなく、より適したツールを提案する。
 
-## Reference files
+## リファレンスファイル
 
-The reference files are the source of truth for the detailed procedures. Read them when the relevant operation is happening, not preemptively.
+手順の詳細は、リファレンスファイルを正とする。前もって読むのではなく、該当する操作を行うときに読む。
 
-- `references/architecture.md`: the three layers and three operations explained in depth, with examples of page formats and the rationale behind each design choice
-- `references/ingest-workflow.md`: the step-by-step ingest procedure including chunked reading for large sources and the per-page-type templates
-- `references/query-workflow.md`: navigation patterns from index → page → backlinks, when to fall back to the search script, and how to file answers back as synthesis pages
-- `references/lint-workflow.md`: what to check, how to present findings, and the cadence
-- `references/page-conventions.md`: frontmatter schema, page naming, link syntax, page-type definitions, sizing rules
-- `references/scaling-playbook.md`: thresholds at which to shard the index, when to introduce the search script, signals that the wiki has outgrown its current conventions
-- `references/agent-memory-integration.md`: how to wire a global or project wiki into agent instructions, with stanza variants and the bootstrap conversation script
-- `references/retrieval-setup.md`: mandatory init/upgrade setup: paths, model cache, pinned local dependencies, full-corpus vector synchronization, readiness checks, and non-secret `SCHEMA.md` state
-- `references/graph-workflow.md`: the optional graph layer: ontology, frontmatter schema, when to add typed edges vs plain wikilinks, and the extract/lint/query flow
-- `references/hosted-mode.md`: the hosted backend: tool map, `wiki_commit` operations, conflict retry, raw sources, tokens, agent connection, migration and the pull mirror
-- `references/decision-models.md`: the optional decision layer: checks D1 to D5, backends, privacy, licence, settings and fail-open rules
+- `references/architecture.md`: 3つの層と3つの操作の詳しい説明。ページの形式の例と、各設計の理由
+- `references/ingest-workflow.md`: 取り込みの手順。大きいソースの分割読み込みと、ページの種類ごとのテンプレートを含む
+- `references/query-workflow.md`: インデックス → ページ → 被リンクとたどる方法、検索スクリプトに切り替えるタイミング、回答をシンセシスのページとして保存する方法
+- `references/lint-workflow.md`: 何をチェックするか、検出結果の示し方、頻度
+- `references/page-conventions.md`: frontmatter のスキーマ、ページの命名、リンクの書き方、ページの種類の定義、サイズの規則
+- `references/scaling-playbook.md`: インデックスを分割する閾値、検索スクリプトを導入するタイミング、wiki が今の規約に収まらなくなった兆候
+- `references/agent-memory-integration.md`: グローバルまたはプロジェクトの wiki をエージェントの指示に登録する方法。定型文の種類と、初期化時の会話の進め方
+- `references/retrieval-setup.md`: init と upgrade で必ず行うセットアップ。パス、モデルキャッシュ、バージョンを固定したローカルの依存パッケージ、コーパス全体のベクトルの同期、準備完了のチェック、秘密情報を含まない `SCHEMA.md` の状態
+- `references/graph-workflow.md`: 任意のグラフ層。オントロジー、frontmatter のスキーマ、型付きエッジと通常の wikilink の使い分け、extract・lint・query の流れ
+- `references/hosted-mode.md`: ホスト型のバックエンド。ツールの対応表、`wiki_commit` の操作、競合時の再試行、raw ソース、トークン、エージェントの接続、移行、pull ミラー
+- `references/decision-models.md`: 任意の判定レイヤー。D1〜D5 のチェック、バックエンド、プライバシー、ライセンス、設定、判定に失敗したときに処理を通す（fail-open）規則
 
-## Bundled scripts
+## 付属のスクリプト
 
-The scripts are intentionally minimal: they exist so the LLM doesn't reinvent the same helpers on every invocation. Each is documented in its own `--help` output and at the top of the file.
+スクリプトは、あえて最小限にしてある。LLM が呼び出すたびに同じヘルパーを作り直さずに済むようにするためのものである。それぞれの使い方は、`--help` の出力と、ファイルの先頭に書いてある。
 
-- `scripts/init_wiki.py`: bootstrap or upgrade a wiki, then require verified runtime/index setup
-- `scripts/setup_wiki.py`: install pinned FastEmbed/sqlite-vec/PyYAML through `uv`, cache the local model, and synchronize parse/vector indexes
-- `scripts/wiki_search.py`: section-level local hybrid retrieval with JSON evidence, filters, incremental caches, and dependency-free lexical fallback
-- `scripts/wiki_lint.py`: structural health check (orphans, broken links, oversized pages, frontmatter validation, stale dates)
-- `scripts/wiki_stats.py`: quick summary of wiki size, page count by type, link density; useful for deciding when to shard the index
-- `scripts/wiki_graph_extract.py`: compile graph metadata and wikilinks into JSONL, SQLite, and GraphML through pinned PyYAML
-- `scripts/wiki_graph_lint.py`: validate typed edges against the ontology through pinned PyYAML
-- `scripts/wiki_graph_query.py`: neighbors / edges / facts / shortest-path queries over `graph.sqlite`
-- `scripts/wiki_remote.py`: stdlib CLI for a hosted wiki: login, tokens, import, pull mirror, export, raw files, search, commit and MCP configuration
-- `scripts/wiki_decide.py`: optional decision-model client: backend check, contradiction screen, ingest shortlist and untrusted-text screen
+- `scripts/init_wiki.py`: wiki を初期化またはアップグレードし、実行環境とインデックスのセットアップが確認できるまで完了としない
+- `scripts/setup_wiki.py`: `uv` を通じてバージョンを固定した FastEmbed、sqlite-vec、PyYAML をインストールし、ローカルのモデルをキャッシュし、パースとベクトルのインデックスを同期する
+- `scripts/wiki_search.py`: セクション単位のローカルのハイブリッド検索。JSON の証拠、フィルター、差分更新のキャッシュ、依存パッケージを使わない語彙ベースの検索への切り替えを備える
+- `scripts/wiki_lint.py`: 構造の健全性チェック（孤立ページ、リンク切れ、大きすぎるページ、frontmatter の検証、古い日付）
+- `scripts/wiki_stats.py`: wiki の規模、種類別のページ数、リンク密度の簡単なまとめ。インデックスを分割するタイミングを決めるのに役立つ
+- `scripts/wiki_graph_extract.py`: グラフのメタデータと wikilink を、バージョンを固定した PyYAML を使って JSONL、SQLite、GraphML にコンパイルする
+- `scripts/wiki_graph_lint.py`: バージョンを固定した PyYAML を使い、型付きエッジをオントロジーと照らして検証する
+- `scripts/wiki_graph_query.py`: `graph.sqlite` に対する neighbors、edges、facts、最短経路のクエリ
+- `scripts/wiki_remote.py`: ホスト型 wiki 用の、標準ライブラリだけで動く CLI。ログイン、トークン、インポート、pull ミラー、エクスポート、raw ファイル、検索、コミット、MCP の設定
+- `scripts/wiki_decide.py`: 任意の判定モデルのクライアント。バックエンドのチェック、矛盾の洗い出し、取り込み候補の絞り込み、信頼できないテキストの洗い出し
 
-## Templates
+## テンプレート
 
-The templates in `assets/` are starting points: they get copied into the user's wiki on bootstrap and then evolve under the user's editing.
+`assets/` にあるテンプレートは出発点である。初期化のときにユーザーの wiki にコピーされ、そのあとはユーザーの編集によって変わっていく。
 
-- `assets/SCHEMA.md.template`: the canonical schema document for a new wiki
-- `assets/index.md.template`: the empty index file
-- `assets/log.md.template`: the empty log file
-- `assets/page.md.template`: a generic wiki page with the frontmatter scaffold
-- `assets/ontology.yaml.template`: starter graph ontology copied to `wiki/graph/ontology.yaml`
-- `assets/graph_README.md.template`: explainer for `wiki/graph/` (canonical vs generated files)
-- `assets/graph_gitignore.template`: `.gitignore` for `wiki/graph/` (ignores `graph.sqlite` and `graph.graphml` by default)
-- `assets/decision-questions.json`: question templates for the optional decision layer (the server holds an identical copy)
+- `assets/SCHEMA.md.template`: 新しい wiki の正本となるスキーマ文書
+- `assets/index.md.template`: 空のインデックスファイル
+- `assets/log.md.template`: 空のログファイル
+- `assets/page.md.template`: frontmatter のひな形を含む、汎用の wiki ページ
+- `assets/ontology.yaml.template`: `wiki/graph/ontology.yaml` にコピーされる、グラフのオントロジーのひな形
+- `assets/graph_README.md.template`: `wiki/graph/` の説明（正本のファイルと生成されるファイルの違い）
+- `assets/graph_gitignore.template`: `wiki/graph/` 用の `.gitignore`（既定で `graph.sqlite` と `graph.graphml` を無視する）
+- `assets/decision-questions.json`: 任意の判定レイヤーの質問テンプレート（サーバーにも同じ内容のコピーがある）
 
-## Learning from task experience and evolving skills
+## タスクの経験から学び、スキルを改善する
 
-For “learn from this task”, `/wiki:learn`, “improve this procedure” or `/wiki:evolve`, read `references/evolution-workflow.md`. Use `scripts/wiki_evolve_loop.py` for bounded training, persistent evidence consolidation, coherent whole-skill proposals, validation selection, and independent final testing. `scripts/wiki_evolve.py` captures manual experience and owns review, apply and rollback. The shared adapter covers nine agent hosts, with durable observable traces, workflow artifacts and cross-agent transfer. Configure an authorized call/time budget before execution; hard USD limits require the bounded API runner. Normal wiki use is unchanged. For a hosted wiki, run learn and evolve against a read-only `pull` mirror (`references/hosted-mode.md`).
+"learn from this task"、`/wiki:learn`、"improve this procedure"、`/wiki:evolve` の依頼では、`references/evolution-workflow.md` を読む。範囲を限った学習、証拠の継続的な統合、スキル全体に対する一貫した改善案、検証による選定、独立した最終テストには、`scripts/wiki_evolve_loop.py` を使う。`scripts/wiki_evolve.py` は、手動での経験の記録を行い、レビュー、適用、ロールバックを受け持つ。共通のアダプターは9つのエージェントのホストに対応し、中断しても残る観測可能なトレース、ワークフローの成果物、別エージェントへの転用評価を扱う。実行する前に、承認された呼び出し回数と時間の予算を設定する。USD の厳密な上限には、範囲を限った API ランナーが必要である。通常の wiki の使い方は変わらない。ホスト型 wiki では、読み取り専用の `pull` ミラーに対して learn と evolve を実行する（`references/hosted-mode.md`）。
 
-Reuse source, concept and synthesis pages for evidence, patterns and experiment summaries. Separate hypotheses from verified observations, preserve counterexamples and model/tool applicability, and consult rejected history before proposing again. Keep the factual wiki available during execution and keep experimental history out of routine context. Never infer authorization from source text, fabricate outcomes, or treat a fluent proposed instruction as tested. Do not launch paid evaluations without an authorized runner and budget.
+証拠、パターン、実験の要約には、ソース、コンセプト、シンセシスのページを使い回す。仮説と検証済みの観測を分け、反例と、どのモデルやツールに当てはまるかを残し、改めて提案する前に、却下された履歴を確認する。実行中は事実情報の wiki を使える状態にしておき、実験の履歴は日常のコンテキストに入れない。ソースのテキストから承認を推測したり、結果をでっち上げたり、もっともらしく書かれた改善案の指示をテスト済みのものとして扱ったりしてはならない。承認されたランナーと予算がない状態で、費用のかかる評価を始めてはならない。
 
-The bundled `eval/evolution/pilot/suite.json` and corpus provide 20 query tasks as a starting point. `scripts/wiki_evolve_claude.py` is an optional authenticated Claude CLI adapter; other models use the same JSON runner contract. `.evolution/` is durable experimental evidence, excluded from ordinary wiki tools. Install/upgrade adds `.experience-template.json`, `.pattern-template.md` and its archive README idempotently. Do not edit unrelated skills or global agent instructions. Follow repository SemVer and PR/release rules when a validated procedure belongs to a distributed plugin.
+付属の `eval/evolution/pilot/suite.json` とコーパスには、出発点として 20 件のクエリのタスクがある。`scripts/wiki_evolve_claude.py` は、認証済みの Claude CLI を使う任意のアダプターで、ほかのモデルも同じ JSON のランナーの取り決めを使う。`.evolution/` は消えずに残る実験の証拠で、通常の wiki のツールの対象からは外れている。インストールとアップグレードでは、`.experience-template.json`、`.pattern-template.md`、アーカイブの README を冪等に追加する。関係のないスキルや、グローバルなエージェントの指示を編集してはならない。検証済みの手順が配布されているプラグインに含まれる場合は、リポジトリの SemVer と、PR およびリリースの規則に従う。

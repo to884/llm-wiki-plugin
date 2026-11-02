@@ -7,32 +7,32 @@
 # ]
 # ///
 """
-wiki_search.py — Section-level BM25 and local hybrid search over wiki pages.
+wiki_search.py — wiki のページを対象にした、セクション単位の BM25 とローカルのハイブリッド検索。
 
-FastEmbed and sqlite-vec provide the default semantic path. BM25 remains
-available without dependencies through --no-embed and as a safe fallback.
+既定のセマンティック検索には FastEmbed と sqlite-vec を使う。BM25 は、--no-embed を付ければ
+依存パッケージなしで使え、安全な代替手段としても残っている。
 
-Usage:
+使い方:
     python wiki_search.py "query terms" [options]
 
-Options:
-    --wiki <dir>            Wiki directory (default: ./wiki)
-    --top N                 Return top N results (default: 10)
-    --type <type>           Filter by frontmatter type (source|entity|concept|synthesis|...)
-    --tag <tag>             Filter by tag (repeatable)
-    --since YYYY-MM-DD      Only pages updated on or after this date
-    --backlinks <slug>      Find pages that link to <slug>; ignores the query
-    --top-linked N          Show the N most-linked-to pages (hubs); ignores the query
-    --cache [<path>]        Incremental parse cache (default: wiki/.wiki-cache/search-index.json)
-    --granularity <mode>    Search sections (default) or whole pages
-    --per-page N            Maximum section results per page (default: 2)
-    --json                  Emit structured evidence rows
-    --no-embed              Force lexical-only BM25
-    --decide                Keep only rows that a decision model rates relevant (needs LLM_WIKI_DECISIONS)
-    --decide-pool N         Rows to score with --decide (default: 20)
-    --decide-threshold X    P(relevant) needed to keep a row (default: 0.65)
+オプション:
+    --wiki <dir>            wiki のディレクトリ（既定: ./wiki）
+    --top N                 上位 N 件の結果を返す（既定: 10）
+    --type <type>           frontmatter の type で絞り込む（source|entity|concept|synthesis|...）
+    --tag <tag>             タグで絞り込む（複数指定できる）
+    --since YYYY-MM-DD      この日付以降に更新されたページだけを対象にする
+    --backlinks <slug>      <slug> にリンクしているページを探す。クエリは無視する
+    --top-linked N          もっとも多くリンクされている N ページ（ハブ）を表示する。クエリは無視する
+    --cache [<path>]        差分で更新するパースキャッシュ（既定: wiki/.wiki-cache/search-index.json）
+    --granularity <mode>    セクション（既定）とページ全体のどちらを検索するか
+    --per-page N            1ページあたりのセクションの結果の最大数（既定: 2）
+    --json                  構造化された証拠の行を出力する
+    --no-embed              語彙ベースの BM25 だけを使う
+    --decide                判定モデルが関連ありと判定した行だけを残す（LLM_WIKI_DECISIONS が必要）
+    --decide-pool N         --decide で採点する行の数（既定: 20）
+    --decide-threshold X    行を残すのに必要な P(relevant)（既定: 0.65）
 
-Examples:
+例:
     python wiki_search.py "diffusion training stability" --top 5
     python wiki_search.py "alignment" --type concept --tag safety
     python wiki_search.py "" --backlinks transformer
@@ -63,7 +63,7 @@ MAX_COSINE_DISTANCE = 0.35
 
 
 def parse_frontmatter(text: str) -> tuple[dict, str]:
-    """Lightweight YAML-ish frontmatter parser. Returns (metadata, body)."""
+    """YAML 風の frontmatter の軽量なパーサー。(metadata, body) を返す。"""
     m = FRONTMATTER_RE.match(text)
     if not m:
         return {}, text
@@ -74,7 +74,7 @@ def parse_frontmatter(text: str) -> tuple[dict, str]:
     for line in fm_text.split("\n"):
         if not line.strip():
             continue
-        # Inline list: tags: [a, b, c]
+        # インラインのリスト: tags: [a, b, c]
         kv = re.match(r"^([a-zA-Z_]+):\s*(.*)$", line)
         if kv:
             key, value = kv.group(1), kv.group(2).strip()
@@ -106,7 +106,7 @@ def extract_wikilinks(body: str) -> list[str]:
 
 
 def cache_page_body(sections: list[dict]) -> str:
-    """Reconstruct searchable Markdown from cached section data."""
+    """キャッシュしたセクションのデータから、検索できる Markdown を組み立て直す。"""
     chunks = []
     for section in sections:
         if section["heading_path"]:
@@ -169,9 +169,9 @@ def write_parse_cache(cache_path: Path, files: dict) -> None:
 
 
 def clean_link_target(link: str) -> str:
-    """Strip a wikilink down to its path, dropping alias, anchor, and .md."""
-    target = link.split("|", 1)[0]      # drop a display alias, if any
-    target = target.split("#", 1)[0]    # drop a heading anchor
+    """wikilink から別名、アンカー、.md を取り除き、パスだけにする。"""
+    target = link.split("|", 1)[0]      # 表示用の別名があれば取り除く
+    target = target.split("#", 1)[0]    # 見出しのアンカーを取り除く
     target = target.replace("\\", "/").strip().strip("/")
     if target.lower().endswith(".md"):
         target = target[:-3]
@@ -179,7 +179,7 @@ def clean_link_target(link: str) -> str:
 
 
 def build_link_index(pages: list[dict]) -> tuple[dict, set]:
-    """Return (path -> slug, {slug}) for resolving wikilinks."""
+    """wikilink を解決するための (パスからスラッグへの対応, {スラッグ}) を返す。"""
     by_path = {}
     for p in pages:
         rel = p["rel_path"].replace("\\", "/")
@@ -190,14 +190,13 @@ def build_link_index(pages: list[dict]) -> tuple[dict, set]:
 
 
 def resolve_link(link: str, by_path: dict, by_slug) -> "str | None":
-    """Resolve a wikilink to the page slug it names, or None.
+    """wikilink を、それが指すページのスラッグに解決する。解決できなければ None を返す。
 
-    Bare ([[kalman-filter]]) and path-qualified ([[entities/kalman-filter]])
-    forms both name a page whose identity is its filename stem, so comparing
-    raw link text makes --backlinks miss every path-qualified reference and
-    splits --top-linked counts across the two forms. A directory prefix is a
-    CONSTRAINT, not decoration: a qualified link resolves only if that exact
-    path exists, so [[raw/foo]] cannot masquerade as sources/foo.
+    パスのない形（[[kalman-filter]]）もパスを付けた形（[[entities/kalman-filter]]）も、
+    ファイル名のステムで識別されるページを指す。そのため、リンクの生のテキストで比べると、
+    --backlinks はパスを付けた参照をすべて見落とし、--top-linked の件数は2つの形に分かれてしまう。
+    ディレクトリの接頭辞は飾りではなく「制約」である。パスを付けたリンクは、そのパスがちょうど
+    存在する場合にだけ解決するので、[[raw/foo]] が sources/foo になりすますことはない。
     """
     target = clean_link_target(link)
     if not target:
@@ -208,12 +207,12 @@ def resolve_link(link: str, by_path: dict, by_slug) -> "str | None":
 
 
 def link_key(link: str, by_path: dict, by_slug) -> str:
-    """Canonical key for reports, preserving unresolved targets."""
+    """報告に使う正規化したキー。解決できない対象はそのまま残す。"""
     return resolve_link(link, by_path, by_slug) or clean_link_target(link)
 
 
 def collect_pages(wiki_root: Path, cache_path: Path | None = None) -> list[dict]:
-    """Walk the wiki and return [{path, slug, meta, body, tokens, links}]."""
+    """wiki を走査し、[{path, slug, meta, body, tokens, links}] を返す。"""
     pages = []
     cached_files = load_parse_cache(cache_path) if cache_path else {}
     next_cache = {}
@@ -277,8 +276,8 @@ def collect_pages(wiki_root: Path, cache_path: Path | None = None) -> list[dict]
 
 
 def split_sections(title: str, body: str) -> list[dict]:
-    """Split a page body into sections at ATX headings outside code fences."""
-    del title  # Kept in the API for parity with the TypeScript implementation.
+    """ページの本文を、コードフェンスの外にある ATX 見出しの位置でセクションに分ける。"""
+    del title  # TypeScript の実装と動作をそろえるため、API に残している。
     sections = []
     heading_stack: list[tuple[int, str]] = []
     current_path: list[str] = []
@@ -319,7 +318,7 @@ def split_sections(title: str, body: str) -> list[dict]:
 
 
 def collect_sections(pages: list[dict]) -> list[dict]:
-    """Expand pages into searchable section rows in deterministic order."""
+    """ページを、検索できるセクションの行に、決まった順序で展開する。"""
     rows = []
     for page in pages:
         title = page["meta"].get("title") or page["slug"]
@@ -335,7 +334,7 @@ def collect_sections(pages: list[dict]) -> list[dict]:
 
 
 def build_bm25(pages: list[dict]) -> dict:
-    """Build a BM25 index. Returns {df, avgdl, N, doc_lens, term_freqs}."""
+    """BM25 のインデックスを作る。{df, avgdl, N, doc_lens, term_freqs} を返す。"""
     N = len(pages)
     df = Counter()
     doc_lens = []
@@ -398,7 +397,7 @@ def passes_filters(page: dict, args) -> bool:
 
 
 def embedding_failure_label(exc: Exception) -> str:
-    """Return a safe local-backend error label without leaking paths or payloads."""
+    """パスやペイロードを漏らさない、ローカルのバックエンドの安全なエラーラベルを返す。"""
     return type(exc).__name__
 
 
@@ -678,12 +677,12 @@ def emit_empty_json(args, mode: str = "lexical") -> None:
 
 
 def result_limit(args) -> int:
-    """Rows to collect before output: the decision pool with --decide, else --top."""
+    """出力の前に集める行の数。--decide なら判定のプール、それ以外は --top。"""
     return max(args.top, args.decide_pool) if getattr(args, "decide", False) else args.top
 
 
 def decide_gate(args, rows: list[dict], texts: list[str]) -> tuple[list[int], dict[int, dict], dict]:
-    """Run the optional relevance gate (D1). Fails open inside wiki_decide."""
+    """任意の関連度のゲート（D1）を実行する。失敗したときは wiki_decide の中で処理を通す。"""
     sys.path.insert(0, str(Path(__file__).resolve().parent))
     import wiki_decide
 
@@ -703,7 +702,7 @@ def decide_gate(args, rows: list[dict], texts: list[str]) -> tuple[list[int], di
 
 
 def decision_default_threshold(check: str) -> str:
-    """The default threshold of a decision check, read from decision-questions.json."""
+    """判定チェックの既定の閾値。decision-questions.json から読む。"""
     path = Path(__file__).resolve().parent.parent / "assets" / "decision-questions.json"
     try:
         return str(json.loads(path.read_text(encoding="utf-8"))["checks"][check]["default_threshold"])
@@ -719,7 +718,7 @@ def gated_json(args, items: list[tuple], rows: list[dict], texts: list[str]) -> 
 
 def cmd_search(args, pages: list[dict]) -> None:
     filtered = [page for page in pages if passes_filters(page, args)]
-    # Programmatic callers may pass a Namespace without the decision flags.
+    # プログラムから呼ぶ場合、判定用のフラグを持たない Namespace が渡されることがある。
     decide = getattr(args, "decide", False)
     if not filtered:
         if args.json:
@@ -900,7 +899,7 @@ def cmd_top_linked(args, pages: list[dict]) -> None:
         return
     print(f"Top {len(top)} most-linked-to pages (hubs):")
     for slug, count in top:
-        # Try to find the page for the title
+        # タイトルに対応するページを探す
         match = next((p for p in pages if p["slug"] == slug), None)
         title = (match["meta"].get("title") if match else None) or slug
         marker = "" if match else "  [BROKEN LINK]"

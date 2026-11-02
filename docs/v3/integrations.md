@@ -1,54 +1,54 @@
 ---
-title: Integrations
-description: The optional Paperclip plugin that surfaces the wiki inside a team UI, read-only.
+title: 連携
+description: チームの UI の中に wiki を読み取り専用で表示する、任意の Paperclip プラグイン。
 ---
 
 <!-- Adapted from: docs/integrations.html (source: README.md "Integrations", integrations/paperclip/**). -->
 
-# Integrations
+# 連携 {#integrations}
 
-The skill is the agent-side install: every agent in the [support matrix](/v3/agents) gets you that. For teams on [Paperclip](https://github.com/paperclipai/paperclip), an optional human-side companion brings the wiki into view where operators already work.
+スキルは、エージェントの側にインストールするものである。[対応表](/v3/agents) にあるどのエージェントにも入れられる。[Paperclip](https://github.com/paperclipai/paperclip) を使っているチーム向けには、人が使う側の任意のコンパニオンがあり、オペレーターがふだん作業している画面に wiki を表示できる。
 
-## Paperclip: `paperclip-plugin-llm-wiki`
+## Paperclip: `paperclip-plugin-llm-wiki` {#paperclip-paperclip-plugin-llm-wiki}
 
-An optional plugin at [`integrations/paperclip/plugin/`](https://github.com/praneybehl/llm-wiki-plugin/tree/v3.2.0/integrations/paperclip/plugin) surfaces the wiki inside Paperclip's UI. Five surfaces, all read-only:
+[`integrations/paperclip/plugin/`](https://github.com/praneybehl/llm-wiki-plugin/tree/v3.2.0/integrations/paperclip/plugin) にある任意のプラグインは、Paperclip の UI の中に wiki を表示する。表示する画面は5つで、すべて読み取り専用である。
 
-| Surface | What it does |
+| 画面 | 内容 |
 | --- | --- |
-| Wiki sidebar | Browse the wiki by type, drill into pages, search across the whole wiki. |
-| Full-page view | The same browser at full width: for reading multiple linked pages. |
-| Issue context tab | Top wiki pages relevant to the open issue, ranked by BM25 over title + description. |
-| Dashboard health widget | Page count, lint status (pass / warn / fail), link density, sharding-threshold messages. |
-| `wiki.query` agent tool | BM25 search via tool call: for HTTP-only adapters that don't run the skill directly. |
+| Wiki サイドバー | 種類ごとに wiki を閲覧し、ページを開き、wiki 全体を検索する。 |
+| 全画面表示 | 同じブラウザーを全幅で表示する。リンクでつながった複数のページを読むためのもの。 |
+| Issue のコンテキストタブ | 開いている issue に関連する wiki ページの上位を、タイトルと説明文に対する BM25 で順位付けして表示する。 |
+| ダッシュボードの健全性ウィジェット | ページ数、lint の状態（pass / warn / fail）、リンク密度、インデックス分割の閾値についてのメッセージを表示する。 |
+| `wiki.query` エージェントツール | ツール呼び出しで BM25 検索を行う。スキルを直接実行しない、HTTP だけのアダプター向け。 |
 
 ```mermaid
 flowchart LR
-  agent["coding agent (skill)"] -->|writes on heartbeat| wiki["canonical wiki (markdown)"]
-  wiki -->|read-only| plugin["Paperclip plugin"]
-  plugin --> s1["Wiki sidebar"]
-  plugin --> s2["Full-page view"]
-  plugin --> s3["Issue context tab"]
-  plugin --> s4["Dashboard health widget"]
-  plugin --> s5["wiki.query agent tool"]
+  agent["コーディングエージェント（スキル）"] -->|heartbeat で書き込む| wiki["正本の wiki（markdown）"]
+  wiki -->|読み取り専用| plugin["Paperclip プラグイン"]
+  plugin --> s1["Wiki サイドバー"]
+  plugin --> s2["全画面表示"]
+  plugin --> s3["Issue のコンテキストタブ"]
+  plugin --> s4["ダッシュボードの健全性ウィジェット"]
+  plugin --> s5["wiki.query エージェントツール"]
 ```
 
-Install the companion:
+コンパニオンをインストールする。
 
 ```bash
 pnpm paperclipai plugin install paperclip-plugin-llm-wiki
 ```
 
 ::: info
-The plugin is **read-only by design** and pairs with the skill. The skill writes the wiki on heartbeat; the plugin reads it from inside Paperclip. Editing still happens through agents on heartbeat or the operator's editor of choice (Obsidian, Claude Code, direct SSH).
+このプラグインは**設計上読み取り専用**で、スキルと組み合わせて使う。スキルが heartbeat のたびに wiki に書き込み、プラグインはそれを Paperclip の中から読む。編集は、これまでどおり heartbeat で動くエージェントか、オペレーターが選んだエディター（Obsidian、Claude Code、SSH での直接編集）で行う。
 :::
 
 ::: info
-The plugin stays lexical (BM25): the Paperclip sandbox holds no API keys, so the opt-in hybrid embeddings described on the [Search & retrieval](/v3/search) page apply to the agent-side scripts only. Section-level search in the plugin mirrors the Python ranking exactly, so results don't drift between the plugin and the agent.
+プラグインの検索は語彙ベース（BM25）のままである。Paperclip のサンドボックスには API キーを置かないので、[検索と取得](/v3/search) のページで説明しているオプトインのハイブリッド埋め込みは、エージェント側のスクリプトにだけ当てはまる。プラグインのセクション単位の検索は、Python 版と同じ順位付けをそのまま再現しているので、プラグインとエージェントで結果がずれることはない。
 :::
 
-## Further reading
+## 関連資料 {#further-reading}
 
-- [Plugin user guide](https://github.com/praneybehl/llm-wiki-plugin/blob/v3.2.0/integrations/paperclip/plugin/README.md): install walkthrough, per-surface usage, configuration reference, agent-tool JSON shape, security notes, troubleshooting, FAQ.
-- [Operator decision page](https://github.com/praneybehl/llm-wiki-plugin/blob/v3.2.0/integrations/paperclip/README.md): when to install the plugin vs. just the skill, first-time setup, multi-Company guidance.
-- [v0.1 design spec](https://github.com/praneybehl/llm-wiki-plugin/blob/v3.2.0/integrations/paperclip/SPEC.md): with verbatim references to the live Paperclip plugin SDK source.
-- [Feasibility report](https://github.com/praneybehl/llm-wiki-plugin/blob/v3.2.0/integrations/paperclip/FEASIBILITY.md): Phase 0 validation against the SDK.
+- [プラグインのユーザーガイド](https://github.com/praneybehl/llm-wiki-plugin/blob/v3.2.0/integrations/paperclip/plugin/README.md): インストール手順、画面ごとの使い方、設定のリファレンス、エージェントツールの JSON の形式、セキュリティについての注意、トラブルシューティング、FAQ。
+- [オペレーター向けの判断ページ](https://github.com/praneybehl/llm-wiki-plugin/blob/v3.2.0/integrations/paperclip/README.md): プラグインを入れるべき場合とスキルだけでよい場合、初回のセットアップ、複数の Company での使い方。
+- [v0.1 の設計仕様](https://github.com/praneybehl/llm-wiki-plugin/blob/v3.2.0/integrations/paperclip/SPEC.md): 稼働中の Paperclip プラグイン SDK のソースをそのまま引用して参照している。
+- [実現可能性レポート](https://github.com/praneybehl/llm-wiki-plugin/blob/v3.2.0/integrations/paperclip/FEASIBILITY.md): SDK に対するフェーズ 0 の検証。

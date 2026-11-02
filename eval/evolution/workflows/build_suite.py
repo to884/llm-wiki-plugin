@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Freeze public repository workflow sources and a reproducible task protocol."""
+"""公開リポジトリのワークフローのソースと、再現できるタスクのプロトコルを固定する。"""
 import hashlib
 import json
 import subprocess

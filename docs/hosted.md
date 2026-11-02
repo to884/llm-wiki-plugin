@@ -1,97 +1,97 @@
 ---
-title: Hosted wiki
-description: Deploy an LLM Wiki to Cloudflare in one click, connect agents over MCP, migrate a local wiki and keep a local mirror.
+title: ホスト型 wiki
+description: LLM Wiki をワンクリックで Cloudflare にデプロイし、MCP でエージェントを接続する。ローカルの wiki の移行と、ローカルのミラーの維持も扱う。
 ---
 
-# Hosted wiki
+# ホスト型 wiki {#hosted-wiki}
 
-A hosted wiki puts your LLM Wiki on a Cloudflare Worker in your own account. Agents on any machine read and write it over MCP or a JSON API. Markdown pages stay canonical. A browser reader shows pages, history and review flags.
+ホスト型 wiki は、LLM Wiki をあなた自身のアカウントの Cloudflare Worker に置くものである。どのマシンのエージェントも、MCP か JSON API を通じて wiki を読み書きできる。正本は引き続き Markdown のページである。ブラウザー用のリーダーで、ページ、履歴、レビューフラグを見られる。
 
-The hosted wiki is optional. Local wikis work as before. Use the hosted wiki when:
+ホスト型 wiki は任意で使うもので、ローカルの wiki はこれまでどおり動く。ホスト型 wiki を使うのは、次のような場合である。
 
-- several agents or machines must share one wiki;
-- an agent has no shell or file access (remote agents, CI, chat clients);
-- you want commit history with authors, conflict checks and a browser reader.
+- 複数のエージェントやマシンで、1つの wiki を共有する必要がある
+- シェルやファイルにアクセスできないエージェントがある（リモートのエージェント、CI、チャットのクライアントなど）
+- 作成者つきのコミット履歴、競合のチェック、ブラウザー用のリーダーがほしい
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/praneybehl/llm-wiki-plugin/tree/main/server)
 
-## How it works
+## 仕組み {#how-it-works}
 
 ```mermaid
 flowchart LR
-  agents["Agents (MCP)"] --> worker["Cloudflare Worker"]
+  agents["エージェント (MCP)"] --> worker["Cloudflare Worker"]
   cli["wiki_remote.py CLI"] --> worker
-  browser["Browser reader"] --> worker
+  browser["ブラウザー用リーダー"] --> worker
   worker --> wiki[("Wiki Durable Object (SQLite)")]
-  wiki -. batched .-> ai["Workers AI embeddings"]
+  wiki -. バッチ .-> ai["Workers AI の埋め込み"]
   ai --> vec[("Vectorize")]
-  worker --> r2[("R2 raw files, optional")]
-  worker -. pull .-> mirror["Local mirror (Git, Obsidian)"]
+  worker --> r2[("R2 の raw ファイル (任意)")]
+  worker -. pull .-> mirror["ローカルのミラー (Git, Obsidian)"]
 ```
 
-- One Worker holds everything: MCP at `/mcp`, the JSON API at `/api/v1`, OAuth, the setup page and the reader.
-- Each wiki is one SQLite Durable Object. One deployment can hold many wikis, for example a personal wiki and one wiki for each project.
-- Every write is a commit. All operations in a commit apply, or none apply. Each commit records its author and keeps the old revision.
-- Search is hybrid: SQLite FTS5 BM25 plus Workers AI `@cf/baai/bge-small-en-v1.5` vectors in Vectorize, fused with RRF like the local `wiki_search.py`.
-- The server updates search rows, links and the graph in the same commit. Vectors follow in batches a few seconds later.
+- 1つの Worker がすべてを受け持つ。`/mcp` の MCP、`/api/v1` の JSON API、OAuth、セットアップページ、リーダーである。
+- 各 wiki は1つの SQLite Durable Object である。1つのデプロイに複数の wiki を置ける。たとえば、個人用の wiki とプロジェクトごとの wiki を同じデプロイに置ける。
+- 書き込みはすべてコミットになる。コミット内の操作は、すべて適用されるか、1つも適用されないかのどちらかである。各コミットは作成者を記録し、古いリビジョンを残す。
+- 検索はハイブリッド検索である。SQLite FTS5 の BM25 と、Vectorize に格納した Workers AI `@cf/baai/bge-small-en-v1.5` のベクトルの結果を、ローカルの `wiki_search.py` と同じように RRF で統合する。
+- サーバーは、検索用の行、リンク、グラフを同じコミットの中で更新する。ベクトルは数秒後にバッチで追いつく。
 
-## Deploy
+## デプロイ {#deploy}
 
-### With the button
+### ボタンでデプロイする {#with-the-button}
 
-1. Click **Deploy to Cloudflare** above.
-2. Sign in to Cloudflare and select a GitHub or GitLab account. Cloudflare copies the `server/` folder to a new repository in your account. Select **Create private Git repository** for a private copy.
-3. Keep **Create new** for the KV namespace and the R2 bucket.
-4. Keep **Create new** for the Vectorize index. Enter `384` for **Dimensions** and select `cosine` for **Metric**. Hybrid search needs these values.
-5. Enter a value for `ADMIN_TOKEN`. Use a long random value, for example the output of `openssl rand -hex 32`. Keep it in a password manager.
-6. Click **Deploy**. Cloudflare creates the Worker, the Durable Objects, the KV namespace, the R2 bucket, the Vectorize index and the Workers AI binding, then runs `npm run deploy`. This takes about one minute.
+1. 上の **Deploy to Cloudflare** をクリックする。
+2. Cloudflare にサインインし、GitHub か GitLab のアカウントを選ぶ。Cloudflare が `server/` フォルダーを、あなたのアカウントの新しいリポジトリにコピーする。非公開のコピーにするなら **Create private Git repository** を選ぶ。
+3. KV 名前空間と R2 バケットは **Create new** のままにする。
+4. Vectorize インデックスも **Create new** のままにする。**Dimensions** に `384` を入力し、**Metric** で `cosine` を選ぶ。ハイブリッド検索にはこの値が必要である。
+5. `ADMIN_TOKEN` に値を入力する。`openssl rand -hex 32` の出力のような、長いランダムな値を使う。値はパスワードマネージャーに保管する。
+6. **Deploy** をクリックする。Cloudflare が Worker、Durable Objects、KV 名前空間、R2 バケット、Vectorize インデックス、Workers AI バインディングを作成し、`npm run deploy` を実行する。所要時間は1分ほどである。
 
-No other step is necessary. Your wiki is at `https://llm-wiki.<your-subdomain>.workers.dev`.
+ほかの手順は不要である。wiki は `https://llm-wiki.<your-subdomain>.workers.dev` で使える。
 
-::: warning R2 on a new account
-R2 sign-up has a checkout step, even for the free tier. If the deploy fails on the R2 bucket, turn on R2 in the Cloudflare dashboard, then deploy again. Without R2, raw files stay on the machine of the agent that ingests them.
+::: warning 新しいアカウントでの R2
+R2 の利用登録には、無料枠でも決済の手続きがある。R2 バケットの作成でデプロイが失敗した場合は、Cloudflare のダッシュボードで R2 を有効にしてから、もう一度デプロイする。R2 がない場合、raw ファイルは、それを取り込んだエージェントのマシンに残る。
 :::
 
-### With the CLI
+### CLI でデプロイする {#with-the-cli}
 
-You need Node.js 22 or later and a Cloudflare account.
+Node.js 22 以降と、Cloudflare のアカウントが必要である。
 
 ```bash
 git clone https://github.com/praneybehl/llm-wiki-plugin.git
 cd llm-wiki-plugin/server
 npm ci
 npx wrangler login
-openssl rand -hex 32                      # save this value as your ADMIN_TOKEN
+openssl rand -hex 32                      # この値を ADMIN_TOKEN として保管する
 printf 'ADMIN_TOKEN=%s\n' '<your-admin-token>' > .admin.env
 npm run deploy -- --secrets-file .admin.env
 rm .admin.env
 ```
 
-`ADMIN_TOKEN` is a required secret, so the first deploy must supply it with `--secrets-file`. `npm run deploy` creates the Vectorize index when it does not exist, then deploys. To update later, pull the repository and run `npm run deploy` again. To change the secret later, run `npx wrangler secret put ADMIN_TOKEN`.
+`ADMIN_TOKEN` は必須のシークレットなので、初回のデプロイでは `--secrets-file` で渡す必要がある。`npm run deploy` は、Vectorize インデックスがなければ作成してからデプロイする。あとで更新するときは、リポジトリを pull して、もう一度 `npm run deploy` を実行する。あとでシークレットを変えるときは、`npx wrangler secret put ADMIN_TOKEN` を実行する。
 
-## First run
+## 初回の設定 {#first-run}
 
-1. Open `https://<your-worker>/setup`.
-2. Sign in with `ADMIN_TOKEN`.
-3. Create the first wiki. The default id is `main`. Wiki ids use lowercase letters, digits and hyphens.
-4. Create one token for each agent (see [Tokens](#tokens)).
-5. Copy the MCP configuration for each agent client from the setup page.
+1. `https://<your-worker>/setup` を開く。
+2. `ADMIN_TOKEN` でサインインする。
+3. 最初の wiki を作成する。既定の ID は `main` である。wiki の ID に使えるのは、英小文字、数字、ハイフンである。
+4. エージェントごとにトークンを1つ作成する（[トークン](#tokens)を参照）。
+5. セットアップページから、エージェントのクライアントごとの MCP 設定をコピーする。
 
-Optional: [migrate a local wiki](#migrate-a-local-wiki).
+任意: [ローカルの wiki を移行する](#migrate-a-local-wiki)。
 
-## Tokens
+## トークン {#tokens}
 
-Each agent gets its own token. The token label is the author of each commit that the agent makes, so history shows which agent changed what.
+エージェントごとに専用のトークンを発行する。トークンのラベルが、そのエージェントが作る各コミットの作成者になるので、どのエージェントが何を変えたかを履歴で確かめられる。
 
-| Scope | Allows |
+| スコープ | 許可される操作 |
 |---|---|
-| `read` | Read pages, search, history, graph, lint, raw files |
-| `write` | Commits, revert, resolve review flags |
-| `raw:write` | Upload raw files |
-| `admin` | Settings and tokens for this wiki. It includes all other scopes. |
+| `read` | ページ、検索、履歴、グラフ、lint、raw ファイルの読み取り |
+| `write` | コミット、revert、レビューフラグの解決 |
+| `raw:write` | raw ファイルのアップロード |
+| `admin` | この wiki の設定とトークンの管理。ほかのすべてのスコープを含む。 |
 
-- A token looks like `lw_<wiki>_<secret>`. The server stores only a SHA-256 hash of the secret. You see the full token only once.
-- Make tokens on the setup page or with the CLI:
+- トークンの形式は `lw_<wiki>_<secret>` である。サーバーが保存するのは、シークレットの SHA-256 ハッシュだけである。トークン全体が表示されるのは一度だけである。
+- トークンは、セットアップページか CLI で作成する。
 
   ```bash
   python3 skills/llm-wiki/scripts/wiki_remote.py login --url https://<your-worker> --token -
@@ -100,34 +100,34 @@ Each agent gets its own token. The token label is the author of each commit that
   python3 skills/llm-wiki/scripts/wiki_remote.py token revoke <id>
   ```
 
-- `ADMIN_TOKEN` controls the full deployment. Do not give it to an agent. With `ADMIN_TOKEN`, select a wiki with the `X-LLM-Wiki: <id>` header or `?wiki=<id>`.
-- Keep agent tokens in an environment variable such as `LLM_WIKI_TOKEN`. Do not put a token in a wiki page, a memory file or a repository.
+- `ADMIN_TOKEN` は、デプロイ全体を操作できるトークンである。エージェントには渡さない。`ADMIN_TOKEN` を使うときは、`X-LLM-Wiki: <id>` ヘッダーか `?wiki=<id>` で wiki を指定する。
+- エージェントのトークンは、`LLM_WIKI_TOKEN` のような環境変数に入れておく。トークンを wiki のページ、メモリファイル、リポジトリに書いてはならない。
 
-## OAuth
+## OAuth {#oauth}
 
-MCP clients that support OAuth can connect without a token. The server supports dynamic client registration and client ID metadata documents.
+OAuth に対応した MCP クライアントは、トークンなしで接続できる。サーバーは、動的クライアント登録と、クライアント ID メタデータドキュメントに対応している。
 
-1. Add the server URL `https://<your-worker>/mcp` to the client without an `Authorization` header.
-2. Start the sign-in in the client (for example `/mcp` in Claude Code, or `pi mcp login llm-wiki` in Pi). The client opens the server authorization page in your browser with its own request parameters. Do not open `https://<your-worker>/authorize` yourself: without the client request, the sign-in cannot complete.
-3. Prove that you own the wiki: enter `ADMIN_TOKEN`, or a one-time pairing code.
-4. Select the wiki and the access: read, or read and write.
-5. Ask the agent to call `wiki_overview` to verify the connection.
+1. サーバーの URL `https://<your-worker>/mcp` を、`Authorization` ヘッダーなしでクライアントに追加する。
+2. クライアントからサインインを始める（Claude Code なら `/mcp`、Pi なら `pi mcp login llm-wiki` など）。クライアントは、自身のリクエストパラメーターを付けて、サーバーの認可ページをブラウザーで開く。`https://<your-worker>/authorize` を自分で開いてはならない。クライアントからのリクエストがないと、サインインを完了できない。
+3. wiki の所有者であることを証明する。`ADMIN_TOKEN` か、使い捨てのペアリングコードを入力する。
+4. wiki とアクセス権（読み取りのみ、または読み書き）を選ぶ。
+5. エージェントに `wiki_overview` を呼び出させて、接続を確かめる。
 
-OAuth gives a token only to the MCP client. The CLI (`wiki_remote.py` import, pull, export and raw uploads) still needs an agent token and `wiki_remote.py login`.
+OAuth で発行されるトークンは、MCP クライアントにだけ渡る。CLI（`wiki_remote.py` の import、pull、export、raw のアップロード）には、引き続きエージェントのトークンと `wiki_remote.py login` が必要である。
 
-A pairing code is valid for 10 minutes and works one time. Make one on the setup page or with `python3 skills/llm-wiki/scripts/wiki_remote.py pair --label <label> --scopes read,write`. The scopes must include `read` or `admin`. Use pairing codes when you approve a client on a device where you do not want to type `ADMIN_TOKEN`.
+ペアリングコードの有効期限は10分で、一度しか使えない。セットアップページか、`python3 skills/llm-wiki/scripts/wiki_remote.py pair --label <label> --scopes read,write` で作成する。スコープには `read` か `admin` を含める必要がある。`ADMIN_TOKEN` を入力したくないデバイスでクライアントを承認するときは、ペアリングコードを使う。
 
-OAuth scopes are `wiki:read` and `wiki:write`. Discovery documents are at `/.well-known/oauth-authorization-server` and `/.well-known/oauth-protected-resource/mcp`.
+OAuth のスコープは `wiki:read` と `wiki:write` である。ディスカバリードキュメントは `/.well-known/oauth-authorization-server` と `/.well-known/oauth-protected-resource/mcp` にある。
 
-## Connect agents over MCP
+## MCP でエージェントを接続する {#connect-agents-over-mcp}
 
-The MCP endpoint is `https://<your-worker>/mcp` (Streamable HTTP). Set the token in your shell first:
+MCP のエンドポイントは `https://<your-worker>/mcp`（Streamable HTTP）である。最初に、シェルでトークンを設定する。
 
 ```bash
 export LLM_WIKI_TOKEN=lw_main_...
 ```
 
-The setup page shows the same text with your URL. You can also print it: `python3 skills/llm-wiki/scripts/wiki_remote.py mcp-config <client>`. Clients: `claude-code`, `codex`, `cursor`, `gemini`, `opencode`, `omp`, `pi`, `generic`. The command does not print the token unless you add `--show-token`.
+セットアップページには、あなたの URL を埋めた同じ設定が表示される。`python3 skills/llm-wiki/scripts/wiki_remote.py mcp-config <client>` で出力することもできる。指定できるクライアントは `claude-code`、`codex`、`cursor`、`gemini`、`opencode`、`omp`、`pi`、`generic` である。このコマンドは、`--show-token` を付けない限りトークンを表示しない。
 
 **Claude Code**
 
@@ -135,14 +135,14 @@ The setup page shows the same text with your URL. You can also print it: `python
 claude mcp add --transport http llm-wiki https://<your-worker>/mcp --header "Authorization: Bearer $LLM_WIKI_TOKEN"
 ```
 
-Or in `.mcp.json`:
+または `.mcp.json` に書く。
 
 ```json
 {"mcpServers": {"llm-wiki": {"type": "http", "url": "https://<your-worker>/mcp",
   "headers": {"Authorization": "Bearer ${LLM_WIKI_TOKEN}"}}}}
 ```
 
-**Codex** (`~/.codex/config.toml`)
+**Codex**（`~/.codex/config.toml`）
 
 ```toml
 [mcp_servers.llm-wiki]
@@ -150,21 +150,21 @@ url = "https://<your-worker>/mcp"
 bearer_token_env_var = "LLM_WIKI_TOKEN"
 ```
 
-**Cursor** (`~/.cursor/mcp.json`)
+**Cursor**（`~/.cursor/mcp.json`）
 
 ```json
 {"mcpServers": {"llm-wiki": {"url": "https://<your-worker>/mcp",
   "headers": {"Authorization": "Bearer ${env:LLM_WIKI_TOKEN}"}}}}
 ```
 
-**Gemini CLI** (`~/.gemini/settings.json`)
+**Gemini CLI**（`~/.gemini/settings.json`）
 
 ```json
 {"mcpServers": {"llm-wiki": {"httpUrl": "https://<your-worker>/mcp",
   "headers": {"Authorization": "Bearer $LLM_WIKI_TOKEN"}}}}
 ```
 
-**OpenCode** (`opencode.json`)
+**OpenCode**（`opencode.json`）
 
 ```json
 {"$schema": "https://opencode.ai/config.json",
@@ -172,160 +172,160 @@ bearer_token_env_var = "LLM_WIKI_TOKEN"
    "headers": {"Authorization": "Bearer {env:LLM_WIKI_TOKEN}"}}}}
 ```
 
-**OMP** (`~/.omp/agent/mcp.json` for all projects, or `.omp/mcp.json` in one project)
+**OMP**（すべてのプロジェクトで使うなら `~/.omp/agent/mcp.json`、1つのプロジェクトで使うなら `.omp/mcp.json`）
 
 ```json
 {"mcpServers": {"llm-wiki": {"type": "http", "url": "https://<your-worker>/mcp",
   "headers": {"Authorization": "Bearer ${LLM_WIKI_TOKEN}"}}}}
 ```
 
-**Pi** (`~/.pi/agent/mcp.json` for all projects, or `.pi/mcp.json` in one project). Pi has built-in MCP support. It reads the project file only after you trust the project. See the [Pi MCP documentation](https://pi.dev/docs/latest/mcp#configure-servers).
+**Pi**（すべてのプロジェクトで使うなら `~/.pi/agent/mcp.json`、1つのプロジェクトで使うなら `.pi/mcp.json`）。Pi は MCP に標準で対応している。プロジェクトのファイルを読むのは、そのプロジェクトを信頼したあとだけである。詳しくは [Pi の MCP ドキュメント](https://pi.dev/docs/latest/mcp#configure-servers)を参照。
 
 ```json
 {"mcpServers": {"llm-wiki": {"type": "http", "url": "https://<your-worker>/mcp",
   "headers": {"Authorization": "Bearer ${LLM_WIKI_TOKEN}"}}}}
 ```
 
-Or from a shell: `pi mcp add llm-wiki --url https://<your-worker>/mcp --bearer-token-env-var LLM_WIKI_TOKEN`. Run `pi mcp list` to check the connection.
+シェルから `pi mcp add llm-wiki --url https://<your-worker>/mcp --bearer-token-env-var LLM_WIKI_TOKEN` で追加することもできる。`pi mcp list` で接続を確かめる。
 
-**Other clients** (Hermes, OpenClaw, custom agents): use the URL `https://<your-worker>/mcp` and the header `Authorization: Bearer <token>`. Agents without MCP can use the JSON API at `/api/v1` with the same header, or the CLI.
+**そのほかのクライアント**（Hermes、OpenClaw、自作のエージェント）: URL `https://<your-worker>/mcp` とヘッダー `Authorization: Bearer <token>` を使う。MCP に対応していないエージェントは、同じヘッダーで `/api/v1` の JSON API を使うか、CLI を使う。
 
-Then tell the agent where the wiki is. In Claude Code, run `/wiki:init --hosted https://<your-worker>`. It stores the connection, prints the MCP configuration and proposes a memory stanza for your approval. Other agents get the same flow by natural language ("connect to my hosted wiki at ...").
+そのあと、wiki の場所をエージェントに伝える。Claude Code では `/wiki:init --hosted https://<your-worker>` を実行する。このコマンドは接続情報を保存し、MCP の設定を出力し、メモリに書く記述を提案して承認を求める。ほかのエージェントでも、自然な言葉で頼めば（「...にある私のホスト型 wiki に接続して」）同じ流れになる。
 
-### MCP tools
+### MCP ツール {#mcp-tools}
 
-| Tool | Purpose |
+| ツール | 用途 |
 |---|---|
-| `wiki_overview` | `SCHEMA.md`, `index.md`, counts, current `seq`, vector lag and enabled options. Agents call it first. |
-| `wiki_read` | Pages, one heading, a line range, or a folder list |
-| `wiki_search` | Hybrid or lexical search with `type`, `tag` and `since` filters; backlinks and top-linked modes |
-| `wiki_commit` | Atomic operations: `create`, `edit`, `append`, `put`, `delete`, `move` |
-| `wiki_history` | Commits, diffs, old revisions and revert |
-| `wiki_graph` | Graph queries and export |
-| `wiki_lint` | Structural and graph lint, plus open review flags |
-| `wiki_raw` | List, stat and read raw files in parts; save small text files |
+| `wiki_overview` | `SCHEMA.md`、`index.md`、件数、現在の `seq`、ベクトルの遅れ、有効なオプションを返す。エージェントは最初にこれを呼び出す。 |
+| `wiki_read` | ページ、1つの見出し、行の範囲、またはフォルダーの一覧を読む |
+| `wiki_search` | `type`、`tag`、`since` のフィルターを使ったハイブリッド検索または語彙ベースの検索。被リンクのモードと、リンク数上位のモードもある |
+| `wiki_commit` | アトミックな操作: `create`、`edit`、`append`、`put`、`delete`、`move` |
+| `wiki_history` | コミット、差分、古いリビジョン、revert |
+| `wiki_graph` | グラフのクエリとエクスポート |
+| `wiki_lint` | 構造とグラフの lint、未解決のレビューフラグ |
+| `wiki_raw` | raw ファイルの一覧、情報の取得、分割での読み取り。小さいテキストファイルの保存 |
 
-### Conflicts
+### 競合 {#conflicts}
 
-Two agents can change one page at the same time. An `edit` operation replaces text that must occur once in the current page, so most concurrent edits apply without a conflict. `append` never conflicts. When a change cannot apply, the server returns a conflict (HTTP 409) with the current revision and a diff. The skill tells the agent to read the page again, make the change again and retry. No change is lost.
+2つのエージェントが、同じページを同時に変更することがある。`edit` 操作は、現在のページにちょうど1回だけ出現するテキストを置き換えるので、同時に行われた編集の大半は競合せずに適用される。`append` は競合しない。変更を適用できないとき、サーバーは競合（HTTP 409）を、現在のリビジョンと差分とともに返す。スキルの指示により、エージェントはページを読み直し、変更をやり直して再試行する。変更が失われることはない。
 
-## Migrate a local wiki
+## ローカルの wiki を移行する {#migrate-a-local-wiki}
 
-In Claude Code, run `/wiki:migrate`. Other agents follow the same steps by natural language. The steps are:
+Claude Code では `/wiki:migrate` を実行する。ほかのエージェントでも、自然な言葉で頼めば同じ手順を実行する。手順は次のとおりである。
 
 ```bash
 REMOTE=skills/llm-wiki/scripts/wiki_remote.py
-python3 $REMOTE import ~/wiki --raw ~/wiki/raw --dry-run   # report only
-python3 $REMOTE import ~/wiki --raw ~/wiki/raw             # upload
+python3 $REMOTE import ~/wiki --raw ~/wiki/raw --dry-run   # レポートのみ
+python3 $REMOTE import ~/wiki --raw ~/wiki/raw             # アップロード
 ```
 
-- The import sends small batches. It skips files that are identical on the server. If it stops, run it again: it continues.
-- It uploads every UTF-8 text page, including `SCHEMA.md`, `index.md`, `log.md`, `indexes/` and `graph/ontology.yaml`. It skips hidden folders and files (`.git`, `.obsidian`, `.wiki-cache`, `.evolution`) except top-level templates, without a report entry.
-- Raw files go to R2 with their SHA-256. Use `--no-raw` to skip them.
-- It does not replace a remote page that is different and that an earlier import did not write. Instead, it stops with exit code 3 and writes nothing. Add `--overwrite` to replace such pages. It also does not replace a page that another writer changed while the import ran: the report lists it in `pages.changed_during_import`, and the exit code is 3.
-- At the end it compares the SHA-256 of every file that it selected with the server manifest and prints a JSON report. Exit code 1 means a mismatch.
+- インポートは小さなバッチに分けて送る。サーバー上の内容と同じファイルはスキップする。途中で止まったら、もう一度実行すれば続きから再開する。
+- `SCHEMA.md`、`index.md`、`log.md`、`indexes/`、`graph/ontology.yaml` を含め、UTF-8 のテキストのページをすべてアップロードする。隠しフォルダーと隠しファイル（`.git`、`.obsidian`、`.wiki-cache`、`.evolution`）は、トップレベルのテンプレートを除いてスキップし、レポートにも載せない。
+- raw ファイルは、SHA-256 とともに R2 に送られる。raw ファイルを送らないときは `--no-raw` を使う。
+- 内容が異なり、以前のインポートが書いたものでもないリモートのページは置き換えない。その場合は、何も書き込まずに終了コード 3 で止まる。そのようなページを置き換えるには `--overwrite` を付ける。インポートの実行中にほかの書き手が変更したページも置き換えない。そのページはレポートの `pages.changed_during_import` に載り、終了コードは 3 になる。
+- 最後に、選んだすべてのファイルの SHA-256 をサーバーのマニフェストと比べ、JSON のレポートを出力する。終了コード 1 は不一致があることを示す。
 
-Exit code 0 does not prove that every file was selected. Read the `skipped` and `raw.skipped` lists in the report. Each entry has a `path` and a `reason`:
+終了コード 0 は、すべてのファイルが選ばれたことを保証するものではない。レポートの `skipped` と `raw.skipped` のリストを読む。各項目には `path` と `reason` がある。
 
-| Reason | Meaning | Action |
+| 理由 | 意味 | 対処 |
 |---|---|---|
-| `generated` | A generated file in `graph/` (for example `nodes.jsonl`, `graph.sqlite`). The server builds the graph again. | None. Expected exclusion. |
-| `too_large` | The page is larger than 1,500,000 bytes. | Split the page. |
-| `not_utf8`, `not_text` | The file is not UTF-8 text. | Convert it, or move a binary source to the raw folder. |
-| `symlink` | The file or folder is a symbolic link. | Copy the target into the wiki. |
-| `invalid_path`, `path_too_long` | The server refuses the path. | Rename the file. |
+| `generated` | `graph/` 内の生成ファイル（たとえば `nodes.jsonl`、`graph.sqlite`）。グラフはサーバーが作り直す。 | 不要。想定どおりの除外である。 |
+| `too_large` | ページが 1,500,000 バイトを超えている。 | ページを分割する。 |
+| `not_utf8`、`not_text` | ファイルが UTF-8 のテキストではない。 | 変換するか、バイナリのソースなら raw フォルダーに移す。 |
+| `symlink` | ファイルまたはフォルダーがシンボリックリンクである。 | リンク先を wiki の中にコピーする。 |
+| `invalid_path`、`path_too_long` | サーバーがそのパスを受け付けない。 | ファイル名を変える。 |
 
-Fix each file with missing source content and run the import again, or accept the file by name. After the import, compare `python3 $REMOTE lint` with the local lint, and try a few searches. Change your agent instructions only after the report shows no mismatches and no missing source content. Your local wiki does not change during the import, so you can stop at any step.
+ソースコンテンツが欠けているファイルは、それぞれ直してからインポートを再実行するか、ファイル名を挙げて了承する。インポートのあとは、`python3 $REMOTE lint` の結果をローカルの lint と比べ、いくつか検索を試す。エージェントの指示を変えるのは、レポートに不一致も欠けているソースコンテンツもないことを確かめてからにする。インポートの間、ローカルの wiki は変わらないので、どの手順でも中止できる。
 
-## Keep a local mirror
+## ローカルのミラーを維持する {#keep-a-local-mirror}
 
 ```bash
 python3 skills/llm-wiki/scripts/wiki_remote.py pull ~/wiki --git
 ```
 
-- `pull` copies only the changes since the last pull. It records its position in `~/wiki/.llm-wiki-remote.json`.
-- `--git` makes one commit for each pull when the folder is a Git repository. You keep Git history and Obsidian.
-- The mirror is read-only. Edits there do not go to the server. If a mirrored file changed locally, `pull` saves your copy as `<file>.local-<timestamp>` before it writes the server copy, and reports it.
-- `/wiki:learn` and `/wiki:evolve` stay local. Run them on the mirror.
-- Run `pull` on a schedule (cron, launchd) to keep the mirror current.
+- `pull` は、前回の pull 以降の変更だけをコピーする。どこまで取得したかは `~/wiki/.llm-wiki-remote.json` に記録する。
+- フォルダーが Git リポジトリなら、`--git` を付けると pull のたびにコミットを1つ作る。Git の履歴と Obsidian はそのまま使える。
+- ミラーは読み取り専用である。ミラーで編集しても、サーバーには反映されない。ミラーのファイルがローカルで変更されていた場合、`pull` はサーバーのコピーを書き込む前に、ローカルのコピーを `<file>.local-<timestamp>` として保存し、そのことを報告する。
+- `/wiki:learn` と `/wiki:evolve` はローカルで動く。ミラー上で実行する。
+- ミラーを最新に保つには、`pull` を定期実行（cron、launchd）する。
 
-## Backup and history
+## バックアップと履歴 {#backup-and-history}
 
-- Every change is a commit with a revision. See history in the reader at `/ui/<wiki>/history`, or with `wiki_history` and `wiki_remote.py history`.
-- `revert` makes a new commit that undoes an old one. History is not erased.
-- `python3 skills/llm-wiki/scripts/wiki_remote.py export wiki-backup.tar.gz` writes all pages at any time.
-- Durable Objects keep 30 days of point-in-time recovery.
+- 変更はすべて、リビジョンを持つコミットになる。履歴は、リーダーの `/ui/<wiki>/history`、または `wiki_history` や `wiki_remote.py history` で確認する。
+- `revert` は、古いコミットを取り消す新しいコミットを作る。履歴は消えない。
+- `python3 skills/llm-wiki/scripts/wiki_remote.py export wiki-backup.tar.gz` で、いつでも全ページを書き出せる。
+- Durable Objects には、30日分のポイントインタイムリカバリーがある。
 
-## Browser reader
+## ブラウザー用リーダー {#browser-reader}
 
-Open `https://<your-worker>/ui/<wiki>/` and sign in with `ADMIN_TOKEN` or a token with `read` scope. The reader shows the folder tree, search, rendered pages with properties, backlinks and outline, commit history with diffs, and open review flags. It is read-only. Agents make the changes.
+`https://<your-worker>/ui/<wiki>/` を開き、`ADMIN_TOKEN` か `read` スコープを持つトークンでサインインする。リーダーには、フォルダーのツリー、検索、プロパティ・被リンク・アウトラインつきでレンダリングしたページ、差分つきのコミット履歴、未解決のレビューフラグが表示される。リーダーは読み取り専用で、変更はエージェントが行う。
 
-## Free and Paid plans
+## Free プランと Paid プラン {#free-and-paid-plans}
 
-The server works on the Workers Free plan. On the Paid plan, it uses the same code with higher limits.
+サーバーは Workers の Free プランで動く。Paid プランでは、同じコードがより高い上限で動く。
 
-| Capability | Workers Free | Workers Paid ($5 a month) |
+| 項目 | Workers Free | Workers Paid（月額 $5） |
 |---|---|---|
-| Worker requests | 100,000 a day | 10M a month, then $0.30 a million |
-| CPU for each request | 10 ms (Worker) | 30 s default, up to 5 min |
-| Durable Object SQLite storage | 5 GB an account | 10 GB an object |
-| Durable Object rows written | 100,000 a day | 50M a month, then $1.00 a million |
-| Durable Object rows read | 5M a day | 25B a month |
-| Workers AI | 10,000 neurons a day | 10,000 neurons a day, then $0.011 for each 1,000 |
-| Vectorize | 5M stored dimensions, 30M queried dimensions a month | 10M stored, 50M queried a month |
-| R2 | 10 GB, 1M writes, 10M reads a month (sign-up needs checkout) | Same free tier, then $0.015 a GB-month |
+| Worker のリクエスト | 1日 100,000 件 | 月 1,000 万件、超過分は 100 万件あたり $0.30 |
+| リクエストごとの CPU 時間 | 10 ms（Worker） | 既定で 30 秒、最大 5 分 |
+| Durable Object の SQLite ストレージ | アカウントあたり 5 GB | オブジェクトあたり 10 GB |
+| Durable Object の書き込み行数 | 1日 100,000 行 | 月 5,000 万行、超過分は 100 万行あたり $1.00 |
+| Durable Object の読み取り行数 | 1日 500 万行 | 月 250 億行 |
+| Workers AI | 1日 10,000 ニューロン | 1日 10,000 ニューロン、超過分は 1,000 ニューロンあたり $0.011 |
+| Vectorize | 保存 500 万次元、クエリ月 3,000 万次元 | 保存 1,000 万次元、クエリ月 5,000 万次元 |
+| R2 | 月 10 GB、書き込み 100 万回、読み取り 1,000 万回（利用登録には決済の手続きが必要） | 同じ無料枠、超過分は 1 GB・月あたり $0.015 |
 
-Figures are from Cloudflare pricing pages in October 2026. Check the current [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/) before you decide.
+数値は、2026年10月時点の Cloudflare の料金ページによる。決める前に、最新の [Workers の料金](https://developers.cloudflare.com/workers/platform/pricing/)を確認すること。
 
-### Costs for a personal wiki
+### 個人用 wiki のコスト {#costs-for-a-personal-wiki}
 
-An estimate for a wiki with about 2,700 sections and 600 MB of raw files:
+約 2,700 セクションと 600 MB の raw ファイルを持つ wiki での見積もりである。
 
-| Item | Use | Share of the Free limit |
+| 項目 | 使用量 | Free プランの上限に占める割合 |
 |---|---|---|
-| First embedding of all sections | About 1,500 neurons | 15% of one day |
-| Daily embeddings (200 changed sections, 500 searches) | About 400 neurons a day | 4% |
-| Vectorize stored | 2,700 sections x 384 dimensions | 21% |
-| Vectorize queried | 15,000 searches a month | 23% |
-| Raw files in R2 | 602 MB | 6% |
-| Import rows written | 20,000 to 40,000 | 20% to 40% of one day |
+| 全セクションの初回のベクトル化 | 約 1,500 ニューロン | 1日分の 15% |
+| 日々のベクトル化（変更されたセクション 200 件、検索 500 回） | 1日 約 400 ニューロン | 4% |
+| Vectorize の保存量 | 2,700 セクション x 384 次元 | 21% |
+| Vectorize のクエリ量 | 月 15,000 回の検索 | 23% |
+| R2 の raw ファイル | 602 MB | 6% |
+| インポートでの書き込み行数 | 20,000〜40,000 行 | 1日分の 20%〜40% |
 
-A personal wiki fits in the Free plan. A large import can use a large part of one day of Free row writes. If the import stops at the limit, run it again the next day. It continues.
+個人用の wiki なら Free プランに収まる。大きなインポートでは、Free プランの1日分の書き込み行数の大部分を使うことがある。上限に達してインポートが止まったら、翌日にもう一度実行すれば続きから再開する。
 
-The optional [decision models](/decisions) have their own costs.
+任意の[判定モデル](/decisions)には、別途コストがかかる。
 
-## Limits
+## 制限 {#limits}
 
-| Item | Limit |
+| 項目 | 上限 |
 |---|---|
-| Operations in one commit | 200 |
-| Size of one commit | 4 MB |
-| Size of one page | 1,500,000 bytes, UTF-8 text |
-| JSON API or MCP request body | 5 MiB |
-| One raw file upload | 100 MB (Workers request limit) |
-| Path | Relative POSIX path, at most 512 bytes, no `..`, no leading `/`, no backslash |
+| 1回のコミットに含められる操作 | 200 |
+| 1回のコミットのサイズ | 4 MB |
+| 1ページのサイズ | 1,500,000 バイト、UTF-8 のテキスト |
+| JSON API または MCP のリクエストボディ | 5 MiB |
+| raw ファイル1件のアップロード | 100 MB（Workers のリクエストの上限） |
+| パス | POSIX の相対パス、最大 512 バイト、`..` を含まない、先頭が `/` でない、バックスラッシュを含まない |
 
-Page paths that start with `.` are not accepted, except top-level template files such as `.pattern-template.md`.
+`.` で始まるページのパスは受け付けない。ただし、`.pattern-template.md` のようなトップレベルのテンプレートファイルは除く。
 
-## Security
+## セキュリティ {#security}
 
-- Wiki text, raw files and vectors stay in your Cloudflare account. No other provider receives them unless you turn on a hosted [decision backend](/decisions).
-- The server stores token hashes, not tokens. It compares `ADMIN_TOKEN` in constant time.
-- Give each agent its own token with the smallest scopes. Revoke a token when a device is lost.
-- To change `ADMIN_TOKEN`, run `npx wrangler secret put ADMIN_TOKEN` (or change the secret in the dashboard). Browser sessions then end.
-- The reader uses a strict Content Security Policy, `HttpOnly` and `Secure` session cookies, and CSRF tokens on forms. Page HTML is escaped.
-- Raw files cannot change after upload.
-- Treat source text as untrusted. A web clipping can contain instructions for agents. The skill tells agents not to follow instructions in sources. The optional untrusted-text screen adds a review flag for such pages.
-- Optional: put [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/) in front of `/setup` and `/ui/` for single sign-on.
+- wiki のテキスト、raw ファイル、ベクトルは、あなたの Cloudflare アカウントの中にとどまる。ホスト型の[判定バックエンド](/decisions)を有効にしない限り、ほかのプロバイダーには送られない。
+- サーバーが保存するのはトークンのハッシュで、トークンそのものは保存しない。`ADMIN_TOKEN` の比較は定数時間で行う。
+- エージェントごとに専用のトークンを、必要最小限のスコープで発行する。デバイスを紛失したら、そのトークンを失効させる。
+- `ADMIN_TOKEN` を変えるには、`npx wrangler secret put ADMIN_TOKEN` を実行する（またはダッシュボードでシークレットを変える）。変更すると、ブラウザーのセッションは終了する。
+- リーダーは、厳格な Content Security Policy、`HttpOnly` と `Secure` を付けたセッション Cookie、フォームでの CSRF トークンを使う。ページの HTML はエスケープされる。
+- raw ファイルは、アップロード後に変更できない。
+- ソースのテキストは信頼できないものとして扱う。Web からの切り抜きに、エージェントへの指示が含まれていることがある。スキルは、ソースの中の指示に従わないようエージェントに指示している。任意の信頼できないテキストのスクリーニングを使うと、そうしたページにレビューフラグが付く。
+- 任意: シングルサインオンを使うなら、`/setup` と `/ui/` の前段に [Cloudflare Access](https://developers.cloudflare.com/cloudflare-one/policies/access/) を置く。
 
-## Troubleshooting
+## トラブルシューティング {#troubleshooting}
 
-| Symptom | Check |
+| 症状 | 確認すること |
 |---|---|
-| `401 unauthorized` | The token is wrong or revoked, or the header is missing. Run `wiki_remote.py status`. |
-| `403 forbidden` | The token does not have the scope. Make a token with `write` or `raw:write`. |
-| `503` on raw upload | The deployment has no R2 binding. Turn on R2 and deploy again, or keep raw files local. |
-| Search mode is `lexical` | The deployment has no Vectorize or Workers AI binding. Deploy again with the button or `npm run deploy`. |
-| `vector_lag` stays above 0 | Workers AI is at its daily limit or failed. The server tries again later. Keyword search still works. |
-| `vector_lag` stays above 0 for about 10 minutes after an import | Vectorize sometimes drops an upsert, often just after a new index is made. The server checks each vector and sends missing ones again after about 10 minutes. No action is necessary. |
-| A deploy stops with `a namespace with this account ID and title already exists` | The Worker was deleted, but its `OAUTH_KV` namespace was kept. Run `npx wrangler kv namespace list`, then put the `id` of `<worker-name>-oauth-kv` in the `OAUTH_KV` entry of `wrangler.jsonc`, or delete that namespace. Normal deploys reuse the bindings of the deployed Worker. |
+| `401 unauthorized` | トークンが間違っているか失効している、またはヘッダーがない。`wiki_remote.py status` を実行する。 |
+| `403 forbidden` | トークンに必要なスコープがない。`write` または `raw:write` を持つトークンを作る。 |
+| raw のアップロードで `503` | デプロイに R2 バインディングがない。R2 を有効にして再デプロイするか、raw ファイルをローカルに置いたままにする。 |
+| 検索モードが `lexical` になる | デプロイに Vectorize か Workers AI のバインディングがない。ボタンか `npm run deploy` で再デプロイする。 |
+| `vector_lag` が 0 より大きいままになる | Workers AI が1日の上限に達したか、失敗した。サーバーがあとで再試行する。キーワード検索は引き続き使える。 |
+| インポート後、約10分たっても `vector_lag` が 0 より大きい | Vectorize は、特に新しいインデックスを作った直後に、upsert を取りこぼすことがある。サーバーは各ベクトルを確認し、欠けているものを約10分後に再送する。対処は不要である。 |
+| デプロイが `a namespace with this account ID and title already exists` で止まる | Worker は削除されたが、その `OAUTH_KV` 名前空間が残っている。`npx wrangler kv namespace list` を実行し、`<worker-name>-oauth-kv` の `id` を `wrangler.jsonc` の `OAUTH_KV` の項目に設定するか、その名前空間を削除する。通常のデプロイでは、デプロイ済みの Worker のバインディングがそのまま使われる。 |

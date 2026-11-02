@@ -1,66 +1,66 @@
-# Public project workflow study
+# 公開プロジェクトのワークフロー調査
 
-This suite exercises repository workflows, including ingestion, source/concept provenance, index/log updates, graph compilation, hybrid retrieval and corrections to a stale concept. It contains 4 training tasks, 4 validation tasks and 8 final tasks. The raw inputs are snapshots of this public repository at commit `06369b2eb0617bf7b07b2b8a5c07f4aca1fb1bf0`; `source-manifest.json` records their hashes. The stale concept is explicitly labeled evaluation data.
+このスイートでは、リポジトリでのワークフローを実際に動かして確かめる。対象は、取り込み、ソースとコンセプトの出所、インデックスとログの更新、グラフのコンパイル、ハイブリッド検索、古くなったコンセプトの修正である。学習用タスク 4 件、検証用タスク 4 件、最終タスク 8 件を含む。raw の入力は、この公開リポジトリのコミット `06369b2eb0617bf7b07b2b8a5c07f4aca1fb1bf0` 時点のスナップショットで、`source-manifest.json` にそのハッシュを記録している。古くなったコンセプトには、評価用のデータであることを明記している。
 
-`protocol.json` freezes two optimization iterations and one execution per comparison, with Codex inference and Claude transfer. Only validation selects the skill. The eight final tasks remain outside consolidation and proposal inputs. The statistical unit is a task, with repeats clustered; each of the two agent comparisons uses a 97.5% bootstrap interval and a paired randomization threshold of 0.025. This small, purpose-built sample can detect large consistent effects, not establish general performance across arbitrary wikis.
+`protocol.json` では、最適化の反復を2回、比較ごとの実行を1回に固定し、推論に Codex、転用評価に Claude を使う。スキルを選ぶのは検証だけである。8件の最終タスクは、統合と提案の入力には含めない。統計の単位はタスクで、繰り返しはタスクごとにまとめて扱う。2つのエージェントでの比較では、それぞれ 97.5% のブートストラップ区間と、対応のあるランダム化検定の閾値 0.025 を使う。この小さな、目的を絞ったサンプルで検出できるのは、大きく一貫した効果だけであり、任意の wiki に対する一般的な性能を示すことはできない。
 
-Implementation checks and live model evidence are distinct. `adapter-checks.json` records account checks and their limits. Protocol tests exercise all nine native runner paths with recorded-format messages; they do not prove that an unavailable account or gateway works. Reported CLI dollar values can be model-price estimates under a subscription, not additional billed charges. Codex does not report USD, so a mixed study's aggregate dollar cost remains unknown.
+実装のチェックと、実際のモデルを使った証拠は別のものである。`adapter-checks.json` には、アカウントのチェックとその限界を記録している。プロトコルのテストは、記録した形式のメッセージを使って、9つのネイティブなランナーの経路をすべて実行する。ただし、使えないアカウントやゲートウェイが動くことを証明するものではない。CLI が報告するドル建ての金額は、サブスクリプションの下でのモデル料金の推定値であることがあり、追加で請求された金額とは限らない。Codex は USD を報告しないので、複数のエージェントを混ぜた調査では、ドル建ての費用の合計は分からない。
 
-## Measured result (2026-09-13)
+## 測定結果（2026-09-13）
 
-The frozen study completed 117 runner calls and 56 executions in 68.5 minutes. Both proposals were rejected: validation was 3/4 versus 2/4 in iteration one and 2/4 versus 1/4 in iteration two. The selected skill is byte-identical to the baseline, so no evolution benefit was demonstrated and no installed skill changed.
+固定した調査では、68.5 分で 117 回のランナー呼び出しと 56 回の実行を完了した。提案は2つとも却下された。検証の結果は、反復1回目が 3/4 対 2/4、反復2回目が 2/4 対 1/4 だった。選ばれたスキルはベースラインとバイト単位で同一なので、スキル改善の効果は示されず、インストール済みのスキルも変わっていない。
 
-| Final comparison | Baseline | Selected | Paired change, 97.5% task-bootstrap interval |
+| 最終テストの比較 | ベースライン | 選ばれたスキル | 対応のある変化と、タスク単位のブートストラップによる 97.5% 区間 |
 | --- | --- | --- | --- |
-| Codex | 3/8 | 2/8 | -12.5 percentage points, [-62.5, +37.5] |
-| Claude | 3/8 | 3/8 | 0 percentage points, [-37.5, +37.5] |
+| Codex | 3/8 | 2/8 | -12.5 パーセントポイント、[-62.5, +37.5] |
+| Claude | 3/8 | 3/8 | 0 パーセントポイント、[-37.5, +37.5] |
 
-These differences measure execution variability with the same skill. Both paired randomization p-values are 1.0. The metric is an end-to-end pass rate covering semantic grading, exact evidence, artifacts and write boundaries, not a pure measure of answer accuracy. Seven final executions had an affirmative semantic verdict but failed the frozen quotation contract; some cited observed artifacts that were not valid evidence targets. The corrected runtime accepts exact artifact quotations and supplies every changed text artifact while keeping factual sources distinct. The original scores were not recomputed or used for further selection.
+これらの差は、同じスキルでの実行のばらつきを測ったものである。対応のあるランダム化検定の p 値は、どちらも 1.0 だった。指標はエンドツーエンドの合格率で、意味評価、正確な証拠、成果物、書き込みの境界を含む。回答の正確さだけを測ったものではない。最終テストの7回の実行は、意味評価では肯定的な判定だったが、固定した引用の取り決めを満たさずに失敗した。その中には、観測した成果物のうち、有効な証拠の対象ではないものを引用した実行もあった。修正後の実行環境では、成果物からの正確な引用を受け付け、変更されたテキストの成果物をすべて渡しつつ、事実情報のソースとは区別している。元のスコアは計算し直しておらず、それ以降の選定にも使っていない。
 
-[`live-results.json`](./live-results.json) includes every verdict, overlapping failure counts, uncertainty, actual reported model IDs, usage and archive hashes. All judge, maintainer and proposer calls used zero tools. Aggregate USD is unknown because Codex does not report it; Claude's reported model costs under the existing subscription are not evidence of additional billing. The frozen skill/evidence export passed verification across 662 files; its manifest hash is recorded in the report. Full private traces, earlier stopped attempts and the export are retained in the owner's wiki raw evidence archive.
+[`live-results.json`](./live-results.json) には、すべての判定、重複を含む失敗の件数、不確かさ、実際に報告されたモデル ID、使用量、アーカイブのハッシュが入っている。ジャッジ、メンテナー、プロポーザーの呼び出しは、どれもツールを1つも使っていない。Codex が USD を報告しないので、USD の合計は分からない。既存のサブスクリプションの下で Claude が報告したモデルの費用は、追加で請求されたことの証拠にはならない。固定したスキルと証拠のエクスポートは、662 ファイルすべてで検証に合格し、そのマニフェストのハッシュはレポートに記録している。非公開の完全なトレース、途中で止めた以前の試行、エクスポートは、所有者の wiki の raw の証拠アーカイブに保管している。
 
-The additional Pi/OMP preflights below exercise the corrected runtime. They do not turn this negative study into evidence of quality improvement. Five native hosts and the bounded API runner still lack complete live validation because of the recorded account/client/gateway/key requirements.
+下に挙げる Pi と OMP の追加の事前チェックは、修正後の実行環境で行った。この否定的な結果の調査を、品質が上がった証拠に変えるものではない。5つのネイティブなホストと、範囲を限った API ランナーは、記録してあるアカウント、クライアント、ゲートウェイ、キーの要件のため、実地での検証がまだ完了していない。
 
-## Reproduce
+## 再現する
 
-For the published measurement, extract `skills/llm-wiki/scripts/wiki_evolve*.py` from commit `e3f2babcc44c7a7c01fee0c5fdc21b9a7e02eb5e` into a separate checkout and apply `frozen-runtime.patch` with `git apply`. The patch removes later error-message logging; all six resulting scripts were verified byte-for-byte against the frozen run. This reconstructs the measured runtime; hosted model outputs remain stochastic. The current runtime additionally corrects artifact evidence handling; running it measures the corrected implementation and must be reported separately from the original measurement.
+公開した測定を再現するには、コミット `e3f2babcc44c7a7c01fee0c5fdc21b9a7e02eb5e` の `skills/llm-wiki/scripts/wiki_evolve*.py` を別のチェックアウトに取り出し、`git apply` で `frozen-runtime.patch` を適用する。このパッチは、あとから加えたエラーメッセージのログ出力を取り除くもので、適用後の6つのスクリプトはすべて、固定した実行のものとバイト単位で一致することを確かめている。これで測定時の実行環境を再構成できるが、ホストされたモデルの出力は確率的なままである。現在の実行環境では、成果物の証拠の扱いも修正している。現在の実行環境で実行した場合は、修正後の実装を測ったことになるので、元の測定とは分けて報告しなければならない。
 
-1. Install and authenticate the selected native CLIs. Copy `../pilot/config.example.json`; use absolute runner paths and exact supported model IDs. Set two iterations, one repeat, `max_calls: 160`, `max_seconds: 7200`, `timeout: 480` and `max_usd: null`. Add a Claude transfer runner to reproduce the second-agent comparison.
-2. Prepare a Python interpreter with FastEmbed 0.8.0, sqlite-vec 0.1.9 and PyYAML 6.0.3. Set its absolute path as top-level `runtime_python`. Run the supplied `setup_wiki.py` against the fixture corpus once to cache the model and verify hybrid readiness. Subsequent runs can use `HF_HUB_OFFLINE=1` and `ORT_DISABLE_TELEMETRY=1`.
-3. Initialize a disposable learning wiki with `init_wiki.py`. Use a separate working copy of the baseline skill; the measured baseline is the public commit above. Run `wiki_evolve_loop.py --wiki /path/to/learning/wiki --raw /path/to/learning/raw --skill /path/to/baseline/skill --id fresh-run --suite /absolute/path/to/this/suite.json --config /path/to/config.json`.
-4. Keep the archive, including failed attempts. Export a completed run with `wiki_evolve.py --wiki /path/to/learning/wiki export fresh-run --destination /path/to/new-bundle`; verify it with `verify-bundle`.
+1. 選んだネイティブな CLI をインストールし、認証する。`../pilot/config.example.json` をコピーし、ランナーには絶対パスを、モデルには対応している正確な ID を使う。反復を2回、繰り返しを1回とし、`max_calls: 160`、`max_seconds: 7200`、`timeout: 480`、`max_usd: null` を設定する。2つ目のエージェントでの比較を再現するには、Claude の転用評価用のランナーを追加する。
+2. FastEmbed 0.8.0、sqlite-vec 0.1.9、PyYAML 6.0.3 を入れた Python インタープリターを用意し、その絶対パスをトップレベルの `runtime_python` に設定する。モデルをキャッシュし、ハイブリッド検索が使えることを確かめるために、付属の `setup_wiki.py` をフィクスチャのコーパスに対して1回実行する。それ以降の実行では、`HF_HUB_OFFLINE=1` と `ORT_DISABLE_TELEMETRY=1` を使える。
+3. `init_wiki.py` で使い捨ての学習用 wiki を初期化する。ベースラインのスキルは、別の作業用コピーを使う。測定したベースラインは、上に挙げた公開コミットのものである。`wiki_evolve_loop.py --wiki /path/to/learning/wiki --raw /path/to/learning/raw --skill /path/to/baseline/skill --id fresh-run --suite /absolute/path/to/this/suite.json --config /path/to/config.json` を実行する。
+4. 失敗した試行も含めて、アーカイブを残す。完了した実行は `wiki_evolve.py --wiki /path/to/learning/wiki export fresh-run --destination /path/to/new-bundle` でエクスポートし、`verify-bundle` で検証する。
 
-The suite is already checked in; regeneration is unnecessary for a trial. `build_suite.py` needs a Git checkout containing the pinned source commit. Published final questions are regression fixtures after exposure. Use fresh independently authored final tasks for a new generalization claim; do not move failed final tasks into training and keep calling the result an independent test.
+スイートはすでにリポジトリに入っているので、試すだけなら作り直す必要はない。`build_suite.py` を使うには、固定したソースのコミットを含む Git のチェックアウトが必要である。公開した最終問題は、公開したあとは回帰テストのフィクスチャとして扱う。新たに汎化を主張するには、独立して作った新しい最終タスクを使う。失敗した最終タスクを学習用に移しておきながら、その結果を独立したテストと呼び続けてはならない。
 
-## Development preflights
+## 開発中の事前チェック
 
-All preflights used training tasks; no final questions were used to repair infrastructure. Original failed verdicts are retained, rather than rewritten as passing scores.
+事前チェックでは、どれも学習用タスクを使った。インフラを直すために最終問題を使ったことはない。失敗した元の判定は、合格のスコアに書き換えず、そのまま残している。
 
-- Claude completed ingestion, graph extraction and hybrid retrieval. Codex initially selected a plain Python interpreter and correctly failed the hybrid-mode check; a shared prepared runtime removed that ambiguity.
-- A later Codex run exposed an ONNX telemetry sidecar outside the wiki. Disabling ONNX telemetry removed the actual side effect, without weakening the workspace hash check.
-- The judge initially lacked raw ingestion input, command output and protected-file comparisons. Those observations now accompany grading, so it can assess faithful summaries and completed actions.
-- The first broader study was interrupted during validation after an agent copied an unnecessary host dependency cache; detached child cleanup and prepared-runtime instructions were corrected. The temporary copies were removed, preserving the original cache.
-- The fifth attempt completed one two-repeat validation comparison (baseline 3/8, candidate 2/8, rejected) and a second training/proposal pass. Its second proposal deleted SKILL.md, which was correctly blocked but incorrectly ended the run. Invalid model-authored patches now remain rejected history while the last valid skill proceeds to final testing. The fresh full study retains two iterations and all tasks/agents, using one repeat to limit additional subscription use. No earlier attempt exposed final tasks.
-- A later baseline ingestion also edited an unrelated protected concept. The original run stopped during validation. Completed write violations now score zero with preserved hashes and artifacts, while a fresh workspace permits the remaining comparisons to continue. The restriction is unchanged; malformed runner responses and authentication errors remain fatal.
-- One fresh launch stopped during calibration: its positive answer did not explicitly answer whether the cache could replace Markdown. The positive paraphrase was clarified to cover the complete rubric. Both original calibration and corrected-run evidence remain available.
+- Claude は、取り込み、グラフの抽出、ハイブリッド検索を完了した。Codex は最初、素の Python インタープリターを選び、ハイブリッドモードのチェックで正しく失敗した。共通の準備済み実行環境を用意して、このあいまいさをなくした。
+- その後の Codex の実行で、ONNX のテレメトリーが wiki の外にファイルを書いていることが分かった。ONNX のテレメトリーを無効にして、実際の副作用をなくした。ワークスペースのハッシュのチェックは緩めていない。
+- ジャッジには当初、raw の取り込みの入力、コマンドの出力、保護対象のファイルの比較が渡されていなかった。現在はこれらの観測結果を採点に添えているので、要約が忠実か、操作が完了したかを評価できる。
+- 最初の大きめの調査は、エージェントが不要なホストの依存パッケージのキャッシュをコピーしたあと、検証の途中で中断した。切り離した子プロセスの後始末と、準備済み実行環境についての指示を修正した。一時的なコピーは削除し、元のキャッシュは残した。
+- 5回目の試行では、2回繰り返す検証の比較を1回（ベースライン 3/8、候補 2/8 で却下）と、2回目の学習と提案を完了した。2回目の提案は SKILL.md を削除するもので、これは正しくブロックされたが、実行が誤って終了してしまった。現在は、モデルが書いた無効なパッチは却下の履歴として残し、最後に有効だったスキルで最終テストに進む。新しく行った全体の調査では、反復を2回、タスクとエージェントをすべて残し、サブスクリプションの追加の使用量を抑えるため、繰り返しは1回にした。以前の試行で最終タスクが公開されたことはない。
+- その後、ベースラインの取り込みで、関係のない保護対象のコンセプトまで編集されたことがあった。元の実行は検証の途中で止まった。現在は、書き込み違反が確定した実行はスコアを 0 とし、ハッシュと成果物を残したうえで、新しいワークスペースで残りの比較を続けられる。制限そのものは変えていない。ランナーの不正な形式のレスポンスと認証エラーは、引き続き致命的なエラーとして扱う。
+- 新しく始めた実行の1つは、較正の途中で止まった。肯定側の回答が、キャッシュで Markdown を置き換えられるかという問いにはっきり答えていなかったためである。肯定側の言い換えの回答を、評価基準全体を満たすように明確にした。元の較正の証拠と、修正後の実行の証拠は、どちらも残している。
 
-A live failure can expose an adapter, environment, judge or skill problem. Passing implementation tests alone closes none of those empirical questions. The study result must identify accepted/rejected proposals, final outcomes, transfer outcomes and uncertainty before claiming benefit.
+実地での失敗からは、アダプター、環境、ジャッジ、スキルのどこかの問題が分かることがある。実装のテストに合格しただけでは、これらの実証的な問いはどれも解決しない。効果を主張する前に、調査の結果として、採用と却下した提案、最終テストの結果、転用評価の結果、不確かさを示さなければならない。
 
-## Additional adapter workflow checks
+## アダプターのワークフローの追加チェック
 
-Pi and OMP each executed the `train-link-ingest` workflow through runtime `1eded4b`, after the artifact-evidence correction. Both passed all six artifact assertions, both actual-command checks, citations, evidence grounding and protected-file checks. OMP passed the semantic verdict; Pi was rejected for an alleged internal contradiction about the stats exception. That interpretation is debatable because the source explicitly states the exception later in the same list; the original verdict is preserved. `adapter-checks.json` records both outcomes, versions, usage and evidence hashes. These training preflights do not change the frozen study or establish improvement.
+Pi と OMP は、成果物の証拠の修正を入れたあとの実行環境 `1eded4b` で、それぞれ `train-link-ingest` ワークフローを実行した。どちらも、成果物についての6つのアサーション、実際のコマンドについての2つのチェック、引用、証拠の裏づけ、保護対象のファイルのチェックにすべて合格した。OMP は意味評価の判定にも合格した。Pi は、stats の例外について内部で矛盾があるとされて却下された。ソースは同じリストのあとのほうでその例外をはっきり書いているので、この解釈には議論の余地があるが、元の判定はそのまま残している。`adapter-checks.json` には、両方の結果、バージョン、使用量、証拠のハッシュを記録している。これらの学習用の事前チェックは、固定した調査を変えるものでも、改善を示すものでもない。
 
-## Remediation coverage
+## 不足していた点への対応状況
 
-| Original gap | Implemented behavior | Remaining empirical limit |
+| 元の不足 | 実装した動作 | 実証面で残る限界 |
 | --- | --- | --- |
-| Cross-agent evaluation | Nine native adapters and subprocess protocol tests; explicit host/model selection | Five hosts need account/gateway setup; available hosts have workflow preflights, not universal transfer validation |
-| Answer quality | Blinded semantic judge, calibration, exact evidence quotations, citations, abstention and artifact observations | A model judge is fallible; malformed quotations fail rather than silently passing |
-| Clean comparison | Identical neutral runner boundaries, full skill injection with a hash, no rubric or variant label in inference | Provisioning proves content was supplied, not that a model followed it; progressive native skill discovery is not measured |
-| Actual wiki workflow | Permitted mutations, protected-file hashes, actual command I/O, graph and hybrid-search artifacts, shared prepared runtime | Workflow completion and answer-quality improvement are measured separately; host-wide filesystem isolation depends on the native runner |
-| Execution evidence | Fsynced public tool I/O as it arrives, surviving interrupted traces and process cleanup | Hosts can expose different detail; hidden reasoning is excluded |
-| Consolidation and reuse | Executable experience-to-pattern consolidation, persistent history and exact repeated-proposal rejection | Similar-but-not-identical proposals remain a maintainer judgment |
-| Independent final testing | Train/validation/final splits, frozen selection and consumed-test ledger | Legacy v1 holdout remains a regression gate; it is explicitly not an independent final set |
-| Broader skill changes | Add/edit/delete coherent text files, create a new skill, carry PURPOSE mappings, export skill plus audit evidence | Bundles verify checksums, not the truth of an observation or a publisher signature |
-| Evidence of benefit | Preregistered project workflow study, cross-agent comparison and task-level uncertainty analysis | Results must support any benefit claim; a rejected or tied candidate cannot demonstrate improvement |
-| Spending control | Pre-request reservations for bounded first-party API inference; shared call/time admission for CLI subscriptions | Native opaque CLI calls cannot offer a hard USD guarantee; the API runner has no shell tool and needs a live API key |
+| エージェントをまたいだ評価 | 9つのネイティブなアダプターと、サブプロセスのプロトコルテスト。ホストとモデルを明示して選ぶ | 5つのホストはアカウントやゲートウェイの設定が必要。使えるホストにはワークフローの事前チェックがあるが、どのホストにも転用できることを検証したわけではない |
+| 回答の品質 | 盲検化した意味評価のジャッジ、較正、証拠の正確な引用、出典、回答の差し控え、成果物の観測 | モデルのジャッジは誤ることがある。形式の正しくない引用は、黙って合格にせず失敗にする |
+| 公平な比較 | 中立で同一のランナーの境界、ハッシュ付きでのスキル全体の注入。推論には評価基準もバリアントのラベルも渡さない | 内容を渡したことは証明できるが、モデルがそれに従ったことは証明できない。ネイティブなスキルを段階的に見つける動作は測っていない |
+| 実際の wiki のワークフロー | 許可した変更、保護対象のファイルのハッシュ、実際のコマンドの入出力、グラフとハイブリッド検索の成果物、共通の準備済み実行環境 | ワークフローを完了したことと、回答の品質が上がったことは別に測る。ホスト全体のファイルシステムの分離は、ネイティブなランナーしだい |
+| 実行の証拠 | 公開されるツールの入出力を届いた時点で fsync して保存し、中断しても残るトレースとプロセスの後始末を行う | ホストによって公開される詳細の度合いが異なる。非公開の推論は含めない |
+| 統合と再利用 | 経験からパターンへの統合を実行でき、履歴を永続化し、まったく同じ提案の繰り返しを却下する | 似ているが同一ではない提案の扱いは、メンテナーの判断に任される |
+| 独立した最終テスト | 学習・検証・最終の分割、選定の固定、使用済みのテストの台帳 | 旧来の v1 の holdout は回帰ゲートとして残るが、独立した最終セットではないことを明示している |
+| より広いスキルの変更 | 一貫性のあるテキストファイルの追加・編集・削除、新しいスキルの作成、PURPOSE の対応付けの引き継ぎ、スキルと監査用の証拠のエクスポート | バンドルで検証できるのはチェックサムであり、観測内容が正しいことや、公開者の署名は検証できない |
+| 効果の証拠 | 事前登録したプロジェクトのワークフロー調査、エージェントをまたいだ比較、タスク単位の不確かさの分析 | 効果を主張するには、結果がそれを支えていなければならない。却下された、または同点の候補では、改善を示せない |
+| 費用の管理 | 範囲を限ったファーストパーティの API による推論では、リクエスト前に費用を予約する。CLI のサブスクリプションでは、呼び出し回数と時間の上限を共通で管理する | 中身の分からないネイティブな CLI の呼び出しでは、USD の上限を厳密には保証できない。API ランナーにはシェルのツールがなく、実際の API キーが必要 |

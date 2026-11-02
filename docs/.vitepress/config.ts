@@ -12,39 +12,39 @@ const author = {
 }
 const faqItems = [
   {
-    question: 'What is an LLM Wiki?',
+    question: 'LLM Wiki とは何か？',
     answer:
-      'An LLM Wiki is a persistent, agent-maintained knowledge base compiled from project sources into structured Markdown pages. Instead of re-reading raw documents for every question, the agent ingests each source once, maintains links and summaries over time, and answers later questions from the accumulated wiki.',
+      'LLM Wiki は、プロジェクトのソースを構造化した Markdown ページにコンパイルした、エージェントが保守する永続的なナレッジベースである。質問のたびに raw のドキュメントを読み直すのではなく、エージェントは各ソースを一度だけ取り込み、リンクと要約を継続的に保守し、その後の質問には蓄積した wiki から答える。',
   },
   {
-    question: 'How is an LLM Wiki different from RAG?',
+    question: 'LLM Wiki は RAG とどう違うか？',
     answer:
-      'RAG retrieves chunks from raw documents at query time, so each question reconstructs context from fragments. An LLM Wiki compiles sources into canonical pages during ingestion. Retrieval then searches the already-synthesized knowledge, letting corrections, cross-links, provenance, and contradictions compound across sessions.',
+      'RAG はクエリのたびに raw のドキュメントからチャンクを取り出すので、質問ごとに断片から文脈を組み立て直す。LLM Wiki は、取り込みの時点でソースを正本のページにコンパイルする。検索の対象はすでに統合された知識なので、修正、相互リンク、出所、矛盾がセッションをまたいで積み重なっていく。',
   },
   {
-    question: 'Does LLM Wiki require embeddings or a vector database?',
+    question: 'LLM Wiki には埋め込みやベクトルデータベースが必要か？',
     answer:
-      'No hosted service is required. Default search uses local FastEmbed embeddings in a disposable sqlite-vec index and fuses them with BM25. Run the search script directly with Python and --no-embed for dependency-free lexical retrieval. The typed graph is also optional, while canonical Markdown remains the source of truth. An optional hosted backend on Cloudflare adds Workers AI embeddings and Vectorize for teams and remote agents.',
+      'ホスト型のサービスは必要ない。既定の検索では、ローカルの FastEmbed による埋め込みを使い捨ての sqlite-vec インデックスに格納し、BM25 の結果と統合する。依存パッケージを使わない語彙ベースの検索にしたい場合は、検索スクリプトを Python で直接、--no-embed を付けて実行する。型付きグラフも任意で使うもので、正本は Markdown のままである。任意で使える Cloudflare 上のホスト型バックエンドを使うと、チームやリモートのエージェント向けに、Workers AI による埋め込みと Vectorize が加わる。',
   },
   {
-    question: 'Which coding agents support LLM Wiki?',
+    question: 'LLM Wiki に対応しているコーディングエージェントは？',
     answer:
-      'The agentskills.io-compatible skill is verified with Claude Code, Codex, Cursor, Gemini CLI, OpenCode, OpenClaw, Pi, and OMP. Claude Code also receives /wiki:* slash commands through the plugin; other agents invoke the same workflows through natural language. See the agent support matrix.',
+      'agentskills.io 互換のスキルは、Claude Code、Codex、Cursor、Gemini CLI、OpenCode、OpenClaw、Pi、OMP で動作を確認している。Claude Code では、プラグインを通じて /wiki:* のスラッシュコマンドも使える。ほかのエージェントでは、同じワークフローを自然言語で呼び出す。詳しくはエージェントの対応表を参照。',
   },
   {
-    question: 'Can several agents share one LLM Wiki?',
+    question: '複数のエージェントで1つの LLM Wiki を共有できるか？',
     answer:
-      'Yes. Agents on one machine can share a local folder. For agents on many machines, deploy the optional hosted wiki: one Cloudflare Worker with a Durable Object for each wiki, MCP and JSON API access, per-agent tokens or OAuth, atomic commits and conflict detection. Markdown stays canonical, and a pull mirror keeps a local copy.',
+      'できる。同じマシン上のエージェントは、ローカルのフォルダーを共有できる。複数のマシンにまたがるエージェントで共有するには、任意のホスト型 wiki をデプロイする。ホスト型 wiki は、wiki ごとに Durable Object を持つ1つの Cloudflare Worker で、MCP と JSON API によるアクセス、エージェントごとのトークンまたは OAuth、アトミックなコミット、競合検出を備える。正本は Markdown のままで、pull ミラーでローカルにコピーを置ける。',
   },
   {
-    question: 'How do I install and start using LLM Wiki?',
+    question: 'LLM Wiki をインストールして使い始めるには？',
     answer:
-      'Install the plugin or skill for your agent, run /wiki:init, ingest a source with /wiki:ingest, then ask a cited question with /wiki:query. Run /wiki:lint periodically to catch structural and semantic issues. The getting-started guide lists exact commands for every supported agent.',
+      '使っているエージェント向けのプラグインかスキルをインストールし、/wiki:init を実行する。/wiki:ingest でソースを取り込み、/wiki:query で質問すると、出典つきで答えが返る。構造と内容の問題を見つけるために、定期的に /wiki:lint を実行する。対応しているエージェントごとの正確なコマンドは、「はじめに」のガイドに載っている。',
   },
 ]
 
 
-// Pages under docs/v3/ are the frozen v3.2.0 documentation.
+// docs/v3/ 以下のページは、更新を止めた v3.2.0 のドキュメントである。
 const legacyPrefix = 'v3/'
 
 function canonicalUrl(relativePath: string): string {
@@ -66,8 +66,8 @@ function structuredData(
     '@id': `${site}#website`,
     name: 'LLM Wiki',
     url: site,
-    description: 'Open-source tooling for an agent-maintained, continuously compiled knowledge base.',
-    inLanguage: 'en-US',
+    description: 'エージェントが保守し、継続的にコンパイルし続けるナレッジベースのためのオープンソースのツール。',
+    inLanguage: 'ja-JP',
     author: { '@id': author['@id'] },
   }
   const page =
@@ -99,7 +99,7 @@ function structuredData(
           ...(Number.isFinite(lastUpdated) ? { dateModified: new Date(lastUpdated).toISOString() } : {}),
           isPartOf: { '@id': website['@id'] },
           author: { '@id': author['@id'] },
-          inLanguage: 'en-US',
+          inLanguage: 'ja-JP',
         }
 
   const graph: Record<string, unknown>[] = [website, author, page]
@@ -127,21 +127,21 @@ function structuredData(
 
 export default withMermaid(
   defineConfig({
-    // Project page served from https://praneybehl.github.io/llm-wiki-plugin/.
-    // The trailing slash is required so generated asset URLs resolve under the sub-path.
+    // プロジェクトのページは https://praneybehl.github.io/llm-wiki-plugin/ で配信する。
+    // 生成されるアセットの URL をサブパスの下で解決させるため、末尾のスラッシュが必要である。
     base: '/llm-wiki-plugin/',
-    lang: 'en-US',
+    lang: 'ja-JP',
     title: 'LLM Wiki',
     description:
-      'An LLM-curated, continuously compiled knowledge base for your projects: the LLM Wiki plugin.',
-    // Keep default (non-clean) URLs so the build still emits *.html files and
-    // legacy inbound links such as /llm-wiki-plugin/getting-started.html keep resolving.
+      'LLM が整理し、継続的にコンパイルし続けるプロジェクトのナレッジベース。LLM Wiki プラグイン。',
+    // 既定の（クリーンでない）URL のままにする。こうするとビルドで *.html ファイルが出力され、
+    // /llm-wiki-plugin/getting-started.html のような以前からの外部リンクも引き続き解決できる。
     cleanUrls: false,
     lastUpdated: true,
     ignoreDeadLinks: false,
     sitemap: {
       hostname: site,
-      // v3 pages are noindex, so the sitemap lists only v4 pages.
+      // v3 のページは noindex なので、サイトマップには v4 のページだけを載せる。
       transformItems: (items) => items.filter((item) => !item.url.startsWith(legacyPrefix)),
     },
     transformPageData(pageData) {
@@ -149,13 +149,13 @@ export default withMermaid(
       const legacy = pageData.relativePath.startsWith(legacyPrefix)
       const title =
         pageData.relativePath === 'index.md'
-          ? 'LLM Wiki: LLM-curated knowledge base'
+          ? 'LLM Wiki: LLM が整理するナレッジベース'
           : legacy
             ? `${pageData.title} (v3.2.0) | LLM Wiki`
             : `${pageData.title} | LLM Wiki`
       const description =
         pageData.description ||
-        'Build and maintain an agent-curated, continuously compiled knowledge base for your projects.'
+        'エージェントが整理し、継続的にコンパイルし続けるプロジェクトのナレッジベースを構築し、保守する。'
       const data = structuredData(pageData.relativePath, title, description, url, pageData.lastUpdated)
 
       pageData.frontmatter.head ??= []
@@ -178,7 +178,7 @@ export default withMermaid(
         ['meta', { property: 'og:image', content: socialImage }],
         ['meta', { property: 'og:image:width', content: '1200' }],
         ['meta', { property: 'og:image:height', content: '630' }],
-        ['meta', { property: 'og:image:alt', content: 'LLM Wiki documentation' }],
+        ['meta', { property: 'og:image:alt', content: 'LLM Wiki のドキュメント' }],
         ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
         ['meta', { name: 'twitter:title', content: title }],
         ['meta', { name: 'twitter:description', content: description }],
@@ -187,24 +187,24 @@ export default withMermaid(
       )
     },
     head: [
-      // `head` entries are emitted verbatim (base is not auto-prepended), so the
-      // favicon path must include the base explicitly.
+      // `head` の項目はそのまま出力される（base は自動では前に付かない）ので、
+      // favicon のパスには base を明示的に含める必要がある。
       ['link', { rel: 'icon', type: 'image/svg+xml', href: '/llm-wiki-plugin/favicon.svg' }],
       ['meta', { name: 'theme-color', content: '#4f46e5' }],
       ['meta', { name: 'color-scheme', content: 'light dark' }],
-      ['link', { rel: 'alternate', type: 'text/plain', href: `${site}llms.txt`, title: 'LLM-readable documentation index' }],
+      ['link', { rel: 'alternate', type: 'text/plain', href: `${site}llms.txt`, title: 'LLM が読むためのドキュメントの索引' }],
     ],
 
-    // The Mermaid plugin registers its component through a dynamic import, so
-    // Vite's dev scanner misses the dependency tree unless Mermaid is explicit.
+    // Mermaid プラグインは動的 import でコンポーネントを登録する。そのため、Mermaid を
+    // 明示しないと、Vite の開発時のスキャナーが依存関係のツリーを見落とす。
     vite: {
       optimizeDeps: {
         include: ['mermaid'],
       },
     },
 
-    // Strict Mermaid: the plugin defaults to `securityLevel: 'loose'`; override it,
-    // and render diagrams after client mount (no SSR auto-start).
+    // Mermaid を strict にする。プラグインの既定は `securityLevel: 'loose'` なので上書きし、
+    // 図はクライアントでのマウント後に描画する（SSR では自動で開始しない）。
     mermaid: {
       securityLevel: 'strict',
       startOnLoad: false,
@@ -218,38 +218,38 @@ export default withMermaid(
       siteTitle: 'LLM Wiki',
 
       nav: [
-        { text: 'Overview', link: '/', activeMatch: '^/$' },
+        { text: '概要', link: '/', activeMatch: '^/$' },
         {
-          text: 'Guide',
+          text: 'ガイド',
           link: '/getting-started',
           activeMatch: '^/(getting-started|workflows)',
         },
-        { text: 'Commands', link: '/commands', activeMatch: '^/commands' },
+        { text: 'コマンド', link: '/commands', activeMatch: '^/commands' },
         {
-          text: 'Search',
+          text: '検索',
           link: '/search',
           activeMatch: '^/(search|graph)',
         },
         {
-          text: 'Hosted',
+          text: 'ホスト型',
           link: '/hosted',
           activeMatch: '^/(hosted|decisions)',
         },
-        { text: 'Agents', link: '/agents', activeMatch: '^/agents' },
+        { text: 'エージェント', link: '/agents', activeMatch: '^/agents' },
         {
           text: 'v4.0.1',
           items: [
             {
               items: [
-                { text: 'v4.0.1 (latest)', link: '/' },
-                { text: 'v3.2.0 (legacy)', link: '/v3/' },
+                { text: 'v4.0.1（最新）', link: '/' },
+                { text: 'v3.2.0（旧版）', link: '/v3/' },
               ],
             },
             {
               items: [
-                { text: 'Upgrade to v4', link: '/upgrade' },
-                { text: 'Changelog', link: `${repo}/blob/main/CHANGELOG.md` },
-                { text: 'Releases', link: `${repo}/releases` },
+                { text: 'v4 へのアップグレード', link: '/upgrade' },
+                { text: '変更履歴', link: `${repo}/blob/main/CHANGELOG.md` },
+                { text: 'リリース', link: `${repo}/releases` },
               ],
             },
           ],
@@ -257,84 +257,84 @@ export default withMermaid(
       ],
 
       sidebar: {
-        // The v3.2.0 pages get their own sidebar. Keep this key before '/'.
+        // v3.2.0 のページには専用のサイドバーを使う。このキーは '/' より前に置くこと。
         '/v3/': [
           {
-            text: 'v3.2.0 (legacy)',
+            text: 'v3.2.0（旧版）',
             items: [
-              { text: 'Home', link: '/v3/' },
-              { text: 'Getting started', link: '/v3/getting-started' },
+              { text: 'ホーム', link: '/v3/' },
+              { text: 'はじめに', link: '/v3/getting-started' },
             ],
           },
           {
-            text: 'Guides',
+            text: 'ガイド',
             items: [
-              { text: 'Commands', link: '/v3/commands' },
-              { text: 'Workflows', link: '/v3/workflows' },
-              { text: 'Learning & skill evolution', link: '/v3/evolution' },
-              { text: 'Search & retrieval', link: '/v3/search' },
-              { text: 'Graph layer', link: '/v3/graph' },
+              { text: 'コマンド', link: '/v3/commands' },
+              { text: 'ワークフロー', link: '/v3/workflows' },
+              { text: '学習とスキルの改善', link: '/v3/evolution' },
+              { text: '検索と取得', link: '/v3/search' },
+              { text: 'グラフ層', link: '/v3/graph' },
             ],
           },
           {
-            text: 'Ecosystem',
+            text: 'エコシステム',
             items: [
-              { text: 'Integrations', link: '/v3/integrations' },
-              { text: 'Agents', link: '/v3/agents' },
+              { text: '連携', link: '/v3/integrations' },
+              { text: 'エージェント', link: '/v3/agents' },
             ],
           },
           {
-            text: 'Release',
+            text: 'リリース',
             items: [
-              { text: 'Upgrade to v3.2', link: '/v3/upgrade' },
-              { text: 'Current version (v4.0.1)', link: '/' },
+              { text: 'v3.2 へのアップグレード', link: '/v3/upgrade' },
+              { text: '現行のバージョン（v4.0.1）', link: '/' },
             ],
           },
         ],
         '/': [
           {
-            text: 'Introduction',
+            text: 'はじめに',
             items: [
-              { text: 'Home', link: '/' },
-              { text: 'Getting started', link: '/getting-started' },
+              { text: 'ホーム', link: '/' },
+              { text: 'はじめに', link: '/getting-started' },
             ],
           },
           {
-            text: 'Guides',
+            text: 'ガイド',
             items: [
-              { text: 'Commands', link: '/commands' },
-              { text: 'Workflows', link: '/workflows' },
-              { text: 'Learning & skill evolution', link: '/evolution' },
-              { text: 'Search & retrieval', link: '/search' },
-              { text: 'Graph layer', link: '/graph' },
+              { text: 'コマンド', link: '/commands' },
+              { text: 'ワークフロー', link: '/workflows' },
+              { text: '学習とスキルの改善', link: '/evolution' },
+              { text: '検索と取得', link: '/search' },
+              { text: 'グラフ層', link: '/graph' },
             ],
           },
           {
-            text: 'Hosted',
+            text: 'ホスト型',
             items: [
-              { text: 'Hosted wiki', link: '/hosted' },
-              { text: 'Decision models', link: '/decisions' },
+              { text: 'ホスト型 wiki', link: '/hosted' },
+              { text: '判定モデル', link: '/decisions' },
             ],
           },
           {
-            text: 'Ecosystem',
-            items: [{ text: 'Agents', link: '/agents' }],
+            text: 'エコシステム',
+            items: [{ text: 'エージェント', link: '/agents' }],
           },
           {
-            text: 'Release',
+            text: 'リリース',
             items: [
-              { text: 'Upgrade to v4', link: '/upgrade' },
-              { text: 'v3.2.0 docs (legacy)', link: '/v3/' },
+              { text: 'v4 へのアップグレード', link: '/upgrade' },
+              { text: 'v3.2.0 のドキュメント（旧版）', link: '/v3/' },
             ],
           },
         ],
       },
 
-      // Native fuzzy full-text search also acts as the local suggestion engine.
+      // VitePress 組み込みのあいまい全文検索を、ローカルの候補表示にも使う。
       search: {
         provider: 'local',
         options: {
-          // Leave the v3.2.0 pages out of the search index, so results show only v4 pages.
+          // 検索結果に v4 のページだけが出るように、v3.2.0 のページは検索インデックスから外す。
           _render(src, env, md) {
             return env.relativePath.startsWith(legacyPrefix) ? '' : md.render(src, env)
           },
@@ -350,28 +350,28 @@ export default withMermaid(
 
       outline: {
         level: [2, 3],
-        label: 'On this page',
+        label: 'このページの内容',
       },
 
       socialLinks: [{ icon: 'github', link: repo }],
 
       editLink: {
         pattern: `${repo}/edit/main/docs/:path`,
-        text: 'Edit this page on GitHub',
+        text: 'GitHub でこのページを編集する',
       },
 
       lastUpdated: {
-        text: 'Last updated',
+        text: '最終更新日',
         formatOptions: { dateStyle: 'medium' },
       },
 
       docFooter: {
-        prev: 'Previous',
-        next: 'Next',
+        prev: '前のページ',
+        next: '次のページ',
       },
 
       footer: {
-        message: 'Released under the MIT License.',
+        message: 'MIT ライセンスで公開している。',
         copyright: `Copyright © 2026 Praney Behl · <a href="${repo}">GitHub</a>`,
       },
     },

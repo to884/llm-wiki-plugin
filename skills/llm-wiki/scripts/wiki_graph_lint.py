@@ -6,35 +6,33 @@
 # ]
 # ///
 """
-wiki_graph_lint.py — Validate the typed graph metadata in a wiki.
+wiki_graph_lint.py — wiki の型付きグラフのメタデータを検証する。
 
-Reads every page's `graph:` frontmatter, cross-checks against the ontology
-(`wiki/graph/ontology.yaml`), and reports problems. Conservative by design:
-reports only, never edits.
+すべてのページの `graph:` の frontmatter を読み、オントロジー（`wiki/graph/ontology.yaml`）と
+照らし合わせ、問題を報告する。保守的な設計で、報告するだけで編集はしない。
 
-Carries a pinned PyYAML dependency; run with `uv run --script`.
+PyYAML の固定した依存を持つので、`uv run --script` で実行する。
 
-Checks:
-- Unique `graph.node_id` values across pages.
-- All relationship `object` ids resolve to known nodes (or are allowed
-  string-literal targets for predicates whose object_types include "*").
-- All predicates exist in `graph/ontology.yaml`.
-- Predicate subject/object types match ontology.
-- Typed semantic edges (anything except mentions/sourced_from/summarizes_raw
-  and predicates with `requires_evidence: false`) carry `source` and
-  `evidence`.
-- `source` references resolve to an existing source page.
-- `confidence` is one of high|medium|low; `status` is one of
-  current|historical|proposed|disputed|superseded.
-- No duplicate canonical nodes for the same node id.
-- Aliases do not collide across distinct canonical nodes.
-- `contradicts` / `supersedes` references resolve to known node/edge ids.
-- Generated graph has no orphan typed nodes (nodes with no inbound or
-  outbound typed edges) except for `source` nodes (allowed source-only).
-- Optional (--decide): a decision model checks typed edges whose evidence
-  quote is not in the source page. It reports findings only.
+チェック項目:
+- `graph.node_id` の値がページ全体で一意である。
+- 関係の `object` の ID がすべて既知のノードに解決される（または、object_types に "*" を
+  含む述語について、許可された文字列リテラルの対象である）。
+- すべての述語が `graph/ontology.yaml` にある。
+- 述語の主語と目的語の型がオントロジーと一致する。
+- 型付きの意味のエッジ（mentions、sourced_from、summarizes_raw と、
+  `requires_evidence: false` の述語を除くすべて）が `source` と `evidence` を持つ。
+- `source` の参照が既存のソースページに解決される。
+- `confidence` が high|medium|low のいずれか、`status` が
+  current|historical|proposed|disputed|superseded のいずれかである。
+- 同じノード ID について、正本のノードが重複していない。
+- 別名が、異なる正本のノードの間で衝突していない。
+- `contradicts` と `supersedes` の参照が、既知のノードかエッジの ID に解決される。
+- 生成したグラフに、孤立した型付きノード（型付きのエッジが入ってくることも出ていくこともないノード）がない。
+  ただし `source` のノードは除く（ソースとしてだけ使われることを許可する）。
+- 任意（--decide）: 証拠の引用がソースページにない型付きのエッジを、判定モデルがチェックする。
+  検出結果を報告するだけである。
 
-Usage:
+使い方:
     uv run --script wiki_graph_lint.py [<wiki-dir>] [--json] [--decide [--decide-threshold X]]
 """
 
@@ -55,8 +53,8 @@ except ImportError:
     )
     sys.exit(2)
 
-# Same module is imported by extract; we re-use its build_nodes/build_edges to
-# guarantee lint sees exactly what extract would emit.
+# extract と同じモジュールを import し、その build_nodes と build_edges を再利用して、
+# extract が出力するものとまったく同じものを lint が見るようにする。
 SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR))
 import wiki_graph_extract as _extract  # noqa: E402
@@ -173,7 +171,7 @@ def lint(pages: list[dict], ontology: dict) -> dict:
     predicates = ontology.get("predicates", {})
     node_types = ontology.get("node_types", {})
 
-    # Build node index
+    # ノードのインデックスを作る
     node_by_id: dict[str, dict] = {}
     duplicates: dict[str, list[str]] = defaultdict(list)
     for p in pages:
@@ -198,10 +196,10 @@ def lint(pages: list[dict], ontology: dict) -> dict:
     for nid, paths in duplicates.items():
         findings["duplicate_node_ids"].append({"node_id": nid, "paths": sorted(set(paths))})
 
-    # Source pages by slug — used to validate `source:` refs on edges.
+    # スラッグをキーにしたソースページ。エッジの `source:` の参照を検証するのに使う。
     source_slugs = {p["slug"] for p in pages if p["meta"].get("type") == "source"}
 
-    # Aliases
+    # 別名
     alias_to_canonicals: dict[str, set[str]] = defaultdict(set)
     canonical_by_id: dict[str, list[str]] = defaultdict(list)
     for n in node_by_id.values():
@@ -218,7 +216,7 @@ def lint(pages: list[dict], ontology: dict) -> dict:
         if len(owners) > 1:
             findings["alias_collisions"].append({"alias": alias, "owners": sorted(owners)})
 
-    # Walk relationships
+    # 関係を順に調べる
     for p in pages:
         graph_meta = p["meta"].get("graph") if isinstance(p["meta"].get("graph"), dict) else {}
         subject_id = derive_node_id(p["meta"], p["slug"], ontology)
@@ -237,15 +235,15 @@ def lint(pages: list[dict], ontology: dict) -> dict:
                 continue
             pdef = predicates[predicate] or {}
 
-            # Object resolution. Allow string-literal objects only when
-            # ontology lists "*" in object_types (e.g. summarizes_raw).
+            # 目的語の解決。文字列リテラルの目的語は、オントロジーの object_types に
+            # "*" がある場合だけ許可する（例: summarizes_raw）。
             object_types = pdef.get("object_types") or []
             allows_wildcard_obj = "*" in object_types
             if obj and obj not in node_by_id:
                 if not allows_wildcard_obj:
                     findings["broken_object_refs"].append({**here})
 
-            # Subject type check
+            # 主語の型のチェック
             if not types_match(pdef.get("subject_types"), subject_type):
                 findings["subject_type_mismatch"].append({
                     **here,
@@ -253,7 +251,7 @@ def lint(pages: list[dict], ontology: dict) -> dict:
                     "subject_type": subject_type,
                     "allowed": pdef.get("subject_types"),
                 })
-            # Object type check (only if object resolves to a node)
+            # 目的語の型のチェック（目的語がノードに解決される場合だけ）
             obj_node = node_by_id.get(obj) if obj else None
             obj_type = obj_node["node_type"] if obj_node else None
             if obj_node and not types_match(pdef.get("object_types"), obj_type):
@@ -270,7 +268,7 @@ def lint(pages: list[dict], ontology: dict) -> dict:
                 if not rel.get("source"):
                     findings["missing_source_field"].append({**here})
 
-            # source field must reference an existing source page slug
+            # source フィールドは、既存のソースページのスラッグを参照していなければならない
             src = rel.get("source")
             if src and str(src) not in source_slugs:
                 findings["broken_source_refs"].append({**here, "source": src})
@@ -283,7 +281,7 @@ def lint(pages: list[dict], ontology: dict) -> dict:
             if status and status not in ALLOWED_STATUS:
                 findings["invalid_status"].append({**here, "status": status})
 
-            # contradicts / supersedes resolution
+            # contradicts と supersedes の解決
             for ref_field, bucket in (("contradicts", "broken_contradicts"),
                                        ("supersedes", "broken_supersedes")):
                 ref = rel.get(ref_field)
@@ -292,9 +290,9 @@ def lint(pages: list[dict], ontology: dict) -> dict:
                     if ref_str not in node_by_id and ref_str not in source_slugs:
                         findings[bucket].append({**here, ref_field: ref_str})
 
-    # Orphan typed nodes — pages that declared `graph:` frontmatter but end
-    # up with no typed (non-implicit) edge touching them after extraction.
-    # Source nodes are exempt (they participate via implicit edges).
+    # 孤立した型付きノード。`graph:` の frontmatter を宣言しているのに、
+    # 抽出後に、型付きの（暗黙でない）エッジが1本もつながっていないページ。
+    # ソースのノードは対象外である（暗黙のエッジでつながるため）。
     extracted_edges = _extract.build_edges(pages, {n["slug"]: n["id"] for n in node_by_id.values()})
     typed_node_refs: set[str] = set()
     for e in extracted_edges:
@@ -309,7 +307,7 @@ def lint(pages: list[dict], ontology: dict) -> dict:
             continue
         graph_meta = n.get("graph") or {}
         if not graph_meta:
-            continue  # Pages without graph metadata are valid; they're text-only nodes.
+            continue  # グラフのメタデータがないページも有効で、テキストだけのノードになる。
         if n["id"] in typed_node_refs:
             continue
         findings["orphan_typed_nodes"].append({
@@ -317,7 +315,7 @@ def lint(pages: list[dict], ontology: dict) -> dict:
             "path": n["rel_path"],
         })
 
-    # Summary
+    # 集計
     findings["summary"] = {
         "pages_scanned": len(pages),
         "nodes": len(node_by_id),
@@ -327,8 +325,8 @@ def lint(pages: list[dict], ontology: dict) -> dict:
 
 
 def decide_evidence(pages: list[dict], ontology: dict, threshold: float | None) -> tuple[list[dict], dict]:
-    """D2: ask the decision model which source sentence states each typed edge whose
-    evidence is not a quote of its source page. Returns (unsupported findings, block)."""
+    """D2: 証拠がソースページからの引用になっていない型付きのエッジについて、
+    そのエッジを述べているソースの文がどれかを判定モデルに聞く。(裏づけのない検出結果, ブロック) を返す。"""
     import wiki_decide as wd
     from concurrent.futures import ThreadPoolExecutor
     import time
@@ -480,7 +478,7 @@ def render_text(findings: dict) -> str:
 
 
 def decision_default_threshold(check: str) -> str:
-    """The default threshold of a decision check, read from decision-questions.json."""
+    """判定チェックの既定の閾値。decision-questions.json から読む。"""
     path = SCRIPT_DIR.parent / "assets" / "decision-questions.json"
     try:
         return str(json.loads(path.read_text(encoding="utf-8"))["checks"][check]["default_threshold"])

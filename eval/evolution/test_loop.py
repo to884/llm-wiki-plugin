@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline integration of the complete cycle; fake inference is not performance evidence."""
+"""サイクル全体のオフライン結合テスト。フェイクの推論の結果は、性能の証拠にはならない。"""
 import json
 from pathlib import Path
 import sys
@@ -119,7 +119,7 @@ print(json.dumps(o))
     assert len(list((state / 'budget').glob('call-start-*.json'))) == 1
     assert not (state / 'budget' / 'selection.json').exists()
     assert 'budget exhausted' in lifecycle.run_records(state/'budget')[-1]['message']
-    # New skill can be created and rolled back to an empty directory.
+    # 新しいスキルを作成でき、空のディレクトリにロールバックできる。
     config['budget']['max_calls'] = 40
     config_path.write_text(json.dumps(config))
     args.id, args.skill = 'new', root / 'new-skill'
@@ -173,7 +173,7 @@ print(json.dumps(o))
             assert all('Duplicate' in h['invalid_reason'] for h in measured['history']) and not measured['skill_changed']
         else:
             assert measured['history'][0]['status']=='accepted' and measured['skill_changed']
-    # Recover a real mixed multi-file transition, then refuse unrelated edits.
+    # 複数のファイルが混ざった実際の変更途中の状態から復旧し、そのあと関係のない編集を拒否する。
     candidate = state / 'cycle' / 'best'
     manual = SimpleNamespace(id='mixed', skill=skill, target=None, candidate=candidate, wiki=wiki,
                              evidence=['concepts/evolution-cycle.md'], reason='Recovery check')
@@ -193,7 +193,7 @@ print(json.dumps(o))
     invalid = json.loads(json.dumps(suite))
     invalid['tasks'][2]['question'] = invalid['tasks'][0]['question']
     fails(lambda: loop.contract(invalid, corpus), 'Repeated question')
-    # Observable events exclude reasoning and preserve tool output.
+    # 観測できるイベントには推論を含めず、ツールの出力はそのまま残す。
     parsed = agent.parse_codex('\n'.join(json.dumps(x) for x in [
         {'type':'item.completed','item':{'id':'r','type':'reasoning','text':'private'}},
         {'type':'item.completed','item':{'id':'x','type':'command_execution','aggregated_output':'42'}},

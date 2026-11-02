@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Bounded WikiSkill cycle: train, consolidate, propose, validate, then test once.
+"""範囲を限った WikiSkill のサイクル。学習、統合、提案、検証を行い、最後に1回だけテストする。
 
-Run: python wiki_evolve_loop.py --wiki WIKI --id RUN --skill SKILL --suite SUITE --config CONFIG
-All runners are trusted local executables. No installed skill is changed by a run.
+実行: python wiki_evolve_loop.py --wiki WIKI --id RUN --skill SKILL --suite SUITE --config CONFIG
+ランナーはすべて信頼されたローカルの実行ファイルである。実行によってインストール済みのスキルが変わることはない。
 """
 import argparse
 from decimal import Decimal, ROUND_DOWN
@@ -93,7 +93,7 @@ def calibrate(suite, corpus, calls, work):
 
 
 class Calls:
-    """One ledger for inference, consolidation, proposal and judging, including failures."""
+    """推論、統合、提案、ジャッジの呼び出しを、失敗も含めて記録する1つの台帳。"""
     def __init__(self, config, archive):
         self.config, self.archive = config, archive
         self.runtime_files = {p: digest(p.read_bytes()) for p in Path(__file__).parent.glob('wiki_evolve*.py')}
@@ -183,7 +183,7 @@ class Calls:
 
 
 def skill_text(root):
-    # The entire procedure is injected, so skill retrieval cannot confound comparison.
+    # 手順全体を注入するので、スキルの検索結果の違いが比較に混ざることはない。
     return {name: (root / name).read_text(encoding='utf-8') for name in tree(root)}
 
 
@@ -201,7 +201,7 @@ def command_observations(events):
         identity = (e.get('item', {}).get('id') or e.get('id') or e.get('tool_use_id') or
                     e.get('toolCallId') or e.get('tool_id') or e.get('call_id') or e.get('part', {}).get('callID') or str(number))
         row = commands.setdefault(identity, {})
-        # Inspect actual tool inputs only, never echoed source prose or tool results.
+        # 調べるのは実際のツールの入力だけで、繰り返し出力されたソースの文章やツールの結果は見ない。
         for args in (e.get('item', {}), e.get('input', {}), e.get('args', {}), e.get('parameters', {}),
                      e.get('rawInput', {}), e.get('part', {}).get('state', {}).get('input', {})):
             if isinstance(args, dict) and isinstance(args.get('command'), str):
@@ -310,19 +310,19 @@ def rollout(task, skill, corpus, calls, archive, label):
                 observations[name] = {'check_passed': checked.get(name), 'exists': path.is_file(), 'content': content}
             source_paths = set(task['sources']) | (set(citations) if valid else set())
             sources = {p: inside(work / 'wiki', p).read_text(encoding='utf-8') for p in source_paths}
-            # The judge gets no model, variant, history, or skill instructions.
+            # ジャッジには、モデル、バリアント、履歴、スキルの指示を渡さない。
             judge = calls.invoke('judge', {'question': task['question'], 'rubric': task['rubric'],
                                   'answer': output['answer'], 'abstain': output['abstain'],
                                   'citations': citations, 'sources': sources, 'artifacts': observations,
                                   'integrity': integrity,
                                   'execution': [row for row in command_observations(output['events'])
                                       if any(all(s in row['command'] for s in fragments) for fragments in task.get('required_commands', []))]}, work)
-            # Saved artifacts can prove observed changes, but not replace factual sources.
+            # 保存した成果物は観測した変更を証明できるが、事実情報のソースの代わりにはならない。
             evidence_text = sources | {p: o['content'] for p, o in observations.items() if o['content'] is not None}
             grounded = grounded_verdict(judge, evidence_text, not task['abstain'] and bool(sources))
         else:
-            # A completed task that violates its boundary scores zero. Its disposable
-            # copy is discarded; changed evidence cannot be used to pass a model judge.
+            # 完了したタスクでも、境界に違反していればスコアは 0 である。その使い捨ての
+            # コピーは破棄するので、変更された証拠でモデルのジャッジを通すことはできない。
             judge = {'passed': False, 'reason': 'Task write boundary violated: ' +
                      ', '.join(sorted(outside)+['wiki/'+p for p in protected]), 'evidence': [],
                      'verifier': 'workspace-hashes'}
@@ -335,12 +335,12 @@ def rollout(task, skill, corpus, calls, archive, label):
                'checks': {'citations': valid, 'artifacts': artifacts, 'commands': commands, 'grounding': bool(grounded),
                           'integrity': integrity},
                'changed': sorted(changed)}
-        # Preserve artifacts as evidence, not just a success claim.
+        # 成功したという主張だけでなく、成果物を証拠として残す。
         artifact_dir = archive / ('artifacts-' + slug(label) + '-' + task['id'])
         artifact_dir.mkdir()
         for p in changed:
             if p in after:
-                target = artifact_dir / p  # Path originates from the symlink-free tree scan.
+                target = artifact_dir / p  # パスは、シンボリックリンクを含まないツリーの走査から得たものである。
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(work / 'wiki' / p, target)
         event(archive, 'rollout', row)
@@ -363,7 +363,7 @@ def compare(tasks, skills, corpus, calls, archive, label, repeats):
 
 
 def paired_report(scores, alpha=.05):
-    """Task-cluster bootstrap and paired randomization; repeats are not new tasks."""
+    """タスクのクラスター単位のブートストラップと、対応のあるランダム化検定。繰り返しは新しいタスクとして扱わない。"""
     baseline, selected = scores['baseline'], scores['selected']
     ids = sorted({r['task'] for r in baseline})
     require(ids and {r['task'] for r in selected} == set(ids), 'Unpaired final tasks')
@@ -374,8 +374,8 @@ def paired_report(scores, alpha=.05):
         differences.append(sum(r['passed'] for r in b)/len(b) - sum(r['passed'] for r in a)/len(a))
     mean = sum(differences)/len(ids)
     rng = random.Random(0)
-    # ponytail: 10,000 task-cluster draws; use a preregistered hierarchical model
-    # if many independently trained skills must be compared together.
+    # ponytail: タスクのクラスターから 10,000 回抽出する。独立に学習した多数のスキルを
+    # まとめて比べる必要があるなら、事前登録した階層モデルを使う。
     draws = sorted(sum(rng.choice(differences) for _ in ids)/len(ids) for _ in range(10000))
     interval = [draws[int(alpha/2*len(draws))], draws[min(len(draws)-1, int((1-alpha/2)*len(draws)))]]
     if len(ids) <= 16:
@@ -412,7 +412,7 @@ def consolidate(rows, patterns, history, calls, workspace, iteration):
 
 
 def publish_learning(args, rows, patterns, iteration):
-    """Raw observable training evidence plus ordinary searchable source/concept pages."""
+    """観測できる学習の raw の証拠と、検索できる通常のソースとコンセプトのページ。"""
     raw = getattr(args, 'raw', None) or args.wiki.parent / 'raw'
     raw.mkdir(parents=True, exist_ok=True)
     today = time.strftime('%Y-%m-%d')
@@ -572,8 +572,8 @@ def run(args, state):
                     (candidate / 'PURPOSE.md').write_text(purpose, encoding='utf-8')
                     candidate_hash = fingerprint(candidate)
                 except (ValueError, TypeError, KeyError, FileExistsError, IsADirectoryError, NotADirectoryError) as exc:
-                    # Invalid model-authored patches are rejected proposals, not a
-                    # reason to lose the remaining cycle or skip the frozen test.
+                    # モデルが書いた無効なパッチは却下された提案として扱う。残りのサイクルを失ったり、
+                    # 固定した最終テストを飛ばしたりする理由にはしない。
                     entry = {'iteration': iteration, 'status': 'rejected', 'invalid_reason': str(exc),
                              'reason': proposal.get('reason', 'Invalid proposal'), 'changes': proposal.get('changes', {}),
                              'files': proposal.get('files'),
@@ -591,7 +591,7 @@ def run(args, state):
                 else:
                     seen.add(candidate_hash)
                     copy_tree(candidate, archive / f'candidate-{iteration}')
-                    # Pair repeats and alternate order; only validation selects a candidate.
+                    # 繰り返しを対にして順序を交互にする。候補を選ぶのは検証だけである。
                     scores = compare(split['validation'], {'best': best, 'candidate': candidate},
                                      archive / 'corpus', calls, archive, f'validation-{iteration}', config['repeats'])
                     totals = {v: sum(r['passed'] for r in rs) for v, rs in scores.items()}
@@ -620,7 +620,7 @@ def run(args, state):
                 history.append(entry)
                 event(archive, 'iteration', entry)
                 atomic(learning_path, encode({'patterns': patterns, 'history': prior_history + history}).encode())
-            # Freeze selection BEFORE final testing. Test results never enter patterns/proposer history.
+            # 最終テストの前に選定を固定する。テストの結果は、パターンにもプロポーザーの履歴にも入れない。
             atomic(archive / 'selection.json', encode({'skill': tree(best), 'history': history}).encode())
             consumed.update({key: args.id for key in test_keys})
             atomic(consumed_path, encode(consumed).encode())
@@ -646,7 +646,7 @@ def run(args, state):
             report['paired_analysis'] = paired_report(final, .05/(1+len(transfer)))
             report['skill_changed'] = tree(best) != tree(initial)
             report['benefit_demonstrated'] = report['skill_changed'] and report['paired_analysis']['positive_evidence']
-            # Promotion uses the existing reviewed proposal/rollback workflow.
+            # 採用には、既存のレビュー済みの提案とロールバックのワークフローを使う。
             if tree(best) != tree(initial):
                 evidence_dir = args.wiki / 'concepts'
                 evidence_dir.mkdir(exist_ok=True)
@@ -667,7 +667,7 @@ def run(args, state):
                                         wiki=args.wiki, evidence=[evidence_name], reason='Selected by bounded evolution validation'), state)
                 exp = state / proposal_id
                 copy_tree(archive / 'corpus', exp / 'corpus')
-                # Test is a report, not another selection gate. Reviewer decides whether to apply.
+                # テストは報告であり、もう1つの選定のゲートではない。適用するかはレビュアーが決める。
                 event(exp, 'evaluation', {'status': 'passed', 'selection': str(archive / 'selection.json'),
                       'final_test': report['test'], 'corpus': corpus_hash,
                       'proposal_sha256': digest((exp / 'proposal.json').read_bytes())})
@@ -675,7 +675,7 @@ def run(args, state):
             event(archive, 'run', report)
             return report
     except BaseException as exc:
-        # Retain failed proposal context, but never feed final-test outcomes into learning.
+        # 失敗した提案の文脈は残すが、最終テストの結果は学習に使わない。
         if not (archive / 'selection.json').exists() and calls.last_proposal is not None:
             failure = {'run': args.id, 'status': 'error', 'error': type(exc).__name__,
                        'proposal': calls.last_proposal}

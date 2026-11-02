@@ -1,25 +1,24 @@
 #!/usr/bin/env python3
 """
-wiki_lint.py — Structural health check for an LLM Wiki.
+wiki_lint.py — LLM Wiki の構造の健全性をチェックする。
 
-Reports orphan pages, broken wikilinks, oversized pages, frontmatter issues,
-stale pages, duplicate slugs, and (with --suggest-pages) terms that appear in
-many pages without their own page.
+孤立ページ、リンク切れの wikilink、大きすぎるページ、frontmatter の問題、更新の止まったページ、
+重複したスラッグと、（--suggest-pages を付けた場合は）多くのページに出てくるのに専用のページがない語を報告する。
 
-Conservative by design: reports findings, never edits.
+保守的な設計で、検出結果を報告するだけで編集はしない。
 
-Usage:
+使い方:
     python wiki_lint.py [<wiki-dir>] [options]
 
-Options:
-    --soft-cap N        Page-size soft cap in lines (default: 400)
-    --hard-cap N        Page-size hard cap in lines (default: 800)
-    --required-fm a,b   Required frontmatter fields (default: type,title,tags,created,updated)
-    --suggest-pages     Surface terms appearing in many pages without a page
-    --suggest-min N     Minimum occurrences for --suggest-pages (default: 5)
-    --json              Emit JSON instead of text
+オプション:
+    --soft-cap N        ページサイズのソフト上限の行数（既定: 400）
+    --hard-cap N        ページサイズのハード上限の行数（既定: 800）
+    --required-fm a,b   必須の frontmatter のフィールド（既定: type,title,tags,created,updated）
+    --suggest-pages     多くのページに出てくるのに専用のページがない語を挙げる
+    --suggest-min N     --suggest-pages で挙げる最小の出現回数（既定: 5）
+    --json              テキストの代わりに JSON を出力する
 
-Examples:
+例:
     python wiki_lint.py wiki/
     python wiki_lint.py wiki/ --suggest-pages
     python wiki_lint.py wiki/ --json > lint.json
@@ -40,9 +39,9 @@ CAPITALIZED_PHRASE_RE = re.compile(r"\b([A-Z][a-zA-Z0-9]+(?:\s+[A-Z][a-zA-Z0-9]+
 
 
 def clean_link_target(link: str) -> str:
-    """Strip a wikilink down to its path, dropping alias, anchor, and .md."""
-    target = link.split("|", 1)[0]      # drop a display alias, if any
-    target = target.split("#", 1)[0]    # drop a heading anchor
+    """wikilink から別名、アンカー、.md を取り除き、パスだけにする。"""
+    target = link.split("|", 1)[0]      # 表示用の別名があれば取り除く
+    target = target.split("#", 1)[0]    # 見出しのアンカーを取り除く
     target = target.replace("\\", "/").strip().strip("/")
     if target.lower().endswith(".md"):
         target = target[:-3]
@@ -50,26 +49,22 @@ def clean_link_target(link: str) -> str:
 
 
 def resolve_link(link: str, by_path: dict, by_slug) -> "str | None":
-    """Resolve a wikilink to the slug of the page it names, or None if broken.
+    """wikilink を、それが指すページのスラッグに解決する。リンク切れなら None を返す。
 
-    Wikilinks appear both bare ([[kalman-filter]]) and path-qualified
-    ([[entities/kalman-filter]]), optionally with a heading anchor or an
-    explicit .md. A page's identity is its filename stem, so comparing raw
-    link text misses every path-qualified form — reporting it broken and
-    contributing no inbound edge, which then also misreports well-referenced
-    pages as orphans.
+    wikilink には、パスのない形（[[kalman-filter]]）とパスを付けた形（[[entities/kalman-filter]]）があり、
+    見出しのアンカーや明示的な .md が付くこともある。ページはファイル名のステムで識別されるので、
+    リンクの生のテキストで比べると、パスを付けた形をすべて見落とす。その結果リンク切れと報告され、
+    被リンクにも数えられないので、よく参照されているページまで孤立ページと誤って報告される。
 
-    A directory prefix is treated as a CONSTRAINT, not decoration: a qualified
-    link resolves only if that exact path exists. Falling back to a bare-stem
-    match would let [[raw/foo]] silently bind to sources/foo.md — a live
-    collision pattern wherever source pages are named after their raw files —
-    turning a genuinely broken out-of-tree link into a false pass. Unresolvable
-    is the safe answer; a wrong resolution is not.
+    ディレクトリの接頭辞は飾りではなく「制約」として扱う。パスを付けたリンクは、そのパスが
+    ちょうど存在する場合にだけ解決する。ステムだけの照合に切り替えると、[[raw/foo]] が
+    sources/foo.md に黙って結び付いてしまう。ソースページを raw ファイルにちなんで名付けている
+    wiki ならどこでも起きる衝突で、ツリーの外を指す本当のリンク切れを誤って合格にしてしまう。
+    解決できないと答えるのは安全だが、誤って解決するのは安全ではない。
 
-    Matching is case-SENSITIVE in both forms. Case-folding paths (but not bare
-    slugs) would be an asymmetry, and of the two ways to be wrong, a spurious
-    "broken link" report is visible and harmless while a spurious resolution is
-    silent.
+    照合は、どちらの形でも大文字と小文字を区別する。パスだけ（パスのないスラッグは除く）大文字と
+    小文字を同一視すると非対称になる。誤り方が2通りあるとすれば、誤った「リンク切れ」の報告は
+    目に見えて害がないが、誤った解決は気づかれない。
     """
     target = clean_link_target(link)
     if not target:
@@ -84,7 +79,7 @@ SKIP_TOP_LEVEL_DIRS = {"indexes", "graph", "raw", ".evolution"}
 
 
 def parse_frontmatter(text: str) -> tuple[dict, str, bool]:
-    """Returns (metadata, body, malformed). malformed=True if frontmatter was attempted but unparseable."""
+    """(metadata, body, malformed) を返す。frontmatter が書かれているのにパースできなかった場合は malformed=True になる。"""
     if not text.startswith("---"):
         return {}, text, False
     m = FRONTMATTER_RE.match(text)
@@ -171,14 +166,14 @@ def lint(pages: list[dict], soft_cap: int, hard_cap: int, required_fm: list[str]
         "summary": {},
     }
 
-    # Read errors
+    # 読み込みのエラー
     for p in pages:
         if "read_error" in p:
             findings["read_errors"].append({"path": p["rel_path"], "error": p["read_error"]})
 
     pages = [p for p in pages if "read_error" not in p]
 
-    # Slugs
+    # スラッグ
     slug_to_pages = defaultdict(list)
     for p in pages:
         slug_to_pages[p["slug"]].append(p["rel_path"])
@@ -186,11 +181,11 @@ def lint(pages: list[dict], soft_cap: int, hard_cap: int, required_fm: list[str]
         if len(paths) > 1:
             findings["duplicate_slugs"].append({"slug": slug, "paths": paths})
 
-    # Inbound link map
+    # 被リンクの対応表
     inbound = defaultdict(set)
     all_slugs = set(slug_to_pages.keys())
-    # Resolution indexes: by full wiki-relative path (sans .md) for
-    # path-qualified links, and by bare stem for unqualified ones.
+    # 解決用のインデックス。パスを付けたリンクには wiki からの完全な相対パス（.md なし）を、
+    # パスのないリンクにはステムだけを使う。
     by_slug = all_slugs
     by_path = {}
     for p in pages:
@@ -205,13 +200,13 @@ def lint(pages: list[dict], soft_cap: int, hard_cap: int, required_fm: list[str]
             if resolved:
                 inbound[resolved].add(p["slug"])
 
-    # Orphans, broken links, oversize, frontmatter, staleness
+    # 孤立ページ、リンク切れ、サイズ超過、frontmatter、更新の停滞
     for p in pages:
-        # Orphans
+        # 孤立ページ
         if not inbound.get(p["slug"]):
             findings["orphans"].append({"slug": p["slug"], "path": p["rel_path"]})
 
-        # Broken links
+        # リンク切れ
         for link in p["links"]:
             if resolve_link(link, by_path, by_slug) is None:
                 findings["broken_links"].append({
@@ -220,13 +215,13 @@ def lint(pages: list[dict], soft_cap: int, hard_cap: int, required_fm: list[str]
                     "to": link,
                 })
 
-        # Oversize
+        # サイズ超過
         if p["line_count"] > hard_cap:
             findings["oversized_hard"].append({"path": p["rel_path"], "lines": p["line_count"]})
         elif p["line_count"] > soft_cap:
             findings["oversized_soft"].append({"path": p["rel_path"], "lines": p["line_count"]})
 
-        # Frontmatter
+        # frontmatter
         if p["malformed_fm"]:
             findings["malformed_frontmatter"].append({"path": p["rel_path"]})
         else:
@@ -234,8 +229,8 @@ def lint(pages: list[dict], soft_cap: int, hard_cap: int, required_fm: list[str]
             if missing:
                 findings["missing_frontmatter"].append({"path": p["rel_path"], "missing": missing})
 
-        # Staleness: heuristic — page hasn't been updated in 90 days AND has been touched by recent ingests.
-        # Approximate: if updated > 90d ago and the page is well-linked (a hub), flag it.
+        # 更新の停滞: ヒューリスティック。90 日間更新されておらず、かつ最近の取り込みで触れられたページ。
+        # 近似: 最終更新が 90 日より前で、よくリンクされている（ハブである）ページを指摘する。
         updated = parse_date(p["meta"].get("updated"))
         if updated:
             age_days = (date.today() - updated).days
@@ -247,7 +242,7 @@ def lint(pages: list[dict], soft_cap: int, hard_cap: int, required_fm: list[str]
                     "inbound_count": len(inbound.get(p["slug"], [])),
                 })
 
-    # Suggested pages: capitalized multi-word phrases appearing in many pages without a page
+    # ページの提案: 多くのページに出てくるのに専用のページがない、大文字で始まる複数語の語句
     if suggest_pages:
         phrase_pages = defaultdict(set)
         for p in pages:
@@ -258,7 +253,7 @@ def lint(pages: list[dict], soft_cap: int, hard_cap: int, required_fm: list[str]
             for phrase in seen:
                 phrase_pages[phrase].add(p["slug"])
 
-        # Title set for filtering
+        # 絞り込みに使うタイトルの集合
         existing_titles = {p["meta"].get("title", "").lower() for p in pages}
         existing_slugs_normalized = {s.lower().replace("-", " ") for s in all_slugs}
 
@@ -270,7 +265,7 @@ def lint(pages: list[dict], soft_cap: int, hard_cap: int, required_fm: list[str]
                 continue
             if phrase.lower() in existing_slugs_normalized:
                 continue
-            # Filter out section header garbage
+            # セクションの見出しの断片を除く
             if phrase.split()[0] in {"Section", "Where", "Sources", "Tags", "Type", "Title"}:
                 continue
             candidates.append({"phrase": phrase, "page_count": len(page_set), "pages": sorted(page_set)[:5]})

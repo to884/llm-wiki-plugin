@@ -5,22 +5,24 @@ published: 2026-07-15
 downloaded: 2026-07-20
 ---
 
+> Cerebras のブログ記事（出典は frontmatter の `source`）を日本語に訳したもの。記事中の図のラベルと、図に含まれるメッセージやコードの例は原文のまま残している。
+
 JUL 15 2026
 
-How We Built Our Knowledge Base
+How We Built Our Knowledge Base（ナレッジベースをどう作ったか）
 ISAAC TAI
 DANIEL KIM
 MIKE GAO
 
-Employees ask our internal knowledge base more than 15,000 questions every day. It's become one of the most widely adopted internal tools at the company since launching 3 months ago. Used by humans, automations and agents.
+社員は社内のナレッジベースに、毎日 15,000 件を超える質問をしている。公開から3か月で、社内でもっとも広く使われているツールの1つになった。人、自動化の処理、エージェントが使っている。
 
-At Cerebras, our teams work across data center operations, chip design, hardware, training, inference, cloud platform, and more. With hundreds of new employees joining every year, our communication channels were filling up with the same questions:
+Cerebras のチームは、データセンターの運用、チップ設計、ハードウェア、学習、推論、クラウドプラットフォームなど、さまざまな分野で働いている。毎年数百人の新しい社員が加わるので、コミュニケーションのチャンネルは同じ質問であふれていた。
 
-“Where can I find X?”
-“Who is the expert in Y?”
-“What is Z?”
+「X はどこにある？」
+「Y に詳しいのは誰？」
+「Z とは何？」
 
-We built Cerebras Knowledge to help people connect people and systems to useful information.
+人とシステムを、役に立つ情報につなげられるように、Cerebras Knowledge を作った。
 
 1
 2
@@ -36,25 +38,25 @@ DISTILLATION
 LLM EXTRACTORS
 SOURCES
 SLACK - WIKI - CODE - INCIDENTS
-Meeting data where it lives
+データがある場所で、データを扱う
 
-Finding information inside an organization is hard. The data is scattered across tools, and every quarter or so someone proposes the same brilliant fix: let’s record everything in one platform so that all information is in a single place. The dream of a single source of truth, of course, rarely works in practice.
+組織の中で情報を見つけるのは難しい。データは複数のツールに散らばっていて、四半期に一度くらい、誰かが同じ名案を出す。すべての情報が1か所に集まるように、何もかも1つのプラットフォームに記録しよう、というものだ。もちろん、信頼できる唯一の情報源という夢は、実際にはまず実現しない。
 
-Information is generated wherever it is convenient and ergonomic: suggested edits in a document, threads in Slack, code references in GitHub, and status metadata in Jira. These platforms are tailor-made for their specific domains, optimized through years of product engineering and analytics. Discussing a pull request in Google Docs would be a terrible experience.
+情報は、それを書くのに便利で使いやすい場所で生まれる。ドキュメントの修正提案、Slack のスレッド、GitHub のコード参照、Jira のステータスのメタデータがそうだ。これらのプラットフォームは、それぞれの分野に合わせて作られ、長年のプロダクト開発と分析で最適化されている。Google ドキュメントでプルリクエストを議論するのは、ひどい体験になるだろう。
 
-So we set out to design a system that required minimal change to existing behavior. On the data collection side, this meant extracting data from each platform directly.
+そこで、既存のやり方をできるだけ変えずに済むシステムを設計することにした。データの収集の面では、各プラットフォームから直接データを取り出すことを意味した。
 
-Anatomy of a knowledge base
+ナレッジベースの構成
 
-Our knowledge base provides three things:
+ナレッジベースが提供するのは、次の3つである。
 
-A platform for collecting and storing internal data.
-A platform for querying that data.
-A layer that enforces authentication and authorization, with auditing and analytics.
+社内のデータを収集して保存するプラットフォーム。
+そのデータに問い合わせるプラットフォーム。
+認証と認可を強制し、監査と分析を行うレイヤー。
 
-At the core is a single Postgres table that holds embeddings, raw summaries, and metadata from many sources. The system continually ingests data from across the company and maintains a query-ready datastore.
+中心にあるのは1つの Postgres のテーブルで、多くのソースからの埋め込み、raw の要約、メタデータを保持している。システムは社内全体からデータを継続的に取り込み、すぐにクエリできるデータストアを保っている。
 
-We wanted a data interface that was simple but could work with most forms of data. We also wanted other developers at Cerebras to be able to build custom connectors. The result is deliberately simple: every source, from Slack threads to netlists, lands in the same embeddings table, and anything in that table is immediately queryable through the same interface:
+シンプルでありながら、ほとんどの形式のデータに対応できるデータのインターフェースが欲しかった。また、Cerebras のほかの開発者が独自のコネクターを作れるようにもしたかった。その結果、あえてシンプルな作りにした。Slack のスレッドからネットリストまで、すべてのソースが同じ埋め込みのテーブルに入り、そのテーブルにあるものはすべて、同じインターフェースですぐにクエリできる。
 
 SLACK
 WIKI / CONFLUENCE
@@ -72,11 +74,11 @@ MCP - WEB UI - AGENTS
 ONE EMBEDDINGS TABLE
 ONE CONNECTOR PER SOURCE
 
-Each data source defines what the data is, how to connect to it, and how often it should be fetched. Each resulting embedding row follows the same interface regardless of whether it came from Slack, a code repository, a document system, or a custom database.
+各データソースは、そのデータが何か、どう接続するか、どのくらいの頻度で取得するかを定義する。生成される埋め込みの行は、Slack、コードリポジトリ、ドキュメントのシステム、独自のデータベースのどこから来たものでも、同じインターフェースに従う。
 
 Slack
 
-Slack was the most important data source we needed to design for. It is where the most up-to-date engineering discussions happen across the company.
+Slack は、設計の対象としてもっとも重要なデータソースだった。社内のエンジニアリングの議論のうち、もっとも新しいものが行われる場所だからだ。
 
 SOCKET EVENT
 ROUTE
@@ -90,22 +92,22 @@ BURST VECTORS
 @MENTION / DM
 TRACKED CHANNEL
 RESET WATERMARKS
-How we process unstructured Slack conversations
+構造のない Slack の会話をどう処理しているか
 
-We initially tested whether simple embeddings over raw text performed well enough. We quickly realized that vector search alone was insufficient for matching all relevant data.
+最初に、raw のテキストに単純な埋め込みを使うだけで十分な性能が出るかを試した。すぐに、ベクトル検索だけでは、関係するデータをすべて見つけるには足りないと分かった。
 
-Slack messages present several challenges:
+Slack のメッセージには、いくつかの難しさがある。
 
-Information density varies enormously: “hey yeah sure mike” and a detailed kernel explanation are both messages.
-Message lengths vary, and shorter messages frequently beat longer, more detailed messages in cosine similarity.
-The meaning of a message often depends on the surrounding conversation.
+情報の密度の差がとても大きい。「hey yeah sure mike」も、カーネルの詳しい説明も、どちらも1件のメッセージである。
+メッセージの長さがまちまちで、短いメッセージのほうが、長く詳しいメッセージよりもコサイン類似度で上に来ることがよくある。
+メッセージの意味は、周りの会話に左右されることが多い。
 
-We needed a hybrid approach. We built Slack ingestion so every thread is retrievable through several search techniques at once, where each technique makes up for the weaknesses of the others:
+ハイブリッドな方法が必要だった。どのスレッドも複数の検索手法で同時に取り出せるように Slack の取り込みを作り、各手法がほかの手法の弱点を補うようにした。
 
-Full-text search catches the exact tokens that embeddings blur together: error strings, flag names, host names. When an engineer pastes a literal error message, an exact lexical match is almost always the best evidence, and no amount of semantic similarity should outrank it.
-Embedding search catches paraphrase. The person asking “restore hangs after manifest load” and the person who answered “checkpoint stalls on the NFS mount” may never share vocabulary. Vector similarity is what connects a question to an answer written in different words.(1)
-Inverse document frequency separates signal from filler. A short message built around rare tokens, such as an obscure config flag, deserves to rank. “sounds good, thanks!” sits close to many queries in embedding space but scores near zero once term rarity is taken into account.
-Age decay encodes that Slack answers expire. Two threads can answer the same question, and the one from six months ago may describe infrastructure that no longer exists. When relevance is otherwise equal, the newer thread wins.
+全文検索は、埋め込みでは区別がぼやける正確なトークンを捉える。エラーの文字列、フラグの名前、ホスト名などである。エンジニアがエラーメッセージをそのまま貼り付けたときは、語彙が正確に一致することがほぼ常に最良の証拠であり、意味の類似度がどれほど高くても、それより上に来るべきではない。
+埋め込みによる検索は、言い換えを捉える。「restore hangs after manifest load」と質問した人と、「checkpoint stalls on the NFS mount」と答えた人は、同じ語彙を一度も使っていないかもしれない。違う言葉で書かれた質問と回答を結びつけるのが、ベクトルの類似度である。(1)
+逆文書頻度（IDF）は、意味のある情報と埋め草を区別する。あまり使われない設定フラグのような、まれなトークンを中心にした短いメッセージは、上位に来るべきである。「sounds good, thanks!」は、埋め込みの空間では多くのクエリの近くにあるが、語のまれさを考慮すると、スコアはほぼ 0 になる。
+経過時間による減衰は、Slack の回答には賞味期限があることを表す。2つのスレッドが同じ質問に答えていても、6か月前のスレッドは、もう存在しないインフラについて書いているかもしれない。ほかの関連度が同じなら、新しいスレッドを優先する。
 SEARCH / SLACK CANDIDATES
 FULL-TEXT
 QUERY
@@ -157,28 +159,28 @@ NEWER ANSWERS WIN TIES
 BOOSTED BY THIS SIGNAL
 PENALIZED
 
-No single scorer is trusted on its own. Each technique produces its own ranked view of the same corpus, and those views are fused at query time (see Reranking).
+どのスコアリングも、単独では信用しない。各手法は同じコーパスについて独自の順位を作り、それらをクエリの時点で統合する（「再ランキング」を参照）。
 
 Socket Mode
 
-To collect data in real time, we installed a Slack bot into our workspace and ran it in Socket Mode. Slack pushes every message event to us over a persistent WebSocket, so we get real-time updates without polling the Web API and burning through its rate limits.
+リアルタイムでデータを集めるために、ワークスペースに Slack のボットを入れ、Socket Mode で動かした。Slack はすべてのメッセージのイベントを常時接続の WebSocket で送ってくるので、Web API をポーリングしてレート制限を使い果たすことなく、リアルタイムで更新を受け取れる。
 
-When an event arrives, we immediately acknowledge it, deduplicate it using the stable event ID, and mark the message for the ingest consumer.
+イベントが届くと、すぐに受信を確認し、変わらないイベント ID で重複を除き、そのメッセージを取り込み処理のコンシューマー向けに印を付ける。
 
-The ingest consumer does not save a new message in isolation. It resolves the thread that the message belongs to and re-fetches the entire conversation, including the parent and every reply, from the Slack API. It then writes the whole thread back as one row. A reply to an existing thread therefore re-pulls the parent and all siblings, so the stored content, participant list, and last-activity timestamp always reflect the complete conversation.
+取り込みのコンシューマーは、新しいメッセージを単独では保存しない。メッセージが属するスレッドを特定し、親メッセージとすべての返信を含む会話全体を Slack API から取得し直す。そのうえで、スレッド全体を1行として書き戻す。そのため、既存のスレッドへの返信があると、親とほかの返信もすべて取得し直すことになり、保存した内容、参加者の一覧、最終更新のタイムスタンプは常に会話全体を反映する。
 
-Every Slack channel in our system has its own data source. This provides fine-grained tuning for data freshness. A team may choose to ingest a busy incident channel more frequently, for example.
+システム内の Slack のチャンネルには、それぞれ専用のデータソースがある。これで、データの鮮度を細かく調整できる。たとえば、あるチームは、活発な障害対応のチャンネルを、より頻繁に取り込むことを選べる。
 
-Threads and messages
+スレッドとメッセージ
 
-Raw Slack text is keyword-searchable as soon as it lands because we maintain a Postgres full-text (GIN) index over the raw content. To enable useful vector search, however, we do some additional processing.(8)
+Slack の raw のテキストは、raw の内容に Postgres の全文検索（GIN）インデックスを張っているので、届いた時点でキーワードで検索できる。一方、ベクトル検索を役に立つものにするために、いくつかの処理を追加している。(8)
 
-During distillation, an LLM extracts structured data from the full thread:
+蒸留（distillation）の段階で、LLM がスレッド全体から構造化されたデータを取り出す。
 
-A one-line question that an engineer would actually search for.
-A short summary.
-The resolution.
-The systems and code references mentioned.
+エンジニアが実際に検索しそうな、1行の質問。
+短い要約。
+解決策。
+言及されたシステムとコードの参照。
 #CKPT-SUPPORT / THREAD_8F42
 FULL THREAD INPUT
 09:14
@@ -249,19 +251,19 @@ ONE JSON OBJECT FROM THE THREAD
 EMBEDDED ROW
 NORMALIZED DOCUMENT IN PGVECTOR
 
-We embed these data points and write them into the shared embeddings table. The original transcript is not embedded directly. In our experiments, accuracy increased significantly when the thread was normalized into a consistent format.(7,9) The additional metadata also gives the semantic match more useful signal.
+これらのデータをベクトル化し、共通の埋め込みのテーブルに書き込む。元の会話のテキストを直接ベクトル化することはしない。実験では、スレッドを一貫した形式に正規化すると、精度が大きく上がった。(7,9) 追加のメタデータも、意味の照合に役立つ手がかりになる。
 
-Bursting
+バースト
 
-At this point Slack search was good, but we kept encountering the same problem: important messages inside long threads were not always represented in the thread-level summary.
+この時点で Slack の検索は十分よくなっていたが、同じ問題に何度も突き当たった。長いスレッドの中の重要なメッセージが、スレッド単位の要約に必ずしも反映されないことである。
 
-To boost the signal from individual messages, we use bursting. A burst is a run of consecutive messages from the same author. We embed individual bursts with the thread topic prepended as context(2) because sometimes the answer lives in one tangent message whose vocabulary never makes it into the thread summary. Burst embeddings make that message findable on its own.
+個々のメッセージの情報を強めるために、バーストを使っている。バーストとは、同じ投稿者の連続したメッセージのまとまりである。答えが、スレッドの要約に語彙がまったく入らない脇道の1件のメッセージにあることがあるので、個々のバーストを、先頭にスレッドの話題を文脈として付けてベクトル化している。(2) バーストの埋め込みがあれば、そのメッセージを単独で見つけられる。
 
-To prevent low-signal data from reaching the database, each burst is scored against a weighted combination of signals and must clear a threshold before it is embedded:
+情報の少ないデータがデータベースに入らないように、各バーストを複数の手がかりの重み付きの組み合わせで採点し、閾値を超えたものだけをベクトル化する。
 
-It contains a relatively rare token across the corpus, with IDF of at least 4.0.
-The combined burst is at least 200 characters.
-One or more messages in the burst contain reactions, providing a social boost.
+コーパス全体で比較的まれなトークンを含む（IDF が 4.0 以上）。
+バーストをまとめた長さが 200 文字以上である。
+バーストの中の1件以上のメッセージにリアクションが付いていて、周りからの評価で加点される。
 AUTHOR A - SHORT
 AUTHOR A - FOLLOW-UP
 AUTHOR B - TECHNICAL DETAIL
@@ -272,19 +274,19 @@ BURST 02 - EMBEDDED
 SHORT - COMMON TOKENS - NO REACTIONS
 LONG - RARE TERMS - REACTED TO
 
-After distillation, qualifying bursts are embedded and stored in the embeddings table alongside the thread-level record.
+蒸留のあと、条件を満たしたバーストをベクトル化し、スレッド単位のレコードと並べて埋め込みのテーブルに保存する。
 
-Code repositories
+コードリポジトリ
 
-Initially we debated whether embedding code repositories was necessary. With the rise of Claude Code and other command-line tools, creating code embeddings felt counterintuitive when it seemed like “grep is all you need.” After talking with others in the industry and reading Cursor’s findings on semantic search in large codebases, we decided to try.
+最初は、コードリポジトリをベクトル化する必要があるのかを議論した。Claude Code などのコマンドラインツールが広まり、「grep さえあればいい」と思える中で、コードの埋め込みを作るのは直感に反するように感じた。業界のほかの人と話し、大規模なコードベースでのセマンティック検索についての Cursor の調査結果を読んだうえで、試すことにした。
 
-We have many internal repositories, some larger than 40 GB. Our main concern was how to keep them current efficiently.
+社内には多くのリポジトリがあり、40 GB を超えるものもある。いちばんの懸念は、それらを効率よく最新に保つ方法だった。
 
-Using CocoIndex to maintain code embeddings
+CocoIndex でコードの埋め込みを維持する
 
-After several experiments, we landed on CocoIndex, an open-source document embedding framework that specializes in vectorizing codebases.
+いくつかの実験を経て、CocoIndex に落ち着いた。コードベースのベクトル化を得意とする、オープンソースのドキュメント埋め込みのフレームワークである。
 
-For each repository, we split the code using language-specific regex boundaries ordered from coarse to fine. The splitter tries higher-level boundaries, such as classes, first. If a resulting chunk is still too large, it falls back to method boundaries and then smaller blocks. We embed the resulting chunks and write the vectors to Postgres. A single file may generate multiple embeddings at different levels of specificity, such as file-level and function-level records.
+リポジトリごとに、言語ごとの正規表現の境界を、粗いものから細かいものの順に使ってコードを分割する。分割処理は、まずクラスのような上位の境界を試す。分割したチャンクがまだ大きすぎるなら、メソッドの境界に、さらに小さなブロックに切り替える。分割したチャンクをベクトル化し、ベクトルを Postgres に書き込む。1つのファイルから、ファイル単位と関数単位のレコードのように、粒度の違う複数の埋め込みができることもある。
 
 CHECKPOINT_LOADER.CC
 LANGUAGE-AWARE
@@ -366,30 +368,30 @@ SEMANTIC NODE
 FIXED SPLIT
 Language-aware recursive chunking selected
 
-CocoIndex tracks synchronization metadata in Postgres. On each commit, it re-embeds and re-exports only the changed code chunks instead of recomputing the whole repository. This worked especially well for us because the synchronization state and embedding store live in the same database.
+CocoIndex は、同期のメタデータを Postgres で管理する。コミットのたびに、リポジトリ全体を計算し直すのではなく、変更されたコードのチャンクだけをベクトル化し直してエクスポートする。同期の状態と埋め込みの保存先が同じデータベースにあるので、この方法はとくにうまくいった。
 
-As the number of codebases grew, we moved repository onboarding into configuration files that teams can submit themselves, including allowlists and denylists at the file-path level.
+コードベースの数が増えてきたので、リポジトリの登録は、チームが自分で提出できる設定ファイルで行うようにした。設定ファイルには、ファイルパス単位の許可リストと拒否リストも書ける。
 
-Custom data sources
+独自のデータソース
 
-Some teams already had their own databases and did not want to move data into Slack or a document system just to participate in the knowledge base. They wanted the same query surface over their existing tables.
+すでに独自のデータベースを持っていて、ナレッジベースに参加するためだけに、データを Slack やドキュメントのシステムに移したくないチームもあった。それらのチームは、既存のテーブルに対して同じクエリの仕組みを使いたがっていた。
 
-To support this, we treat custom sources as plugin scripts. A team opens a pull request with a small Python module that knows how to read from its system and emit rows shaped like our embeddings table, plus a matching data source entry.
+これに対応するために、独自のソースをプラグインのスクリプトとして扱っている。チームは、自分のシステムからデータを読み、埋め込みのテーブルと同じ形の行を出力する小さな Python のモジュールと、対応するデータソースの項目を、プルリクエストで提出する。
 
-As long as the script writes into the shared database using the same schema as every other embedding row, the rest of the stack works unchanged. The data becomes queryable alongside Slack, code, and documents, with no special handling elsewhere in the system.
+スクリプトが、ほかの埋め込みの行と同じスキーマで共通のデータベースに書き込む限り、ほかの部分は変更なしで動く。データは Slack、コード、ドキュメントと並んでクエリできるようになり、システムのほかの部分で特別な処理は要らない。
 
-Planning and tool fan-out
+計画とツールの並列実行
 
-For every query, we first run a short planning pass where an LLM decides which tools and data sources are likely to matter. The main tools:
+クエリのたびに、まず短い計画の段階を実行し、どのツールとデータソースが関係しそうかを LLM が決める。主なツールは次のとおり。
 
-subsystem_index: per-file LLM summaries.
-search: the unified vector pipeline across Slack, wiki, code, and other indexed sources, merged and reranked internally.
-search_slack: direct Slack retrieval.
-search_code: ripgrep over source repositories.
-recent_prs: recent pull requests relevant to the question.
-who_knows: people with demonstrated expertise on a topic.
+subsystem_index: ファイルごとの LLM による要約。
+search: Slack、wiki、コード、そのほかのインデックス済みのソースにまたがる統一したベクトル検索のパイプライン。内部で統合して再ランキングする。
+search_slack: Slack を直接検索する。
+search_code: ソースリポジトリに対する ripgrep。
+recent_prs: 質問に関係する最近のプルリクエスト。
+who_knows: そのトピックの専門知識を示している人。
 
-The planner works over a compact description of what we have indexed: which projects exist, which sources are available in each project, and what each source is good at answering. Given the user’s query and active scope, it emits tool selections that the executor fans out in parallel, normalizes into a common evidence format, and passes to a final synthesis LLM.(4)
+プランナーは、インデックスしている内容を簡潔にまとめた説明をもとに動く。どのプロジェクトがあるか、各プロジェクトでどのソースが使えるか、各ソースが答えるのに向いている質問は何か、という説明である。ユーザーのクエリと有効な範囲が与えられると、プランナーはツールの選択を出力する。実行部はそれを並列に実行し、結果を共通の証拠の形式に正規化して、最後の統合を行う LLM に渡す。(4)
 
 QUESTION
 PLANNER
@@ -402,9 +404,9 @@ EVIDENCE
 SYNTHESIS
 NORMALIZED ROWS
 ANSWER + CITATIONS
-Reranking
+再ランキング
 
-A document can surface near the top simply because it shares vocabulary with the query while answering a different question. Before reranking, we combine the retrievers’ incompatible result lists with reciprocal rank fusion, or RRF. For every document, we add weight / (60 + rank) for each list in which it appears, with a default weight of 1.0 and a smoothing constant of 60.
+ドキュメントは、別の質問に答えるものでも、クエリと語彙が同じというだけで上位に出てくることがある。再ランキングの前に、各検索器の、互いに比べられない結果のリストを、reciprocal rank fusion（RRF）で統合する。各ドキュメントについて、そのドキュメントが現れるリストごとに weight / (60 + rank) を足す。weight の既定値は 1.0、平滑化の定数は 60 である。
 
 RESET_
 VECTOR
@@ -492,37 +494,37 @@ THREAD: CACHE WARMUP
 6
 RUNBOOK: NFS MOUNTS
 0.0476
-SCORE(D) = SUM 1 / (60 + RANK_L(D))   |   K = 60
+SCORE(D) = SUM 1 / (60 + RANK_L(D))   |   K = 60
 
-The smoothing constant makes consensus matter more than a single strong vote: a document that shows up near the top across several retrievers can beat one that ranks first in only one of them. We then merge duplicate chunks back to one source, cap how many results each file can contribute, and end up with a more diverse top twenty.
+平滑化の定数があるので、1つの強い票より、複数の検索器の合意のほうが重みを持つ。複数の検索器で上位に現れるドキュメントは、1つの検索器でだけ1位のドキュメントに勝てる。そのあと、重複したチャンクを1つのソースにまとめ直し、1つのファイルから入る結果の数に上限を設けて、より多様な上位 20 件を得る。
 
-We send the original query and those candidates to a small reranker model. It gives each document a score from zero to ten, and we keep the top ten.(6)
+元のクエリとそれらの候補を、小さな再ランキング用のモデルに送る。モデルは各ドキュメントに 0〜10 のスコアを付け、上位 10 件を残す。(6)
 
-Once the ranking is final, we add context back to the winners. For example, if we match a wiki section we pull in the two neighboring sections so the heading, preconditions, and caveats that chunking split apart aren’t lost. This gives readers a complete snippet instead of a lonely paragraph that’s missing important context.
+順位が確定したら、選ばれた結果に文脈を戻す。たとえば、wiki のセクションが一致した場合は、隣の2つのセクションも取り込み、チャンクの分割で切り離された見出し、前提条件、注意事項が失われないようにする。これで読み手は、重要な文脈が欠けた孤立した段落ではなく、ひとまとまりの抜粋を受け取れる。
 
-So the output of search is a rich packet of evidence: results fused from different retrievers, deduplicated at the source level, reranked against the actual question, and only then expanded with surrounding context.
+つまり、検索の出力は内容の豊富な証拠のまとまりである。異なる検索器からの結果を統合し、ソース単位で重複を除き、実際の質問に照らして再ランキングし、そのあとで初めて周りの文脈を加えて広げている。
 
 MCP
 
-In the MCP integration, we expose retrieval building blocks as direct tools instead of hiding them behind one “answer this question” endpoint. These tools are intentionally simple and as LLM-free as possible so clients can query them quickly and cheaply.(5)
+MCP との連携では、検索の部品を、「この質問に答える」という1つのエンドポイントの裏に隠さず、個別のツールとして公開している。これらのツールは意図してシンプルにし、できるだけ LLM を使わないようにしているので、クライアントは速く安く問い合わせられる。(5)
 
-Each MCP tool corresponds to one underlying retrieval primitive, such as search_slack, search_code, search, or who_knows. Tool inputs and outputs are narrow, structured, and stable, making them easy to call from any client or agent without embedding additional orchestration logic inside the tool itself.
+MCP のツールは、それぞれ1つの検索の基本操作に対応する。search_slack、search_code、search、who_knows などである。ツールの入出力は範囲が狭く、構造化されていて、安定しているので、ツールの中に追加の処理の流れを組み込まなくても、どのクライアントやエージェントからでも呼び出しやすい。
 
-Most tools run one query pipeline, such as vector search, lexical search, or ripgrep, apply lightweight scoring heuristics, and return raw evidence rows.
+ほとんどのツールは、ベクトル検索、語彙ベースの検索、ripgrep のような1つのクエリのパイプラインを実行し、軽いヒューリスティックで採点し、raw の証拠の行を返す。
 
-Claude Code, or any MCP-compatible agent, becomes the orchestration engine. It decides which tools to call, in what order, and how to assemble the results into a final answer or code edit. The retrieval layer itself does not depend on those LLM decisions in order to serve requests.
+Claude Code など、MCP に対応したエージェントが、処理の流れを組み立てる役になる。どのツールをどの順序で呼び、結果をどう組み合わせて最終的な回答やコードの編集にするかを、エージェントが決める。検索のレイヤーそのものは、リクエストに応えるのに、そうした LLM の判断に依存しない。
 
 Web UI
 
-In the web UI, the same tools exist, but they are connected to a complete query pipeline that runs end to end for every user question. The UI agent owns the planner and executor steps.
+Web UI にも同じツールがあるが、ユーザーの質問ごとに最初から最後まで実行される、完全なクエリのパイプラインにつながっている。プランナーと実行部の段階は、UI のエージェントが受け持つ。
 
-Planner: A lightweight LLM pass inspects the query and active project, then chooses which retrieval tools to invoke, such as search, search_slack, and subsystem_index.
+プランナー: 軽い LLM の処理がクエリと有効なプロジェクトを調べ、search、search_slack、subsystem_index のような、呼び出す検索ツールを選ぶ。
 
-Executor: The system fans those tool calls out in parallel, gathers the results, and normalizes them into a shared evidence schema with scores, recency, and source hints.
+実行部: システムはそれらのツールの呼び出しを並列に実行し、結果を集めて、スコア、新しさ、ソースの手がかりを含む共通の証拠のスキーマに正規化する。
 
-Synthesis: A final LLM pass takes the typed evidence bundle and original question, then produces the answer shown in the UI, including citations, caveats, and cross-source synthesis.
+統合: 最後の LLM の処理が、型付きの証拠のまとまりと元の質問を受け取り、出典、注意事項、ソースをまたいだ統合を含む、UI に表示する回答を作る。
 
-From the user’s perspective, the web UI is simply “ask a question and get an answer.” Under the hood, it runs the same planner → executor → synthesizer pattern that MCP clients can recreate explicitly.
+ユーザーから見れば、Web UI は単に「質問すると答えが返る」ものである。内部では、MCP のクライアントが明示的に再現できるのと同じ、プランナー → 実行部 → 統合の流れが動いている。
 
 MCP CLIENT
 WEB UI
@@ -532,15 +534,15 @@ CLIENT ORCHESTRATES
 PLANNER
 EXECUTOR
 SYNTHESIS
-Organization
+組織
 
-As the corpus grew, “search everything everywhere” rapidly stopped being useful. Engineers on compiler teams did not want infrastructure runbooks in their results, and vice versa. Projects are how we make search relevant by default.
+コーパスが大きくなると、「どこでも何でも検索する」はすぐに役に立たなくなった。コンパイラーのチームのエンジニアは、結果にインフラの運用手順書が出てくることを望まなかったし、その逆も同じだった。検索を最初から関係のあるものにする仕組みが、プロジェクトである。
 
-Projects and scoped search
+プロジェクトと範囲を絞った検索
 
-We introduced projects as the primary way to organize the workspace that a query runs over. A project is a named bundle of data sources: specific Slack channels, code repositories, internal databases, and document spaces relevant to a team or initiative.
+クエリの対象になる作業範囲を整理する主な方法として、プロジェクトを導入した。プロジェクトとは、名前を付けたデータソースのまとまりである。チームや取り組みに関係する特定の Slack のチャンネル、コードリポジトリ、社内のデータベース、ドキュメントのスペースからなる。
 
-Projects are intentionally lightweight. The same data source, such as a shared incidents channel or central platform repository, can be referenced by multiple projects instead of being duplicated.
+プロジェクトは、意図して軽くしている。共有の障害対応チャンネルや中央のプラットフォームのリポジトリのような同じデータソースを、複製せずに、複数のプロジェクトから参照できる。
 
 COMPILER PROJECT
 PLATFORM PROJECT
@@ -551,15 +553,15 @@ PLATFORM REPO
 CLOUD RUNBOOKS
 DEFAULT QUERY SCOPE
 DEFAULT QUERY SCOPE
-Onboarding and defaults
+利用開始時の設定と既定値
 
-During onboarding, users are prompted to select or create a default project that matches how they work, such as ML training infrastructure, Compiler, or Data Center Operations.
+利用を始めるとき、ユーザーは、ML の学習基盤、コンパイラー、データセンターの運用のように、自分の働き方に合った既定のプロジェクトを選ぶか作るよう求められる。
 
-That default project is stored on the user profile and scopes queries automatically. A new engineer gets high-signal answers without first having to learn which Slack channels, repositories, or document spaces matter.
+その既定のプロジェクトはユーザーのプロフィールに保存され、クエリの範囲を自動で絞る。新しいエンジニアは、どの Slack のチャンネル、リポジトリ、ドキュメントのスペースが重要かを先に覚えなくても、質の高い回答を得られる。
 
-Final Thoughts
+おわりに
 
-In the end, the knowledge base works because it meets people where the information already lives, instead of forcing everything into one rigid system. By combining various search techniques, we can surface evidence quickly. The result is a search experience that stays flexible enough for real company data, but structured enough to remain useful as Cerebras keeps growing.
+結局、このナレッジベースがうまくいっているのは、すべてを1つの硬直したシステムに押し込むのではなく、情報がすでにある場所で人に応えているからである。さまざまな検索手法を組み合わせることで、証拠をすばやく見つけられる。その結果、実際の社内データに対応できる柔軟さを保ちながら、Cerebras が成長を続けても役に立ち続けるだけの構造を持った検索の体験になった。
 
 REFERENCES
 

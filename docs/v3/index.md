@@ -1,116 +1,116 @@
 ---
-title: "LLM Wiki: shared memory for AI agents"
+title: "LLM Wiki: AI エージェントの共有メモリ"
 titleTemplate: false
-description: Turn documents and project notes into a shared wiki that AI agents can search, cite, and keep up to date.
+description: ドキュメントやプロジェクトのメモを、AI エージェントが検索・引用・更新できる共有 wiki に変える。
 ---
 
 <!-- Adapted from: docs/index.html (source: README.md "What is this?", "Why use it", "Quick start"). -->
 
 # LLM Wiki
 
-Turn PDFs, articles, transcripts, and notes into a shared wiki that your AI agents can search, cite, and keep up to date.
+PDF、記事、文字起こし、メモを、AI エージェントが検索・引用・更新できる共有 wiki に変える。
 
-AI agents are good at the task in front of them, but a new session starts with limited context. LLM Wiki gives them a shared memory that can live in one personal wiki across all projects or inside a specific project.
+AI エージェントは目の前のタスクをこなすのは得意だが、新しいセッションは限られたコンテキストから始まる。LLM Wiki は、エージェントに共有のメモリを与える。このメモリは、すべてのプロジェクトで使う個人用の wiki 1つに置くことも、特定のプロジェクトの中に置くこともできる。
 
-Add a source once. The agent turns it into linked Markdown pages. Later, it can find the right section, answer with citations, and save useful learning back into the wiki.
+ソースを一度追加すると、エージェントがそれをリンクでつながった Markdown のページに変える。あとでエージェントは、該当するセクションを見つけ、出典つきで回答し、役に立った知見を wiki に書き戻せる。
 
-Everything canonical stays in readable Markdown. Local semantic search uses a disposable SQLite vector index, never a hosted vector database or embedding service.
+正本となる情報はすべて、読める Markdown のまま残る。ローカルのセマンティック検索は、いつでも捨てられる SQLite のベクトルインデックスを使い、ホスト型のベクトルデータベースや埋め込みサービスは一切使わない。
 
-## Why this exists
+## 作った理由 {#why-this-exists}
 
-AI agents can do good work in one session. The problem is what happens after the chat ends.
+AI エージェントは、1つのセッションの中ではよい仕事をする。問題は、チャットが終わったあとである。
 
-A useful answer may be buried in last week's conversation. A decision may live in a meeting transcript. A correction may sit in an issue. When that context is scattered, the next agent has to find the same files and rebuild the same understanding.
+役に立つ回答が先週の会話に埋もれていることがある。決定事項が会議の文字起こしの中にしかないこともあれば、訂正が issue に書かれたままのこともある。こうしたコンテキストが散らばっていると、次のエージェントは同じファイルを探し、同じ理解をもう一度組み立てなければならない。
 
-LLM Wiki gives that work somewhere durable to go. Sources become linked Markdown, answers keep their citations, and useful conclusions can be saved for the next session or the next agent.
+LLM Wiki は、その成果を長く残せる置き場所を用意する。ソースはリンクでつながった Markdown になり、回答は出典を保ち、役に立った結論は次のセッションや次のエージェントのために保存できる。
 
-Use it when knowledge should outlive one conversation: long-running research, customer calls, project decisions, recurring questions, and work shared across agents. For one-off questions or structured records, a chat or regular database may be the better tool.
+1つの会話より長く知識を残したいときに使う。たとえば、長期にわたる調査、顧客との通話、プロジェクトの決定事項、繰り返し出る質問、複数のエージェントで分担する作業である。一度きりの質問や構造化されたレコードには、チャットや通常のデータベースのほうが向いていることがある。
 
-![Illustrated overview of scattered context becoming a shared Markdown wiki that compounds across AI agent sessions](/assets/llm-wiki-explained.png)
+![散らばったコンテキストが共有の Markdown wiki にまとまり、AI エージェントのセッションをまたいで蓄積されていく様子を示した図](/assets/llm-wiki-explained.png)
 
-*Add sources once, retrieve cited evidence later, and save useful learning back so the next session starts with more than the last one did.*
+*ソースは一度追加すれば、あとから出典つきの証拠を取り出せる。役に立った知見を書き戻せば、次のセッションは前回より多くの知識を持って始められる。*
 
-::: tip New in v3.2.0
-Capture verified task experience, consolidate reusable lessons and evaluate evidence-linked skill changes with explicit apply/rollback. Existing local search and wiki pages remain compatible. See [Learning and skill evolution](/v3/evolution) and [Upgrade](/v3/upgrade).
+::: tip v3.2.0 の新機能
+検証済みのタスクの経験を記録し、再利用できる教訓にまとめ、根拠にリンクしたスキルの変更を評価して、明示的に適用・ロールバックできる。既存のローカル検索と wiki のページは、そのまま使える。詳しくは [学習とスキルの改善](/v3/evolution) と [アップグレード](/v3/upgrade) を参照。
 :::
 
-## How it works
+## 仕組み {#how-it-works}
 
-Add each source once. Later questions use the shared wiki instead of starting from the raw files again.
+ソースはそれぞれ一度だけ追加する。以降の質問では、raw ファイルから始め直すのではなく、共有 wiki を使う。
 
 ```mermaid
 flowchart LR
-  raw["PDF, article, or transcript"] --> ingest["add once"]
-  ingest --> wiki["shared Markdown wiki"]
-  wiki --> query["ask a question"]
-  wiki --> lint["check wiki health"]
-  query --> answer["answer with sources"]
-  answer -. save useful answer .-> wiki
-  wiki -. optional .-> relmap["relationship map"]
+  raw["PDF、記事、文字起こし"] --> ingest["一度だけ追加"]
+  ingest --> wiki["共有の Markdown wiki"]
+  wiki --> query["質問する"]
+  wiki --> lint["wiki の健全性をチェック"]
+  query --> answer["出典つきの回答"]
+  answer -. 役に立つ回答を保存 .-> wiki
+  wiki -. 任意 .-> relmap["関係マップ"]
   relmap --> query
 ```
 
-## Three steps to a working wiki
+## 3ステップで wiki を使い始める {#three-steps-to-a-working-wiki}
 
-1. **Initialize** one personal wiki shared across projects.
+1. プロジェクトをまたいで使う個人用の wiki を1つ**初期化**する。
 
    ```bash
    /wiki:init --global
    ```
 
-   Use `/wiki:init` without `--global` when the wiki should belong only to the current project.
+   wiki を現在のプロジェクト専用にしたいときは、`--global` を付けずに `/wiki:init` を実行する。
 
-2. **Ingest** your first source: a PDF, an article, a transcript.
+2. 最初のソース（PDF、記事、文字起こし）を**取り込む**。
 
    ```bash
    /wiki:ingest ~/wiki/raw/your-source.pdf
    ```
 
-3. **Query** the accumulated knowledge, with citations.
+3. 蓄積した知識に出典つきで**問い合わせる**。
 
    ```bash
    /wiki:query What does my wiki say about X?
    ```
 
-Not a Claude Code user? The same skill runs in Codex, Cursor, Pi, OMP, and more. See [Getting started](/v3/getting-started) and the [agent support matrix](/v3/agents).
+Claude Code を使っていない場合も、同じスキルが Codex、Cursor、Pi、OMP などで動く。[はじめに](/v3/getting-started) と [エージェントの対応表](/v3/agents) を参照。
 
-## Explore the docs
+## ドキュメント一覧 {#explore-the-docs}
 
-- **[Getting started](/v3/getting-started)**: Install for your agent, then walk through init, ingest, query, and lint.
-- **[Commands](/v3/commands)**: Every `/wiki:*` slash command with usage and examples.
-- **[Workflows](/v3/workflows)**: Step-by-step ingest, query, and lint walkthroughs for end users.
-- **[Search & retrieval](/v3/search)**: Local hybrid retrieval, section-level BM25, JSON evidence, and incremental caches.
-- **[Graph layer](/v3/graph)**: The optional compiled graph for typed, provenance-backed relationships.
-- **[Integrations](/v3/integrations)**: The Paperclip plugin that surfaces the wiki inside a team UI.
-- **[Agents](/v3/agents)**: Which coding agents are supported and how to install for each.
-- **[Upgrade to v3](/v3/upgrade)**: Move provider-backed setups to local vectors with no content migration.
+- **[はじめに](/v3/getting-started)**: 使っているエージェントにインストールし、init、取り込み、クエリ、lint を順に試す。
+- **[コマンド](/v3/commands)**: すべての `/wiki:*` スラッシュコマンドの使い方と例。
+- **[ワークフロー](/v3/workflows)**: エンドユーザー向けに、取り込み、クエリ、lint を手順ごとに説明する。
+- **[検索と取得](/v3/search)**: ローカルのハイブリッド検索、セクション単位の BM25、JSON 形式の証拠、差分更新するキャッシュ。
+- **[グラフ層](/v3/graph)**: 出典を裏づけに持つ型付きの関係を扱う、任意のコンパイル済みグラフ。
+- **[連携](/v3/integrations)**: チームの UI の中に wiki を表示する Paperclip プラグイン。
+- **[エージェント](/v3/agents)**: 対応しているコーディングエージェントと、それぞれのインストール方法。
+- **[v3 へのアップグレード](/v3/upgrade)**: プロバイダーを使う構成から、コンテンツを移行せずにローカルのベクトルへ切り替える。
 
-## Frequently asked questions
+## よくある質問 {#frequently-asked-questions}
 
-### What is an LLM Wiki?
+### LLM Wiki とは何か {#what-is-an-llm-wiki}
 
-LLM Wiki is a shared knowledge base for AI agents. It turns your sources into linked Markdown pages, keeps them organized, and answers later questions with citations.
+LLM Wiki は、AI エージェントのための共有ナレッジベースである。ソースをリンクでつながった Markdown のページに変えて整理し、あとからの質問に出典つきで答える。
 
-### How is LLM Wiki different from RAG?
+### LLM Wiki は RAG とどう違うのか {#how-is-llm-wiki-different-from-rag}
 
-RAG usually searches raw document chunks each time you ask a question. LLM Wiki organizes each source into useful pages first. Later questions search that growing body of knowledge, including its links, corrections, and source history.
+RAG は通常、質問のたびに raw ドキュメントのチャンクを検索する。LLM Wiki は、まず各ソースを役に立つページに整理する。以降の質問では、リンク、訂正、ソースの履歴を含めて、増えていく知識の集まりを検索する。
 
-### Does LLM Wiki require a hosted embedding service or vector database?
+### ホスト型の埋め込みサービスやベクトルデータベースは必要か {#does-llm-wiki-require-a-hosted-embedding-service-or-vector-database}
 
-No. Default semantic search runs locally with FastEmbed and sqlite-vec, and Markdown remains canonical. If you want no model or optional packages at all, run the search script directly with Python and `--no-embed` for pure-Python BM25.
+必要ない。既定のセマンティック検索は FastEmbed と sqlite-vec でローカルに動き、正本は Markdown のままである。モデルも追加のパッケージも一切使いたくない場合は、検索スクリプトを Python で直接、`--no-embed` を付けて実行すれば、Python だけで動く BM25 になる。
 
-### Which coding agents support LLM Wiki?
+### LLM Wiki に対応しているコーディングエージェントは {#which-coding-agents-support-llm-wiki}
 
-The agentskills.io-compatible skill supports Claude Code, Codex, Cursor, Gemini CLI, OpenCode, OpenClaw, Pi, OMP, and Hermes. Claude Code also receives `/wiki:*` slash commands through the plugin; other agents invoke the same workflows through natural language. See the [agent support matrix](/v3/agents).
+agentskills.io 互換のスキルは、Claude Code、Codex、Cursor、Gemini CLI、OpenCode、OpenClaw、Pi、OMP、Hermes に対応している。Claude Code では、プラグインを通じて `/wiki:*` スラッシュコマンドも使える。ほかのエージェントでは、同じワークフローを自然言語で呼び出す。[エージェントの対応表](/v3/agents) を参照。
 
-### How do I install and start using LLM Wiki?
+### インストールして使い始めるには {#how-do-i-install-and-start-using-llm-wiki}
 
-Install the plugin or skill for your agent, run `/wiki:init`, ingest a source with `/wiki:ingest`, then ask a cited question with `/wiki:query`. Run `/wiki:lint` periodically to catch structural and semantic issues. The [getting-started guide](/v3/getting-started) lists exact commands for every supported agent.
+使っているエージェントにプラグインかスキルをインストールし、`/wiki:init` を実行する。`/wiki:ingest` でソースを取り込み、`/wiki:query` で出典つきの質問をする。構造と内容の問題を見つけるために、定期的に `/wiki:lint` を実行する。対応しているすべてのエージェントについて、正確なコマンドを [はじめにのガイド](/v3/getting-started) に載せている。
 
 ---
 
-LLM Wiki plugin, MIT licensed. [Source on GitHub](https://github.com/praneybehl/llm-wiki-plugin). Based on [Karpathy's LLM Wiki gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f), with section retrieval informed by Cerebras's [How We Built Our Knowledge Base](https://www.cerebras.ai/blog/how-we-built-our-knowledge-base) and the local FastEmbed + sqlite-vec architecture validated against [Basic Memory](https://github.com/basicmachines-co/basic-memory).
+LLM Wiki プラグイン、MIT ライセンス。[GitHub のソース](https://github.com/praneybehl/llm-wiki-plugin)。[Karpathy の LLM Wiki gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) をもとにしている。セクション単位の取得は Cerebras の [How We Built Our Knowledge Base](https://www.cerebras.ai/blog/how-we-built-our-knowledge-base) を参考にし、ローカルの FastEmbed + sqlite-vec の構成は [Basic Memory](https://github.com/basicmachines-co/basic-memory) と照らし合わせて検証した。
 
-## Learning from task experience
+## タスクの経験から学ぶ {#learning-from-task-experience}
 
-The optional evolution workflow adapts [WikiSkill](https://arxiv.org/html/2608.27454v1) into persistent experience capture, pattern consolidation and tested skill changes. See [the adaptation map and measured limits](./evolution.md#research-basis-and-adaptation). The current study demonstrated no quality gain.
+任意の改善ワークフローは、[WikiSkill](https://arxiv.org/html/2608.27454v1) を、経験の継続的な記録、パターンの統合、テスト済みのスキル変更という形に取り入れたものである。[取り入れた内容の対応表と、測定した限界](./evolution.md#research-basis-and-adaptation) を参照。現時点の検証では、品質の向上は確認できていない。

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-wiki_stats.py — Quick summary of wiki size, shape, and link density.
+wiki_stats.py — wiki の規模、構成、リンク密度の簡単な集計。
 
-Useful for deciding when to shard the index or split pages.
+インデックスを分割する時期や、ページを分割する時期を決めるのに役立つ。
 
-Usage:
+使い方:
     python wiki_stats.py [<wiki-dir>]
 
-Example:
+例:
     python wiki_stats.py wiki/
 """
 
@@ -23,23 +23,21 @@ FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
 
 def link_stem(link: str) -> str:
-    """Reduce a wikilink to the page stem it names, for popularity counting.
+    """被リンクの多さを数えるために、wikilink をそれが指すページのステムに縮める。
 
-    Bare ([[kalman-filter]]), path-qualified ([[entities/kalman-filter]]),
-    anchored, and .md-suffixed forms all name the same page. Counting raw link
-    text splits one page's inbound total across those forms and understates
-    hubs.
+    パスのない形（[[kalman-filter]]）、パスを付けた形（[[entities/kalman-filter]]）、
+    アンカー付きの形、.md 付きの形は、どれも同じページを指す。リンクの生のテキストで数えると、
+    1ページの被リンク数がそれらの形に分かれ、ハブを少なく見積もってしまう。
 
-    NOTE: unlike wiki_lint / wiki_search, this does NOT verify that the target
-    resolves — a link to an out-of-tree path such as [[raw/foo]] is counted
-    under the stem "foo". That is acceptable here because these are popularity
-    counts, not a correctness gate; do not reuse this function to decide
-    whether a link is broken.
+    注意: wiki_lint や wiki_search と違い、この関数はリンク先が解決されるかを検証しない。
+    [[raw/foo]] のようなツリーの外のパスへのリンクも、ステム "foo" として数える。
+    ここで数えるのは被リンクの多さであり、正しさを判定するゲートではないので、これでよい。
+    リンク切れかどうかの判定に、この関数を再利用してはならない。
     """
-    target = link.split("|", 1)[0]      # drop a display alias, if any
-    target = target.split("#", 1)[0]    # drop a heading anchor
+    target = link.split("|", 1)[0]      # 表示用の別名があれば取り除く
+    target = target.split("#", 1)[0]    # 見出しのアンカーを取り除く
     target = target.replace("\\", "/").strip().strip("/")
-    target = target.rsplit("/", 1)[-1]  # drop any directory prefix
+    target = target.rsplit("/", 1)[-1]  # ディレクトリの接頭辞を取り除く
     if target.lower().endswith(".md"):
         target = target[:-3]
     return target.strip()
@@ -102,7 +100,7 @@ def main():
         word_count = len(text.split())
         total_lines += line_count
         total_words += word_count
-        # Strip frontmatter before counting wikilinks; frontmatter uses bare slugs.
+        # wikilink を数える前に frontmatter を取り除く。frontmatter ではパスのないスラッグを使う。
         body = FRONTMATTER_RE.sub("", text, count=1) if text.startswith("---") else text
         links = WIKILINK_RE.findall(body)
         total_links += len(links)
@@ -158,7 +156,7 @@ def main():
             print(f"  {count:4d}  [[{slug}]]")
         print()
 
-    # Scaling recommendations
+    # スケーリングについての推奨
     print("Scaling thresholds:")
     if total_pages < 50:
         print("  → Below first threshold. Flat structure is fine.")

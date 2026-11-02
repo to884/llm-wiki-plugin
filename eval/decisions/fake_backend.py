@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Deterministic fake System One backend for offline decision tests and the eval smoke run.
+"""オフラインの判定テストと評価のスモーク実行に使う、決定的に動く System One のフェイクバックエンド。
 
-`answer(request)` scores questions with token overlap heuristics. `serve(handler)`
-starts a local HTTP server on 127.0.0.1 that speaks `/v1/systemone` and
-`/api/v1/decide`. The fake never calls the network.
+`answer(request)` は、トークンの重なりにもとづくヒューリスティックで質問を採点する。
+`serve(handler)` は、`/v1/systemone` と `/api/v1/decide` に応答するローカルの
+HTTP サーバーを 127.0.0.1 で起動する。このフェイクがネットワークに接続することはない。
 """
 
 from __future__ import annotations
@@ -90,7 +90,7 @@ def answer_question(name: str, question: dict, state) -> dict:
 
 
 def answer(request: dict) -> dict:
-    """Answer every question in a System One request."""
+    """System One のリクエストに含まれるすべての質問に答える。"""
     state = request.get("state")
     return {
         "model": FAKE_MODEL,
@@ -99,7 +99,7 @@ def answer(request: dict) -> dict:
     }
 
 
-# Handler returns (status, body, delay_seconds). Body is a dict (sent as JSON) or a str.
+# ハンドラーは (status, body, delay_seconds) を返す。body は dict（JSON として送る）か str。
 Handler = Callable[[dict], tuple[int, object, float]]
 
 
@@ -108,7 +108,7 @@ def default_handler(request: dict) -> tuple[int, object, float]:
 
 
 def serve(handler: Handler = default_handler) -> tuple[ThreadingHTTPServer, str]:
-    """Start a fake backend on 127.0.0.1. Returns (server, base_url). Call server.shutdown()."""
+    """127.0.0.1 でフェイクバックエンドを起動し、(server, base_url) を返す。終了するときは server.shutdown() を呼ぶ。"""
     requests: list[dict] = []
 
     class Fake(BaseHTTPRequestHandler):
@@ -129,7 +129,7 @@ def serve(handler: Handler = default_handler) -> tuple[ThreadingHTTPServer, str]
             except (BrokenPipeError, ConnectionResetError):
                 pass
 
-        def log_message(self, *args):  # silence
+        def log_message(self, *args):  # ログを出さない
             return
 
     server = ThreadingHTTPServer(("127.0.0.1", 0), Fake)

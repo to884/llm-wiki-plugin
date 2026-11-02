@@ -6,26 +6,25 @@
 # ]
 # ///
 """
-wiki_graph_extract.py — Compile the markdown wiki into a queryable graph.
+wiki_graph_extract.py — Markdown の wiki を、クエリできるグラフにコンパイルする。
 
-Markdown remains canonical. This script reads every wiki page, derives nodes
-and edges (typed semantic edges from `graph.relationships`, plus implicit
-`mentions`, `sourced_from`, `summarizes_raw` edges), and emits artifacts under
-`<wiki>/graph/` that can be deleted and rebuilt at any time.
+正本は Markdown のままである。このスクリプトは wiki のすべてのページを読み、ノードとエッジ
+（`graph.relationships` から作る型付きの意味のエッジと、暗黙の `mentions`、`sourced_from`、
+`summarizes_raw` のエッジ）を導き、`<wiki>/graph/` の下に成果物を出力する。成果物はいつでも削除して作り直せる。
 
-Carries a pinned PyYAML dependency; run with `uv run --script`.
+PyYAML の固定した依存を持つので、`uv run --script` で実行する。
 
-Usage:
+使い方:
     uv run --script wiki_graph_extract.py <wiki-dir> [options]
 
-Options:
-    --out <dir>                  Output directory (default: <wiki-dir>/graph)
-    --formats jsonl,sqlite,...   Comma-list of formats to emit
-                                 (jsonl, sqlite, graphml; default: all three)
-    --ontology <path>            Override ontology path
-                                 (default: <wiki-dir>/graph/ontology.yaml)
+オプション:
+    --out <dir>                  出力ディレクトリ（既定: <wiki-dir>/graph）
+    --formats jsonl,sqlite,...   出力する形式のカンマ区切りのリスト
+                                 （jsonl、sqlite、graphml。既定: 3つすべて）
+    --ontology <path>            オントロジーのパスを上書きする
+                                 （既定: <wiki-dir>/graph/ontology.yaml）
 
-Examples:
+例:
     uv run --script wiki_graph_extract.py wiki/
     uv run --script wiki_graph_extract.py wiki/ --out wiki/graph --formats jsonl,sqlite
 """
@@ -56,9 +55,9 @@ FRONTMATTER_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 
 
 def clean_link_target(link: str) -> str:
-    """Strip a wikilink down to its path, dropping alias, anchor, and .md."""
-    target = link.split("|", 1)[0]      # drop a display alias, if any
-    target = target.split("#", 1)[0]    # drop a heading anchor
+    """wikilink から別名、アンカー、.md を取り除き、パスだけにする。"""
+    target = link.split("|", 1)[0]      # 表示用の別名があれば取り除く
+    target = target.split("#", 1)[0]    # 見出しのアンカーを取り除く
     target = target.replace("\\", "/").strip().strip("/")
     if target.lower().endswith(".md"):
         target = target[:-3]
@@ -66,14 +65,13 @@ def clean_link_target(link: str) -> str:
 
 
 def resolve_link_slug(link: str, by_path: dict, by_slug) -> "str | None":
-    """Resolve a wikilink to the page slug it names, or None if unresolvable.
+    """wikilink を、それが指すページのスラッグに解決する。解決できなければ None を返す。
 
-    Node ids are keyed on the filename stem, so comparing raw link text drops
-    every path-qualified link ([[entities/kalman-filter]]) and its mentions edge
-    is simply never emitted. A directory prefix is treated as a CONSTRAINT: a
-    qualified link resolves only if that exact path exists, so [[raw/foo]]
-    cannot silently bind to sources/foo.md and fabricate an edge between two
-    different documents that happen to share a stem.
+    ノード ID はファイル名のステムをキーにしているので、リンクの生のテキストで比べると、
+    パスを付けたリンク（[[entities/kalman-filter]]）がすべて落ち、その mentions エッジは
+    出力されない。ディレクトリの接頭辞は「制約」として扱う。パスを付けたリンクは、
+    そのパスがちょうど存在する場合にだけ解決する。そのため [[raw/foo]] が sources/foo.md に
+    黙って結び付き、たまたまステムが同じ別々の文書の間にエッジをでっち上げることはない。
     """
     target = clean_link_target(link)
     if not target:
@@ -90,12 +88,12 @@ DEFAULT_FORMATS = ["jsonl", "sqlite", "graphml"]
 
 
 # ---------------------------------------------------------------------------
-# Page collection
+# ページの収集
 # ---------------------------------------------------------------------------
 
 
 def parse_frontmatter(text: str) -> tuple[dict, str]:
-    """Extract YAML frontmatter using PyYAML. Returns (meta, body)."""
+    """PyYAML で YAML の frontmatter を取り出す。(meta, body) を返す。"""
     m = FRONTMATTER_RE.match(text)
     if not m:
         return {}, text
@@ -136,7 +134,7 @@ def collect_pages(wiki_root: Path) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Ontology
+# オントロジー
 # ---------------------------------------------------------------------------
 
 
@@ -154,13 +152,13 @@ def load_ontology(path: Path) -> dict:
 
 
 def derive_node_type(meta: dict, ontology: dict) -> str | None:
-    """Map a page's frontmatter to a node_type using ontology[node_types][*].maps_from."""
+    """ontology[node_types][*].maps_from を使い、ページの frontmatter を node_type に対応付ける。"""
     page_type = meta.get("type")
     page_kind = meta.get("kind")
     explicit = (meta.get("graph") or {}).get("node_type") if isinstance(meta.get("graph"), dict) else None
     if explicit:
         return explicit
-    # Try (type, kind) match first, then type-only.
+    # まず (type, kind) で照合し、次に type だけで照合する。
     type_kind_match = None
     type_only_match = None
     for nt_name, nt_def in ontology["node_types"].items():
@@ -177,12 +175,12 @@ def derive_node_type(meta: dict, ontology: dict) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Node + edge construction
+# ノードとエッジの構築
 # ---------------------------------------------------------------------------
 
 
 def build_nodes(pages: list[dict], ontology: dict) -> tuple[list[dict], dict, list[dict]]:
-    """Build the node list + slug→node_id index + alias rows. Returns (nodes, slug_to_id, aliases)."""
+    """ノードのリスト、スラッグから node_id を引くインデックス、別名の行を作る。(nodes, slug_to_id, aliases) を返す。"""
     nodes: list[dict] = []
     slug_to_id: dict[str, str] = {}
     aliases: list[dict] = []
@@ -195,7 +193,7 @@ def build_nodes(pages: list[dict], ontology: dict) -> tuple[list[dict], dict, li
         explicit_id = graph_meta.get("node_id")
         node_id = explicit_id or f"{node_type}:{p['slug']}"
 
-        # Skip duplicates — first one wins; lint will flag this.
+        # 重複はスキップする。最初のものを使い、lint がこれを指摘する。
         if node_id in seen_ids:
             continue
         seen_ids.add(node_id)
@@ -223,8 +221,8 @@ def build_nodes(pages: list[dict], ontology: dict) -> tuple[list[dict], dict, li
 
 
 def edge_id(subject: str, predicate: str, obj: str, source: str | None, evidence: str | None) -> str:
-    # Truncated to 96 bits — collision risk is negligible at any plausible
-    # wiki scale and shorter ids keep the JSONL/sqlite/graphml outputs readable.
+    # 96 ビットに切り詰める。現実的な wiki の規模なら衝突のおそれは無視でき、
+    # ID が短いほうが JSONL、sqlite、graphml の出力が読みやすい。
     h = hashlib.sha256()
     parts = [subject or "", predicate or "", obj or "", source or "", evidence or ""]
     h.update("\x1f".join(parts).encode("utf-8"))
@@ -252,8 +250,8 @@ def build_edges(pages: list[dict], slug_to_id: dict[str, str]) -> list[dict]:
     edges: list[dict] = []
     seen_ids: set[str] = set()
 
-    # Index for resolving path-qualified wikilinks: case-sensitive
-    # wiki-relative path without the .md suffix -> slug.
+    # パスを付けた wikilink を解決するためのインデックス。大文字と小文字を区別する、
+    # .md を除いた wiki からの相対パスからスラッグを引く。
     path_to_slug: dict[str, str] = {}
     for p in pages:
         rel = p["rel_path"].replace("\\", "/")
@@ -276,7 +274,7 @@ def build_edges(pages: list[dict], slug_to_id: dict[str, str]) -> list[dict]:
         meta = p["meta"]
         graph_meta = meta.get("graph") if isinstance(meta.get("graph"), dict) else {}
 
-        # 1. Typed semantic edges from graph.relationships[].
+        # 1. graph.relationships[] から作る型付きの意味のエッジ。
         for rel in graph_meta.get("relationships") or []:
             if not isinstance(rel, dict):
                 continue
@@ -302,7 +300,7 @@ def build_edges(pages: list[dict], slug_to_id: dict[str, str]) -> list[dict]:
                 extras=extras,
             ))
 
-        # 2. Mentions edges from body wikilinks.
+        # 2. 本文の wikilink から作る mentions エッジ。
         seen_targets: set[str] = set()
         for link in p["links"]:
             target_slug = resolve_link_slug(link, path_to_slug, known_slugs)
@@ -324,7 +322,7 @@ def build_edges(pages: list[dict], slug_to_id: dict[str, str]) -> list[dict]:
                 page=p["rel_path"],
             ))
 
-        # 3. sourced_from edges from frontmatter `sources:` (skip on source pages themselves).
+        # 3. frontmatter の `sources:` から作る sourced_from エッジ（ソースページ自身ではスキップする）。
         if meta.get("type") != "source":
             for src_slug in meta.get("sources") or []:
                 src_id = slug_to_id.get(str(src_slug))
@@ -342,7 +340,7 @@ def build_edges(pages: list[dict], slug_to_id: dict[str, str]) -> list[dict]:
                     page=p["rel_path"],
                 ))
 
-        # 4. summarizes_raw edges from source pages' raw: field.
+        # 4. ソースページの raw: フィールドから作る summarizes_raw エッジ。
         if meta.get("type") == "source":
             raw_path = meta.get("raw")
             if raw_path:
@@ -362,7 +360,7 @@ def build_edges(pages: list[dict], slug_to_id: dict[str, str]) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Output writers
+# 出力の書き込み
 # ---------------------------------------------------------------------------
 
 

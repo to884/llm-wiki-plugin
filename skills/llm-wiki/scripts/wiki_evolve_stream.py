@@ -1,4 +1,4 @@
-"""Observable CLI events, durably written before a runner can be interrupted."""
+"""ランナーが中断される前に、確実に書き込んでおく、観測できる CLI のイベント。"""
 import json
 import os
 import re
@@ -19,7 +19,7 @@ def append_trace(path, value):
 
 
 def observable(agent, event):
-    """Allowlist public tool I/O; never persist reasoning or prompt echoes."""
+    """公開されるツールの入出力だけを許可リストで残す。推論や、プロンプトを繰り返した出力は保存しない。"""
     kind = event.get('type')
     if agent == 'codex':
         return [event] if kind in ('item.started', 'item.completed') and event.get('item', {}).get('type') in (
@@ -41,7 +41,7 @@ def observable(agent, event):
 
 
 def stream_command(command, text, agent, trace_path=None, env=None):
-    # Separate writer avoids deadlock when a large prompt and stdout fill both pipes.
+    # 大きなプロンプトと標準出力で両方のパイプが埋まったときのデッドロックを、書き込み用を分けて避ける。
     with tempfile.TemporaryFile(mode='w+') as errors:
         process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                    stderr=errors, text=True, env=env)
@@ -62,7 +62,7 @@ def stream_command(command, text, agent, trace_path=None, env=None):
                     item = json.loads(line)
                 except ValueError:
                     banners.append(line[-1000:])
-                    continue  # Startup banners are not execution evidence.
+                    continue  # 起動時のバナーは実行の証拠ではない。
                 require(isinstance(item, dict), 'CLI event must be an object')
                 events.append(item)
                 for observed in observable(agent, item):
@@ -71,7 +71,7 @@ def stream_command(command, text, agent, trace_path=None, env=None):
             writer.join(timeout=1)
             if code:
                 errors.seek(0)
-                # Error diagnostics only; stdout reasoning remains excluded from traces.
+                # エラーの診断情報だけを残す。標準出力の推論はトレースに含めない。
                 diagnostics = errors.read()[-2000:] + ''.join(banners)[:1500] + ''.join(banners)[-500:]
                 diagnostics += json.dumps([e for e in events if e.get('type') == 'error'])
                 detail = re.sub(r'(?i)(?:sk-[\w-]+|bearer\s+[\w.\-]+)', '[redacted]', diagnostics[-4000:])
@@ -84,7 +84,7 @@ def stream_command(command, text, agent, trace_path=None, env=None):
 
 
 def answer_json(text):
-    """Accept a JSON answer or one fenced JSON block, never extract an arbitrary substring."""
+    """JSON の回答か、コードフェンスで囲んだ JSON のブロック1つだけを受け付ける。任意の部分文字列を取り出すことはしない。"""
     text = text.strip()
     if text.startswith('```') and text.endswith('```'):
         text = text.split('\n', 1)[1].rsplit('```', 1)[0].strip()
@@ -138,7 +138,7 @@ def parse_native(agent, events):
 
 
 def acp(command, request, text, env=None):
-    """One fresh ACP session; retain public tool I/O and reject unscoped permissions."""
+    """新しい ACP セッションを1つ使う。公開されるツールの入出力は残し、範囲を限らない権限は拒否する。"""
     with tempfile.TemporaryFile() as errors:
         process = subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                    stderr=errors, text=True, env=env)
@@ -155,7 +155,7 @@ def acp(command, request, text, env=None):
                 try:
                     item = json.loads(line)
                 except ValueError:
-                    continue  # Some hosts emit startup banners before ACP initialization.
+                    continue  # ACP の初期化の前に起動時のバナーを出力するホストがある。
                 for event in observable('acp', item):
                     observed.append(event)
                     append_trace(request.get('trace_path'), event)
@@ -164,8 +164,8 @@ def acp(command, request, text, env=None):
                     if update.get('sessionUpdate') == 'agent_message_chunk' and update.get('content', {}).get('type') == 'text':
                         chunks.append(update['content']['text'])
                 elif item.get('method') == 'session/request_permission':
-                    # ACP permissions do not prove shell isolation. Scoped reads only;
-                    # a configured gateway/container must enforce mutation permissions.
+                    # ACP の権限は、シェルが分離されていることの証明にはならない。範囲を限った読み込みだけを許可する。
+                    # 変更の権限は、設定したゲートウェイかコンテナで強制しなければならない。
                     call = item['params'].get('toolCall', {})
                     locations = call.get('locations', [])
                     root = Path(request.get('wiki_root', Path.cwd())).resolve()
@@ -188,8 +188,8 @@ def acp(command, request, text, env=None):
             sid = session['sessionId']
             models = session.get('models', {})
             if Path(command[0]).name == 'openclaw':
-                # OpenClaw's bridge has no ACP model setter. Its public session
-                # mapper uses acp-bridge:<sessionId>; patch only this fresh session.
+                # OpenClaw のブリッジには、ACP でモデルを設定する手段がない。公開されている
+                # セッションのマッパーは acp-bridge:<sessionId> を使うので、新しく作ったこのセッションだけを書き換える。
                 gateway = command[:command.index('acp')]
                 result = subprocess.run(gateway + ['gateway', 'call', 'sessions.patch', '--json', '--params',
                     json.dumps({'key': 'acp-bridge:'+sid, 'model': request['model']})],
@@ -202,8 +202,8 @@ def acp(command, request, text, env=None):
             elif models.get('currentModelId') != request['model']:
                 rpc('session/set_model', {'sessionId': sid, 'modelId': request['model']})
             if Path(command[0]).name == 'hermes':
-                # set_model can silently fall back in the host; reload this fresh,
-                # empty session to verify the resolved provider before any inference.
+                # set_model はホスト側で黙って別のモデルに切り替わることがある。推論の前に、
+                # 新しく作った空のこのセッションを読み込み直し、実際に使われるプロバイダーを確かめる。
                 confirmed = rpc('session/load', {'sessionId': sid, 'cwd': str(Path.cwd()), 'mcpServers': []})
                 require(confirmed.get('models', {}).get('currentModelId') == request['model'],
                         'Hermes did not resolve the requested provider:model; repair its authentication before inference')

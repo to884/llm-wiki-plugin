@@ -1,71 +1,71 @@
 # Wiki Schema
 
-This file is the configuration for this wiki. It documents the conventions, page types, tag taxonomy, and any workflow customizations. The LLM reads this first when entering the wiki, and its conventions override the defaults documented in the `llm-wiki` skill.
+このファイルは、この wiki の設定ファイルである。規約、ページの種類、タグの分類、ワークフローのカスタマイズを記録する。LLM は wiki で作業を始めるときに最初にこのファイルを読み、ここに書かれた規約は `llm-wiki` スキルに書かれた既定の規約より優先される。
 
-This file is **co-evolved with the user**. When the LLM notices a recurring pattern in your edits or feedback that isn't here, it will propose adding it. When something here stops fitting, prune it.
+このファイルは**ユーザーと一緒に改訂していく**ものである。ユーザーの編集やフィードバックに、ここに書かれていない繰り返しのパターンがあることに LLM が気づいたら、その追加を提案する。ここに書かれた内容が合わなくなったら、削る。
 
 ## Wiki location
 
-- Wiki root: `wiki/`
-- Raw sources: `raw/`
-- Asset/image storage: `raw/assets/`
+- Wiki のルート: `wiki/`
+- raw ソース: `raw/`
+- アセットと画像の保存先: `raw/assets/`
 
 ## Page types
 
-This wiki uses these page types, each with a dedicated subdirectory:
+この wiki では次のページの種類を使い、それぞれに専用のサブディレクトリを置く。
 
-- `source` (in `wiki/sources/`) — one summary page per ingested source.
-- `entity` (in `wiki/entities/`) — pages about specific things: people, papers, products, places, organizations.
-- `concept` (in `wiki/concepts/`) — pages about ideas, methods, frameworks, abstractions.
-- `synthesis` (in `wiki/synthesis/`) — cross-cutting analyses, comparisons, query answers filed back.
+- `source`（`wiki/sources/`）: 取り込んだソースごとに1ページの要約ページ。
+- `entity`（`wiki/entities/`）: 人、論文、製品、場所、組織など、特定の対象についてのページ。
+- `concept`（`wiki/concepts/`）: 考え方、手法、フレームワーク、抽象概念についてのページ。
+- `synthesis`（`wiki/synthesis/`）: 複数のページにまたがる分析、比較、wiki に保存したクエリの回答。
 
-Add additional types here as the wiki evolves.
+wiki が成長するにつれて必要になった種類は、ここに追加する。
 
 ## Tag taxonomy
 
-(Empty initially. Add tags here as you adopt them, with one-line descriptions. Keep this list small and disciplined — a wiki with 200 tags has effectively no tags.)
+（最初は空である。タグを使い始めたら、1行の説明を付けてここに追加する。このリストは少なく保ち、規律を持って運用する。タグが 200 個ある wiki は、実質的にタグがないのと同じである。）
 
-Example structure:
-- `methodology` — pages about research or analytical methods.
-- `open-question` — pages or sections that flag unresolved questions.
-- `contested` — pages where sources contradict.
+構成の例:
+- `methodology`: 研究や分析の手法についてのページ。
+- `open-question`: 未解決の問いを示すページやセクション。
+- `contested`: ソースどうしが矛盾しているページ。
 
 ## Page sizing
 
-- Soft cap: 400 lines / ~2,000 words. Consider splitting beyond this.
-- Hard cap: 800 lines. Must split.
+- ソフト上限: 400 行、約 2,000 語。これを超えたら分割を検討する。
+- ハード上限: 800 行。必ず分割する。
 
 ## Frontmatter requirements
 
-Every page must have:
+すべてのページに次の項目が必要である。
 - `type`
 - `title`
 - `tags`
 - `created`
 - `updated`
 
-Plus type-specific:
-- `source` pages: `authors`, `url` (if applicable), `raw`, `ingested`
-- Non-source pages: `sources` listing the source-summary pages drawn from
+種類ごとに、さらに次の項目が必要である。
+- `source` ページ: `authors`、`url`（該当する場合）、`raw`、`ingested`
+- source 以外のページ: 参照したソースの要約ページを並べた `sources`
 
 ## Optional graph metadata
 
-Pages may declare typed graph metadata under a top-level `graph:` key. This is the source of truth for the compiled knowledge graph under `wiki/graph/`. Markdown remains canonical; the graph is a regenerable index. Pages without `graph:` still appear as nodes (derived from `type`/`kind`) and still contribute `mentions` edges from body `[[wikilinks]]`.
+ページには、トップレベルの `graph:` キーの下に型付きのグラフのメタデータを宣言できる。これが、`wiki/graph/` の下にコンパイルされるナレッジグラフの元データになる。正本は Markdown であり、グラフは作り直せるインデックスである。`graph:` がないページも、ノードとして現れ（`type` と `kind` から導く）、本文の `[[wikilinks]]` から `mentions` のエッジも作られる。
 
 ```yaml
 graph:
-  node_id: person:praney-behl       # optional; default <node_type>:<slug>
-  node_type: person                  # optional; default mapped from type/kind via ontology
-  canonical: true                    # mark as canonical when multiple slugs alias the same entity
+  node_id: person:praney-behl       # 任意。既定は <node_type>:<slug>
+  node_type: person                  # 任意。既定はオントロジーで type/kind から対応付ける
+  canonical: true                    # 複数のスラッグが同じエンティティの別名になっているとき、正本として示す
   aliases: [Praney, praney@example.com]
   relationships:
     - predicate: founded
       object: company:seedblocks
-      source: praney-founder-context-dump   # source-page slug
+      source: praney-founder-context-dump   # ソースページのスラッグ
       evidence: "Solo technical founder and sole director..."
       confidence: high               # high | medium | low
       status: current                # current | historical | proposed | disputed | superseded
-      # optional:
+      # 任意:
       # valid_from: 2025-01-15
       # valid_to: 2026-03-01
       # notes: "..."
@@ -74,57 +74,57 @@ graph:
       # supersedes: edge-id-or-source-slug
 ```
 
-Required fields on every relationship: `predicate`, `object`, `source`, `evidence`, `confidence`, `status`. Predicates and the subject/object types they accept are declared in `wiki/graph/ontology.yaml`. Typed semantic edges must be supported by an explicit source — never emit one inferred from training data alone.
+すべての関係に必須のフィールドは、`predicate`、`object`、`source`、`evidence`、`confidence`、`status` である。述語と、それぞれが受け付ける主語と目的語の種類は、`wiki/graph/ontology.yaml` で宣言する。型付きの意味的なエッジは、明示的なソースで裏づけなければならない。学習データだけから推測したエッジを出力してはならない。
 
 ## Index structure
 
-(Update this section when sharding.)
+（インデックスを分割したら、このセクションを更新する。）
 
-Currently flat: a single `wiki/index.md` listing all pages.
+現在は分割していない。1つの `wiki/index.md` にすべてのページを並べている。
 
-When the wiki passes ~150 pages or `index.md` exceeds 300 lines, shard into `wiki/indexes/<type>.md` and update this section.
+wiki が約 150 ページを超えるか、`index.md` が 300 行を超えたら、`wiki/indexes/<type>.md` に分割し、このセクションを更新する。
 
 ## Retrieval
 
-- Search is section-level hybrid by default: `uv run --script skills/llm-wiki/scripts/wiki_search.py "query" --json`.
-- Semantic backend: local FastEmbed + sqlite-vec (`BAAI/bge-small-en-v1.5`, 384 dimensions). No wiki or query text leaves the machine.
-- First semantic use downloads model artifacts to `~/.cache/llm-wiki/fastembed/`; set `FASTEMBED_CACHE_PATH` to override the model cache.
-- `wiki/.wiki-cache/` holds regenerable retrieval artifacts: `search-index.json` (parse cache) and `embeddings.sqlite` (section metadata + sqlite-vec vectors). Safe to delete; never edit by hand; gitignored.
-- The vector index is content-hashed: only new or changed sections are re-embedded, deleted sections are removed, and model/schema changes rebuild it automatically.
-- Dependency-free lexical path: `python skills/llm-wiki/scripts/wiki_search.py "query" --no-embed` (direct Python bypasses PEP 723 dependency resolution). A missing or failed local backend also falls back to lexical search without failing the command.
+- 検索は、既定でセクション単位のハイブリッド検索である: `uv run --script skills/llm-wiki/scripts/wiki_search.py "query" --json`。
+- Semantic backend: local FastEmbed + sqlite-vec（`BAAI/bge-small-en-v1.5`、384 次元）。wiki やクエリのテキストがマシンの外に出ることはない。
+- セマンティック検索を初めて使うときに、モデルのファイルを `~/.cache/llm-wiki/fastembed/` にダウンロードする。モデルのキャッシュの場所を変えるには `FASTEMBED_CACHE_PATH` を設定する。
+- `wiki/.wiki-cache/` には、作り直せる検索用のファイルを置く。`search-index.json`（パースキャッシュ）と `embeddings.sqlite`（セクションのメタデータと sqlite-vec のベクトル）である。削除してかまわない。手で編集してはならない。gitignore の対象である。
+- ベクトルのインデックスは内容のハッシュで管理する。新しいセクションと変更されたセクションだけをベクトル化し直し、削除されたセクションは取り除き、モデルやスキーマが変わったときは自動で作り直す。
+- 依存パッケージを使わない語彙ベースの検索: `python skills/llm-wiki/scripts/wiki_search.py "query" --no-embed`（Python で直接実行すると、PEP 723 の依存関係の解決を経由しない）。ローカルのバックエンドがない場合や失敗した場合も、コマンドは失敗せずに語彙ベースの検索に切り替わる。
 
 ## Graph layer
 
-The wiki has an optional compiled graph layer under `wiki/graph/`:
+この wiki には、`wiki/graph/` の下に、任意で使うコンパイル済みのグラフ層がある。
 
-- `wiki/graph/ontology.yaml` — declares node types and predicates. **Tracked.** Edit this when you introduce new predicates or domain types.
-- `wiki/graph/nodes.jsonl`, `wiki/graph/edges.jsonl` — generated. Track in git only if you want graph diffs in PRs.
-- `wiki/graph/graph.sqlite` — generated. Gitignored by default.
-- `wiki/graph/graph.graphml` — generated. Track only if you want to diff it.
+- `wiki/graph/ontology.yaml`: ノードの種類と述語を宣言する。**git で管理する。** 新しい述語やドメインの種類を導入するときに編集する。
+- `wiki/graph/nodes.jsonl`、`wiki/graph/edges.jsonl`: 生成されるファイル。PR でグラフの差分を見たい場合だけ git で管理する。
+- `wiki/graph/graph.sqlite`: 生成されるファイル。既定で gitignore の対象である。
+- `wiki/graph/graph.graphml`: 生成されるファイル。差分を見たい場合だけ git で管理する。
 
-Generation is reproducible from markdown via `scripts/wiki_graph_extract.py`. The graph can be deleted at any time and rebuilt without losing knowledge — markdown is canonical.
+グラフは `scripts/wiki_graph_extract.py` で Markdown から再現性のある形で生成できる。正本は Markdown なので、グラフはいつ削除しても、知識を失わずに作り直せる。
 
 ## Workflow customizations
 
-(Empty initially. Document any deviations from the default ingest/query/lint workflows here.)
+（最初は空である。既定の取り込み、クエリ、lint のワークフローと違うやり方をする場合は、ここに書く。）
 
 ## User preferences
 
-(Empty initially. As the user expresses style preferences — "always include a 'Why this matters' section on concept pages", "never use bullet lists in summaries", "prefer comparative tables for synthesis pages" — capture them here so they persist across sessions.)
+（最初は空である。ユーザーが書き方の好みを示したら、セッションをまたいで残るようにここに記録する。たとえば「コンセプトのページには必ず『Why this matters』のセクションを入れる」「要約では箇条書きを使わない」「シンセシスのページでは比較表を優先する」などである。）
 
 ## Lint cadence
 
-- Structural lint: after every 5 ingests.
-- Semantic lint: weekly or after every 20 ingests.
-- Gap-finding: monthly.
-- Graph lint + extract: after every ingest that adds typed `graph.relationships`.
+- 構造の lint: 取り込み 5 回ごと。
+- 内容の lint: 毎週、または取り込み 20 回ごと。
+- 足りない点の洗い出し: 毎月。
+- Graph lint + extract: 型付きの `graph.relationships` を追加した取り込みのたびに行う。
 
-Adjust based on the wiki's growth rate.
+頻度は、wiki の成長の速さに合わせて調整する。
 
 ## Skill evolution
 
-Optional: capture verified task experience with `/wiki:learn` and propose tested procedural improvements with `/wiki:evolve`. Existing pages and workflows do not change. Raw experience JSON lives under the configured raw root's `experiences/` directory and is immutable. Consolidate observations into ordinary source/concept pages with evidence, applicability, model/tool versions and counterexamples. Optional pattern fields are `kind: experience-pattern` and `status: hypothesis|supported|superseded`.
+任意: `/wiki:learn` で検証済みのタスクの経験を記録し、`/wiki:evolve` でテスト済みの手順の改善を提案する。既存のページとワークフローは変わらない。raw の経験の JSON は、設定した raw ルートの `experiences/` ディレクトリに置き、変更しない。観測した内容は、証拠、適用できる範囲、モデルとツールのバージョン、反例を添えて、通常のソースページとコンセプトページにまとめる。パターンに付けられる任意のフィールドは、`kind: experience-pattern` と `status: hypothesis|supported|superseded` である。
 
-`wiki/.evolution/` holds durable experiment snapshots, evidence, diffs and measured outcomes; it is not a cache. Wiki search, lint, stats and graph extraction exclude it. Keep searchable summaries in normal synthesis pages linked to the source/pattern pages and index. Private records must not be published with shared skills.
+`wiki/.evolution/` には、消えずに残る実験のスナップショット、証拠、差分、測定結果を置く。キャッシュではない。wiki の検索、lint、統計、グラフの抽出は、このディレクトリを対象から外す。検索できる要約は、ソースページやパターンのページ、インデックスにリンクした通常のシンセシスのページに置く。非公開の記録を、共有するスキルと一緒に公開してはならない。
 
-Candidate edits remain isolated until reviewed, selected on validation tasks, independently measured on untouched final-test tasks, and explicitly applied within the user's authorization. Failed edits leave the active skill unchanged while their records persist. Do not repeat a rejected proposal without new evidence or changed conditions. Keep factual wiki access during normal work; do not inject experiment history into task execution. Correct unsupported lessons without deleting their raw evidence. Follow the installed skill's `references/evolution-workflow.md` for the runner contract, cost limits and recovery.
+候補の編集は、レビューを受け、検証用のタスクで選ばれ、一度も使っていない最終テスト用のタスクで独立に測定され、ユーザーの承認の範囲で明示的に適用されるまで、隔離したままにする。失敗した編集は、記録を残したまま、有効なスキルを変えない。却下された提案は、新しい証拠や条件の変化がない限り繰り返さない。通常の作業では、事実情報の wiki へのアクセスを保ち、タスクの実行に実験の履歴を混ぜない。根拠のない教訓は、その raw の証拠を消さずに修正する。ランナーの取り決め、費用の上限、復旧の手順は、インストールしたスキルの `references/evolution-workflow.md` に従う。

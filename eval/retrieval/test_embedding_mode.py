@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression tests for default local semantic retrieval."""
+"""既定のローカルのセマンティック検索の回帰テスト。"""
 
 import contextlib
 import importlib.util

@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
 """
-wiki_graph_query.py — Query the compiled wiki graph (graph.sqlite).
+wiki_graph_query.py — コンパイル済みの wiki のグラフ（graph.sqlite）をクエリする。
 
-Use this to accelerate navigation: find what's connected to a node, list
-typed edges around a subject, find a path between two nodes, or dump every
-fact about a node. The graph is a navigation index — for high-stakes
-claims, follow the `source` field back to the wiki page and the raw file.
+目的のページを早く見つけるために使う。ノードにつながっているものを探す、主語のまわりの
+型付きのエッジを一覧にする、2つのノードの間の経路を探す、ノードについての事実をすべて出力する、
+といったことができる。グラフはナビゲーション用のインデックスにすぎない。重要な主張については、
+`source` フィールドをたどって wiki のページと raw ファイルを確かめる。
 
-Subcommands:
-    neighbors --node <id>            List nodes one hop away from <id>
-    edges    --subject <id>          List all outbound edges from <id>
-             [--predicate <p>]        Filter by predicate
-    path     --from <id> --to <id>   Shortest directed path (BFS, max depth 6)
+サブコマンド:
+    neighbors --node <id>            <id> から1ホップ先のノードを一覧にする
+    edges    --subject <id>          <id> から出ているエッジをすべて一覧にする
+             [--predicate <p>]        述語で絞り込む
+    path     --from <id> --to <id>   有向の最短経路（BFS、最大の深さ 6）
              [--max-depth N]
-    facts    --about <id>            Outbound + inbound edges for <id>
+    facts    --about <id>            <id> から出るエッジと入るエッジ
 
-Common options:
-    --db <path>           Path to graph.sqlite (default: <wiki>/graph/graph.sqlite)
-    --json                Emit JSON instead of text
+共通のオプション:
+    --db <path>           graph.sqlite のパス（既定: <wiki>/graph/graph.sqlite）
+    --json                テキストの代わりに JSON を出力する
 
-Examples:
+例:
     python wiki_graph_query.py wiki/ neighbors --node product:konvy
     python wiki_graph_query.py wiki/ edges    --subject person:stephanie-emmanouel
     python wiki_graph_query.py wiki/ path     --from person:praney-behl --to product:konvy
@@ -110,7 +110,7 @@ def cmd_neighbors(conn: sqlite3.Connection, args) -> dict:
         neighbors.setdefault(e["subject"], {"node_id": e["subject"], "out": [], "in": []})
         neighbors[e["subject"]]["in"].append(e)
 
-    # Resolve neighbor titles where possible
+    # 可能なら隣接ノードのタイトルを解決する
     for nid, slot in neighbors.items():
         target = fetch_node(conn, nid)
         slot["title"] = target["title"] if target else nid

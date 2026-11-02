@@ -1,107 +1,107 @@
-# Lint Workflow
+# lint のワークフロー
 
-A health check on the wiki. Best run on a cadence (after every N ingests, weekly, or when the user explicitly requests it), not on every operation. Lint is split into a structural pass (handled by `wiki_lint.py`) and a semantic pass (handled by the LLM directly).
+wiki の健全性のチェックである。操作のたびにではなく、決まった頻度で（N 回の取り込みごと、毎週、またはユーザーが明示的に求めたときに）実行するのがよい。lint は、`wiki_lint.py` が行う構造の確認と、LLM が直接行う内容の確認に分かれる。
 
-## Step 0: Check the schema
+## 手順 0: スキーマを確認する
 
-`wiki/SCHEMA.md` may declare additional lint rules specific to this wiki (e.g. "every entity page must have an `aliases:` field", "no concept page without at least 2 sources"). Read it.
+`wiki/SCHEMA.md` で、この wiki 固有の追加の lint ルールが定義されていることがある（たとえば「エンティティのページにはすべて `aliases:` フィールドが必要」「ソースが2つ未満のコンセプトのページは作らない」）。これを読む。
 
-Each step shows the local form first. For a hosted wiki, use the **Hosted** form (see `hosted-mode.md`). **Hosted:** call `wiki_overview`. It returns `SCHEMA.md`.
+各手順では、まずローカルでの形を示す。ホスト型 wiki では **ホスト型** の形を使う（`hosted-mode.md` を参照）。**ホスト型:** `wiki_overview` を呼び出す。`SCHEMA.md` が返る。
 
-## Step 1: Run the structural lint script
+## 手順 1: 構造の lint スクリプトを実行する
 
 ```bash
 python scripts/wiki_lint.py wiki/
 ```
 
-If the wiki has the optional graph layer (`wiki/graph/ontology.yaml` exists), also run:
+wiki に任意のグラフ層がある（`wiki/graph/ontology.yaml` がある）場合は、次も実行する。
 
 ```bash
 uv run --script scripts/wiki_graph_lint.py wiki/
 ```
 
-This catches typed-edge problems independently of the structural lint: unknown predicates, missing evidence, broken object references, alias collisions, invalid `confidence`/`status` values, broken `contradicts`/`supersedes` references. Triage findings the same way as structural lint: propose fixes, don't apply them silently. After approved fixes, run `uv run --script scripts/wiki_graph_extract.py wiki/` to refresh the compiled artifacts.
+このスクリプトは、構造の lint とは別に、型付きエッジの問題を検出する。対象は、未知の述語、証拠の欠落、リンク切れの目的語の参照、エイリアスの衝突、無効な `confidence`/`status` の値、リンク切れの `contradicts`/`supersedes` の参照である。検出結果は構造の lint と同じように仕分ける。つまり、修正案を示し、黙って適用しない。承認された修正を適用したら、`uv run --script scripts/wiki_graph_extract.py wiki/` を実行して、コンパイル済みの成果物を更新する。
 
-**Hosted:** call `wiki_lint`. It returns the structural findings, the graph findings and the count of open review flags in one result. The server keeps the graph current, so no extract step is necessary. Review flags come from the optional decision layer (weak edge evidence, untrusted text). Show them to the user with the other findings.
+**ホスト型:** `wiki_lint` を呼び出す。構造の検出結果、グラフの検出結果、未解決のレビューフラグの件数が1つの結果にまとめて返る。サーバーはグラフを常に最新に保つので、extract の手順は不要である。レビューフラグは、任意の判定レイヤーから来るもの（エッジの証拠が弱い、信頼できないテキストがある）である。ほかの検出結果と一緒にユーザーに示す。
 
-If the user enabled the optional decision layer, add `--decide` to `wiki_graph_lint.py` (local) or `decide` to the lint request (hosted). It checks typed edges whose evidence text does not occur in the source page. For a contradiction screen, run `python scripts/wiki_decide.py contradictions --wiki wiki/` and read the reported pairs before you decide. See `decision-models.md`.
+ユーザーが任意の判定レイヤーを有効にしている場合は、`wiki_graph_lint.py` に `--decide` を（ローカル）、lint のリクエストに `decide` を（ホスト型）付ける。証拠のテキストがソースページに出てこない型付きエッジをチェックする。矛盾を洗い出すには、`python scripts/wiki_decide.py contradictions --wiki wiki/` を実行し、報告されたページの組を読んでから判断する。`decision-models.md` を参照。
 
-This produces a report covering:
+lint のレポートには、次のものが含まれる。
 
-- **Orphan pages**: pages with no inbound `[[wikilinks]]` from anywhere else in the wiki. Orphans are usually a sign that an ingest forgot to update a parent page. They become invisible because the index-first navigation can't surface them.
-- **Broken wikilinks**: `[[page-name]]` references pointing to nonexistent pages. Usually a typo or a page that got renamed without updating its referrers.
-- **Oversized pages**: anything over the 800-line hard cap (or 400-line soft cap, with a warning).
-- **Frontmatter issues**: pages missing required fields (`type`, `tags`, `sources`, `updated`), or with malformed YAML.
-- **Stale pages**: pages whose `updated:` date is much older than the most recent ingest that touched their topic. (The script approximates this using the page's tags and the log.)
-- **Duplicate slugs**: two pages with the same slug in different subdirectories (a sign of an ingest collision that wasn't resolved).
+- **孤立ページ**: wiki のほかのどこからも `[[wikilinks]]` で参照されていないページ。孤立ページは、たいてい、取り込みで親ページの更新を忘れたことを示す。インデックスを先に読むたどり方では見つけられないので、見えなくなる。
+- **リンク切れの wikilink**: 存在しないページを指す `[[page-name]]` の参照。たいていは、入力ミスか、参照元を更新せずに名前を変えたページである。
+- **大きすぎるページ**: 800 行のハード上限を超えるもの（400 行のソフト上限を超えるものは警告になる）。
+- **frontmatter の問題**: 必須のフィールド（`type`、`tags`、`sources`、`updated`）がない、または YAML の形式が正しくないページ。
+- **更新の止まったページ**: `updated:` の日付が、そのトピックに関係する最新の取り込みよりずっと古いページ（スクリプトは、ページのタグとログを使ってこれを近似的に判定する）。
+- **重複したスラッグ**: 別々のサブディレクトリに、同じスラッグのページが2つあるもの（取り込みでの衝突が解消されていないことを示す）。
 
-The script is conservative: it reports findings but doesn't fix them. Present the report to the user.
+このスクリプトは控えめに動く。検出結果を報告するが、修正はしない。レポートをユーザーに示す。
 
-## Step 2: Triage the structural findings
+## 手順 2: 構造の検出結果を仕分ける
 
-Walk through the findings with the user and propose a fix for each:
+検出結果をユーザーと一緒に1件ずつ確認し、それぞれに修正案を示す。
 
-- Orphans: either link them from a sensible parent page (preferred), or determine that the page is genuinely useless and delete it (rare). If many orphans pile up, the index is probably out of date: re-derive the index entries.
-- Broken links: rename the link to match the actual page, or create the missing page if it should exist, or remove the link if the concept turned out not to warrant a page.
-- Oversized pages: split. Extract sub-concepts into their own pages, link from the parent, update the index.
-- Frontmatter issues: add the missing fields. If many pages have the same gap, consider whether the schema should be relaxed or the bootstrap template improved.
-- Stale pages: read the recently-touched related pages and the relevant raw sources, update the stale page surgically.
-- Duplicate slugs: one is canonical, the other should be merged in and deleted. Pick the better-named one as canonical and migrate inbound links with `grep` + `str_replace`.
+- 孤立ページ: 適切な親ページからリンクする（こちらを優先する）か、そのページが本当に不要だと判断して削除する（まれである）。孤立ページが大量にたまっているなら、インデックスがおそらく古くなっている。インデックスの項目を作り直す。
+- リンク切れ: 実際のページに合わせてリンクの名前を変えるか、あるべきページなら作成するか、そのコンセプトにページが要らないと分かったならリンクを削除する。
+- 大きすぎるページ: 分割する。下位のコンセプトを独立したページに切り出し、親ページからリンクし、インデックスを更新する。
+- frontmatter の問題: 欠けているフィールドを追加する。多くのページで同じ欠落があるなら、スキーマを緩めるべきか、初期化のテンプレートを改善すべきかを検討する。
+- 更新の止まったページ: 最近更新された関連ページと、関係する raw ソースを読み、更新の止まったページの必要な箇所だけを更新する。
+- 重複したスラッグ: 一方を正本とし、もう一方をそこにマージして削除する。名前のよいほうを正本に選び、被リンクは `grep` と `str_replace` で移し替える。
 
-Present each proposed fix as an edit, not a fait accompli. The user approves.
+修正案は、すでに行ったこととしてではなく、編集の提案として示す。承認するのはユーザーである。
 
-**Hosted:** apply approved fixes with `wiki_commit`: `edit` for surgical changes, `move` or `delete` with `base_rev` for renames and merges. `move` does not change links, so edit the referring pages in the same commit. Resolve review flags with `wiki_remote.py review --resolve <id> --status accepted|dismissed`.
+**ホスト型:** 承認された修正は `wiki_commit` で適用する。必要な箇所だけの変更には `edit` を、名前の変更とマージには `base_rev` を付けた `move` か `delete` を使う。`move` はリンクを書き換えないので、参照元のページも同じコミットで編集する。レビューフラグは `wiki_remote.py review --resolve <id> --status accepted|dismissed` で解決する。
 
-## Step 3: Run the semantic pass
+## 手順 3: 内容の確認を行う
 
-The semantic pass is what the script can't do: it requires reading pages and reasoning about content. The good news is that you don't have to read the whole wiki: focus on the pages most likely to have semantic issues.
+内容の確認は、スクリプトにはできない部分である。ページを読んで、内容について考える必要がある。ただし、wiki 全体を読む必要はない。内容に問題がありそうなページに絞る。
 
-**Recently updated pages.** Read the last ~10 pages that were modified (sorted by `updated:` frontmatter or by the log). Look for:
+**最近更新されたページ。** 最後に変更された約 10 ページを読む（frontmatter の `updated:` かログで並べ替える）。次の点を探す。
 
-- Contradictions with older pages on the same topic. The new claim may have superseded the old one (in which case mark the old as superseded with a note), or both may be true but in different contexts (in which case clarify each), or the new ingest may have been wrong (in which case revert).
-- Internal contradictions within a page (an ingest layered on a new claim without reconciling against existing prose).
-- Repeated mentions of an entity or concept that doesn't have its own page yet: candidate for promotion.
+- 同じトピックの古いページとの矛盾。新しい主張が古い主張を置き換えた場合は、古いほうに注記を付けて superseded とする。両方が異なる文脈で正しい場合は、それぞれを明確にする。新しい取り込みが誤っていた場合は、元に戻す。
+- ページ内部の矛盾（取り込みで新しい主張を重ねたのに、既存の文章とすり合わせていないもの）。
+- まだ専用のページがないエンティティやコンセプトが、繰り返し言及されている。独立したページにする候補である。
 
-**Highly-linked pages (hubs).** These are the most likely to drift because every ingest touches them. Use `wiki_search.py --top-linked 10` (or grep `[[wikilinks]]` and count) to find them (**Hosted:** `wiki_search` with `top_linked: 10`). Read each hub and check that the prose still hangs together and the cross-references still make sense.
+**多くリンクされているページ（ハブ）。** 取り込みのたびに更新されるので、内容がもっともずれやすい。`wiki_search.py --top-linked 10` を使う（または `[[wikilinks]]` を grep して数える）と見つけられる（**ホスト型:** `top_linked: 10` を指定して `wiki_search` を呼び出す）。ハブをそれぞれ読み、文章の筋がまだ通っているか、相互参照がまだ意味をなしているかを確かめる。
 
-**Pages flagged with explicit uncertainty.** During ingest, the convention is to hedge ("the source claims X, though this is not yet corroborated") rather than assert. The lint pass is when you check whether subsequent ingests have corroborated or contradicted, and update accordingly.
+**不確かさが明示されているページ。** 取り込みでは、言い切らずに留保を付ける（「ソースは X と主張しているが、まだ裏づけはない」）のが規約である。lint では、その後の取り込みで裏づけられたか、反証されたかを確かめ、それに応じて更新する。
 
-## Step 4: Surface gaps
+## 手順 4: 足りない点を挙げる
 
-Look at what's referenced but not pageified. Run:
+参照されているのに、まだページになっていないものを探す。次を実行する。
 
 ```bash
 python scripts/wiki_lint.py wiki/ --suggest-pages
 ```
 
-This finds entity-like and concept-like names that appear in many pages but lack their own page. The user can decide which to promote and which to leave as inline mentions.
+多くのページに出てくるのに専用のページがない、エンティティやコンセプトらしい名前を見つける。どれを独立したページにし、どれを本文での言及のままにするかは、ユーザーが決められる。
 
-Also look for what's not covered at all: topics the user has expressed interest in but that haven't been ingested yet. The log can help here ("you ingested 5 sources on diffusion models in March but nothing since; want to refresh?").
+まったく扱われていないものも探す。ユーザーが関心を示したのに、まだ取り込んでいないトピックである。ログが役に立つ（「3月に拡散モデルのソースを5つ取り込んだが、それ以降は何もない。更新しますか？」）。
 
-## Step 5: Update the index
+## 手順 5: インデックスを更新する
 
-After lint fixes, the index almost certainly needs updates: new pages, renamed pages, deleted pages, changed summaries. Re-derive the affected index entries surgically.
+lint の修正のあとは、ほぼ確実にインデックスの更新が必要になる。新しいページ、名前を変えたページ、削除したページ、変わった要約があるからである。影響を受けたインデックスの項目を、必要な箇所だけ作り直す。
 
-If `index.md` is over 300 lines and hasn't been sharded yet, this is a good moment to do it. See `scaling-playbook.md`.
+`index.md` が 300 行を超えていて、まだ分割していないなら、分割するよい機会である。`scaling-playbook.md` を参照。
 
-## Step 6: Append to the log
+## 手順 6: ログに追記する
 
-One line: `## [YYYY-MM-DD] lint | <N> structural fixes, <M> semantic fixes, <K> proposed gaps`. Optionally a sub-line listing the highest-impact changes.
+`## [YYYY-MM-DD] lint | <N> structural fixes, <M> semantic fixes, <K> proposed gaps` を1行追記する。必要なら、影響の大きかった変更を並べたサブ行を加える。
 
-**Hosted:** add the line with an `append` operation on `log.md`.
+**ホスト型:** この行を `log.md` への `append` 操作で追加する。
 
-## Cadence
+## 頻度
 
-A reasonable default: structural lint after every 5 ingests, semantic lint weekly or after every 20 ingests, gap-finding monthly. Adjust based on the user's pace and the wiki's volatility. A wiki that's growing fast needs more frequent lint; a stable mature wiki needs less.
+妥当な既定は、構造の lint を5回の取り込みごと、内容の lint を毎週または 20 回の取り込みごと、足りない点の洗い出しを毎月である。ユーザーの作業のペースと、wiki の変化の激しさに合わせて調整する。急速に大きくなっている wiki ほど頻繁な lint が必要で、安定して成熟した wiki ではそれほど要らない。
 
-The user may also trigger lint explicitly ("clean up the wiki", "what's broken", "lint pass please"). Treat these as priority: the user is asking because they noticed something.
+ユーザーが明示的に lint を求めることもある（「wiki を整理して」「壊れているところは？」「lint をかけて」）。これは優先して扱う。ユーザーは何かに気づいたから頼んでいるのである。
 
-## Anti-patterns to avoid
+## 避けるべきパターン
 
-**Silent rewrites.** Lint findings are proposals. The user approves changes. A wiki that mutates without the user's knowledge stops being trustworthy.
+**黙って書き換える。** lint の検出結果は提案である。変更を承認するのはユーザーである。ユーザーの知らないうちに変わる wiki は、信頼できなくなる。
 
-**Treating lint as cleanup-only.** The semantic pass is also where new connections get made. If you read 10 pages and notice that two of them point at the same underlying idea, that's a synthesis-page candidate, not just a lint finding.
+**lint を整理のためだけのものとして扱う。** 内容の確認は、新しいつながりを見いだす場でもある。10 ページを読んで、そのうち2つが根底にある同じ考えを指していると気づいたなら、それは lint の検出結果であるだけでなく、シンセシスのページの候補である。
 
-**Letting the lint report grow until it's overwhelming.** If the report is too long for the user to triage, the cadence is wrong (lint more often) or the wiki has outgrown its conventions (revisit the schema).
+**lint のレポートが手に負えなくなるまで放置する。** レポートが長すぎてユーザーが仕分けられないなら、頻度が合っていない（もっと頻繁にかける）か、wiki が規約に収まらないほど大きくなっている（スキーマを見直す）。
 
-**Skipping lint because everything seems fine.** Silent corruption is the failure mode that's hardest to detect and most damaging. Lint catches it.
+**問題がなさそうだからと lint をスキップする。** 気づかないうちに内容が壊れていくことは、もっとも検出しにくく、もっとも被害の大きい失敗である。lint はそれを見つける。

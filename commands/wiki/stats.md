@@ -1,13 +1,13 @@
 ---
-description: Show wiki size, shape, and link density, and which scaling threshold the wiki is at.
+description: wiki の規模、構成、リンク密度と、スケーリングのどの閾値に達しているかを表示する。
 ---
 
-Resolve `<WIKI_ROOT>` from an explicit user path, the nearest project instructions, global agent instructions, or finally the current project's `wiki/`. Then run `python "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_stats.py" "<WIKI_ROOT>"` and present the output to me with a brief interpretation:
+`<WIKI_ROOT>` は、ユーザーが明示したパス、もっとも近いプロジェクトの指示、グローバルなエージェントの指示の順に探し、どれにもなければ現在のプロジェクトの `wiki/` とする。次に `python "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_stats.py" "<WIKI_ROOT>"` を実行し、出力に簡単な解釈を添えてユーザーに示す。
 
-- If the wiki is approaching a scaling threshold (150 pages / 300-line index for sharding, 300 pages for routine search-script use, 500 pages for weekly lint cadence), call it out and explain what the migration would involve.
-- If any pages are over the soft cap (400 lines) or hard cap (800 lines), recommend splitting them.
-- If the link density looks low (< 1.5 links/page on average), the wiki may be under-cross-referenced: suggest a lint pass with `--suggest-pages` to find concepts that should be promoted.
+- wiki がスケーリングの閾値に近づいている場合は、そのことを指摘し、移行に何が必要かを説明する。閾値は、インデックスの分割が 150 ページまたはインデックス 300 行、検索スクリプトの日常的な利用が 300 ページ、週1回の lint が 500 ページである。
+- ソフト上限（400 行）やハード上限（800 行）を超えているページがあれば、分割を勧める。
+- リンク密度が低い（1ページあたり平均 1.5 リンク未満）場合は、相互参照が足りていない可能性がある。独立したページにすべきコンセプトを見つけるために、`--suggest-pages` を付けた lint を提案する。
 
-For migration procedures, read `skills/llm-wiki/references/scaling-playbook.md`.
+移行の手順は `skills/llm-wiki/references/scaling-playbook.md` を参照。
 
-**Hosted wiki.** If the resolved wiki is a hosted URL (or the instructions name one), use hosted mode from `skills/llm-wiki/references/hosted-mode.md`: the MCP tools, or `python3 "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_remote.py"` when MCP is not available. Get the numbers with `python3 "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_remote.py" stats`. Without a shell, use the counts in `wiki_overview`. Also report `vector_lag`, the search mode and the open review flags. Index sharding and page caps apply the same way.
+**ホスト型 wiki。** 特定した wiki がホスト型の URL である場合（または指示でホスト型の URL が指定されている場合）は、`skills/llm-wiki/references/hosted-mode.md` のホストモードを使う。MCP ツールを使い、MCP が使えないときは `python3 "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_remote.py"` を使う。数値は `python3 "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_remote.py" stats` で取得する。シェルが使えない場合は、`wiki_overview` にある件数を使う。あわせて、`vector_lag`、検索モード、未解決のレビューフラグも報告する。インデックスの分割とページの上限は、ローカルの wiki と同じように当てはまる。

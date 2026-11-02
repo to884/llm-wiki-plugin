@@ -1,21 +1,21 @@
 ---
-title: Workflows
-description: Step-by-step ingest, query, and lint walkthroughs for end users.
+title: ワークフロー
+description: エンドユーザー向けに、取り込み、クエリ、lint の流れを手順ごとに説明する。
 ---
 
 <!-- Adapted from: docs/workflows.html (source: skills/llm-wiki/references/{ingest-workflow,query-workflow,lint-workflow}.md). -->
 
-# Workflows
+# ワークフロー {#workflows}
 
-The wiki has three operations: [ingest](#ingest) a source, [query](#query) the accumulated knowledge, and [lint](#lint) for health. Here is what happens in each, from your point of view.
+wiki の操作は3つある。ソースの[取り込み](#ingest)、蓄積した知識への[クエリ](#query)、健全性を確かめる [lint](#lint) である。ここでは、それぞれで何が起きるかをユーザーの視点から説明する。
 
 ::: info
-You drive these by command (`/wiki:ingest`, `/wiki:query`, `/wiki:lint`) or by natural language. The agent does the bookkeeping; your job is to curate sources, answer a few questions, and approve edits.
+これらの操作は、コマンド（`/wiki:ingest`、`/wiki:query`、`/wiki:lint`）でも自然な言葉でも実行できる。記録の管理はエージェントが行う。ユーザーの役目は、ソースを選び、いくつかの質問に答え、編集を承認することである。
 :::
 
-## Ingest a source {#ingest}
+## ソースを取り込む {#ingest}
 
-When a new source arrives, this is the procedure. The order matters — each step builds context for the next.
+新しいソースが届いたら、次の手順で取り込む。各手順が次の手順に必要な文脈を作るので、順序が重要である。
 
 ```mermaid
 flowchart TD
@@ -30,20 +30,20 @@ flowchart TD
   graphref --> logline["append one line to log.md"]
 ```
 
-1. **Place the raw source.** Drop the file into `raw/` with a descriptive, slugified filename (lowercase, hyphens, original extension). Web articles as `.md`, PDFs as `.pdf`, transcripts as `.md` or `.txt`. This slug becomes the slug of the source-summary page.
-2. **The agent reads it.** Short sources are read in one pass; long ones (papers over ~30 pages, book chapters, multi-hour transcripts) are chunk-read section by section so the wiki never blows out the context window.
-3. **Discuss the takeaways.** The agent surfaces what stood out, what was surprising, and what connects to existing pages — three or four sentences. Your reaction shapes the edits ("skip the methodology, only the results matter", "this contradicts the page on X, flag it"). In hands-off batch mode this step is skipped and edits stay conservative.
-4. **The agent surveys what's touched.** It reads the index and the candidate pages to build a list of pages to update, new pages to create, and contradictions to flag. This survey is what prevents duplicate pages.
-5. **The source-summary page is written** to `wiki/sources/` — the key claims, methodology, conclusions, and open questions, ending with a "Where this fits" section of `[[wikilinks]]`. It is a summary, not a re-paraphrase of the whole source.
-6. **Touched pages are updated surgically** with `str_replace`, not full rewrites. Corroborations add a citation; contradictions get a prominent "Contradictions" note with both sources cited (never a silent overwrite).
-7. **New pages are created** for new entities and concepts that warrant one — each with frontmatter, a body, and at least one inbound link. A page nothing links to is treated as a bug, not just a lint finding.
-8. **The index is updated** with a one-line entry per new page. If `index.md` crosses 300 lines, that's the signal to shard — see the [scaling thresholds](/commands#stats).
-9. **The graph layer is refreshed** only if `wiki/graph/ontology.yaml` exists and the source explicitly supports typed edges. See the [Graph layer guide](/graph).
-10. **The log gets one line** and the agent tells you what it did: pages touched, pages created, contradictions flagged, follow-ups worth investigating.
+1. **raw ソースを置く。** ファイルを `raw/` に置く。ファイル名は内容が分かるものをスラッグ化する（小文字、ハイフン区切り、元の拡張子）。Web の記事は `.md`、PDF は `.pdf`、文字起こしは `.md` か `.txt` にする。このスラッグが、ソースの要約ページのスラッグになる。
+2. **エージェントが読む。** 短いソースは一度に読む。長いソース（約 30 ページを超える論文、書籍の章、数時間分の文字起こし）はセクションごとに分割して読み、wiki の作業でコンテキストウィンドウがあふれないようにする。
+3. **要点を話し合う。** エージェントが、目立った点、意外だった点、既存のページとつながる点を3〜4文で示す。ユーザーの反応によって編集の内容が変わる（「手法は省いて、結果だけでよい」「これは X のページと矛盾するので、指摘しておいて」など）。人が介在しないバッチモードではこの手順をスキップし、編集は控えめにする。
+4. **エージェントが関係するページを調べる。** インデックスと候補のページを読み、更新するページ、新しく作るページ、指摘すべき矛盾の一覧を作る。この調査によって、重複したページができるのを防ぐ。
+5. **ソースの要約ページを書く。** `wiki/sources/` に、主な主張、手法、結論、未解決の問いを書き、最後に `[[wikilinks]]` を並べた「Where this fits」セクションを置く。ソース全体を言い換えたものではなく、要約である。
+6. **関係するページを必要な箇所だけ更新する。** 全体を書き直すのではなく、`str_replace` を使う。裏づけが得られた内容には出典を加える。矛盾する内容には、両方のソースを示した「Contradictions」の注記を目立つように付ける（黙って上書きすることはない）。
+7. **新しいページを作る。** ページを作るに値する新しいエンティティやコンセプトについて作り、どのページにも frontmatter、本文、少なくとも1つの被リンクを付ける。どこからもリンクされていないページは、lint の検出結果にとどまらず、バグとして扱う。
+8. **インデックスを更新する。** 新しいページごとに1行を追加する。`index.md` が 300 行を超えたら、インデックスを分割する時期である。[スケーリングの閾値](/commands#stats)を参照。
+9. **グラフ層を更新する。** `wiki/graph/ontology.yaml` があり、ソースが型付きエッジを明示的に裏づけている場合に限る。[グラフ層のガイド](/graph)を参照。
+10. **ログに1行追記する。** エージェントは、何をしたかをユーザーに伝える。更新したページ、作成したページ、指摘した矛盾、追って調べる価値のある点を報告する。
 
-## Query the wiki {#query}
+## wiki にクエリする {#query}
 
-The job is to answer your question from the wiki, with citations, and to file the answer back as a synthesis page when it's worth keeping.
+目的は、ユーザーの質問に wiki をもとに出典つきで答えることと、残す価値のある回答をシンセシスのページとして wiki に保存することである。
 
 ```mermaid
 flowchart TD
@@ -60,53 +60,53 @@ flowchart TD
   keep -->|no| done["done"]
 ```
 
-1. **The index is read first.** Always start at `wiki/index.md` (or the relevant shard). One line per page with a tight summary is usually enough to spot candidates.
-2. **Candidate pages are identified.** A short, selective list—reading 30 pages to answer one question is brute force. If index summaries do not disambiguate, the agent runs local hybrid search:
+1. **最初にインデックスを読む。** 必ず `wiki/index.md`（または該当する分割済みのインデックス）から始める。ページごとに簡潔な要約が1行あれば、たいていはそれで候補を見つけられる。
+2. **候補のページを絞り込む。** 候補は短く、厳選した一覧にする。1つの質問に答えるために 30 ページを読むのは力任せのやり方である。インデックスの要約だけでは候補を絞れない場合、エージェントはローカルのハイブリッド検索を実行する。
 
    ```bash
    uv run --script skills/llm-wiki/scripts/wiki_search.py \
      "your query terms" --top 10 --json
    ```
 
-   FastEmbed semantic ranking and BM25 are fused locally. Add `--type concept`, `--tag <tag>`, or `--since YYYY-MM-DD` to narrow. For dependency-free lexical retrieval, run `python skills/llm-wiki/scripts/wiki_search.py "your query terms" --no-embed` instead of the `uv run --script` form. Full detail: [Search & retrieval](/search).
-3. **Relational questions consult the graph** ("what's connected to X", "who proposed Y", "trace the path A → B") when `graph.sqlite` exists — used to pick which pages to read, never as the sole evidence.
-4. **Candidate pages are read** in full, following the most promising `[[wikilinks]]` without recursively chasing every one.
-5. **Backlinks are found when useful** — for "where is X mentioned" the inbound links are often more interesting than the page itself:
+   FastEmbed によるセマンティック検索の順位と BM25 の順位を、ローカルで統合する。絞り込むには `--type concept`、`--tag <tag>`、`--since YYYY-MM-DD` を付ける。依存パッケージを使わない語彙ベースの検索にしたい場合は、`uv run --script` の形ではなく `python skills/llm-wiki/scripts/wiki_search.py "your query terms" --no-embed` を実行する。詳しくは[検索](/search)を参照。
+3. **関係を問う質問ではグラフを参照する。** 「X とつながっているものは？」「Y を提案したのは誰？」「A → B の経路をたどって」のような質問で、`graph.sqlite` がある場合に使う。グラフは読むページを選ぶために使い、それだけを証拠にすることはない。
+4. **候補のページを読む。** ページは全体を読み、有望な `[[wikilinks]]` をたどる。すべてのリンクを再帰的に追いかけることはしない。
+5. **必要ならバックリンクを調べる。** 「X はどこで言及されているか」という質問では、ページそのものより、そのページへの被リンクのほうが役に立つことが多い。
 
    ```bash
    python skills/llm-wiki/scripts/wiki_search.py "" --backlinks <slug>
    ```
-6. **The answer is synthesized** in the agent's own words with `[[wikilink]]` citations. Contradictions are surfaced explicitly rather than resolved by picking a side. If the wiki has nothing relevant, it says so plainly and suggests sources to ingest — it does not confabulate.
-7. **You're offered a file-back.** When the answer makes new connections, the agent offers to save it to `wiki/synthesis/` so the next adjacent question benefits. Decline for trivial lookups.
+6. **回答をまとめる。** エージェントは自分の言葉で回答を書き、`[[wikilink]]` で出典を示す。矛盾がある場合は、どちらか一方を選んで片づけず、矛盾をそのまま示す。wiki に関係する内容がなければそうはっきり伝え、取り込むとよいソースを提案する。話をでっち上げることはない。
+7. **wiki への保存を提案する。** 回答が新しいつながりを見いだしたものであれば、エージェントは `wiki/synthesis/` への保存を提案する。保存しておけば、次に関連する質問が来たときに役立つ。ちょっとした調べものなら断ってよい。
 
-## Lint for health {#lint}
+## lint で健全性を確かめる {#lint}
 
-A periodic health check — best run on a cadence, not on every operation. It splits into a structural pass (a script) and a semantic pass (the agent reading pages).
+定期的に行う健全性のチェックである。操作のたびに行うより、一定の間隔で行うのがよい。構造の確認（スクリプトが行う）と、内容の確認（エージェントがページを読んで行う）に分かれる。
 
-1. **Run the structural lint.**
+1. **構造の lint を実行する。**
 
    ```bash
    python skills/llm-wiki/scripts/wiki_lint.py wiki/
    ```
 
-   This reports orphan pages, broken wikilinks, oversized pages, frontmatter issues, stale pages, and duplicate slugs. If the graph layer exists, `wiki_graph_lint.py` runs too.
-2. **Triage the findings with the agent.** Each finding comes with a proposed fix — link an orphan from a sensible parent, repair or remove a broken link, split an oversized page, add missing frontmatter, refresh a stale page, merge a duplicate slug. You approve each fix; nothing is applied silently.
-3. **The semantic pass reads pages.** The agent reads the ~10 most recently updated pages and the most-linked hub pages, looking for contradictions with older pages, internal inconsistencies, and concepts mentioned everywhere but lacking their own page. Find hubs with:
+   孤立ページ、リンク切れの wikilink、大きすぎるページ、frontmatter の問題、更新の止まったページ、重複したスラッグを報告する。グラフ層があれば、`wiki_graph_lint.py` も実行される。
+2. **検出結果をエージェントと一緒に仕分ける。** 検出結果には、それぞれ修正案が付く。孤立ページを適切な親ページからリンクする、リンク切れを直すか削除する、大きすぎるページを分割する、欠けている frontmatter を追加する、更新の止まったページを更新する、重複したスラッグをマージする、といったものである。修正はユーザーが1件ずつ承認し、黙って適用されるものはない。
+3. **内容の確認でページを読む。** エージェントは、最近更新された約 10 ページと、もっとも多くリンクされているハブページを読み、古いページとの矛盾、ページ内の食い違い、あちこちで言及されているのに専用のページがないコンセプトを探す。ハブページは次のコマンドで見つける。
 
    ```bash
    python skills/llm-wiki/scripts/wiki_search.py "" --top-linked 10
    ```
-4. **Gaps are surfaced.** Names that appear in many pages but have no page of their own are candidates for promotion:
+4. **足りていない点を挙げる。** 多くのページに出てくるのに専用のページがない名前は、独立したページにする候補である。
 
    ```bash
    python skills/llm-wiki/scripts/wiki_lint.py wiki/ --suggest-pages
    ```
-5. **The index is updated** for any pages that were added, renamed, or deleted, and one summary line is appended to `log.md`.
+5. **インデックスを更新する。** 追加、名前変更、削除したページについてインデックスを更新し、`log.md` に要約を1行追記する。
 
-::: info Cadence
-A reasonable default: structural lint after every 5 ingests, semantic lint weekly or every 20 ingests, gap-finding monthly. If the lint report grows faster than you can triage, that's a signal to lint more often or revise the schema.
+::: info 頻度
+妥当な既定値は、構造の lint を取り込み 5 回ごと、内容の lint を毎週または取り込み 20 回ごと、足りない点の洗い出しを毎月である。lint のレポートが仕分けられる速さより早く増えていくなら、lint の頻度を上げるか、スキーマを見直す時期である。
 :::
 
-## Learn and evolve
+## 学習とスキルの改善 {#learn-and-evolve}
 
-Completed tasks can become immutable experience sources and reusable concept patterns through `/wiki:learn`. `/wiki:evolve` runs bounded training and pattern consolidation, proposes whole-skill changes, selects on validation, and measures a frozen selection on independent final tests. It retains failed experiments and explicitly applies or rolls back authorized changes. Ordinary factual wiki access stays available. See [Learning and skill evolution](/evolution) for the complete workflow, executable pilot and evaluation boundaries.
+完了したタスクは、`/wiki:learn` で変更不可の経験のソースと、再利用できるコンセプトのパターンにできる。`/wiki:evolve` は、回数に上限のある学習とパターンの統合を行い、スキル全体の変更を提案し、検証の結果で候補を選び、固定した選定結果を独立した最終テストで測定する。失敗した実験も残し、承認された変更を明示的に適用またはロールバックする。通常の事実情報としての wiki はそのまま使える。ワークフロー全体、実行できるパイロット、評価の範囲については、[学習とスキルの改善](/evolution)を参照。

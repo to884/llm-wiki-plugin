@@ -1,24 +1,25 @@
 /* =============================================================================
-   LLM Wiki — VitePress theme override (Documentify-derived editorial system)
+   LLM Wiki — VitePress のテーマの上書き（Documentify をもとにした編集的なデザイン）
    -----------------------------------------------------------------------------
-   Design authority : /Users/praneybehl/Downloads/Documentify-docs-style-guide.html
-   Derived brief    : agent://DocumentifyDesignScout
-   Approach         : override VitePress default-theme CSS variables + a few
-                      selectors. We NEVER replace accessible default components
-                      (search, sidebar drawer, outline, skip link, appearance
-                      toggle) — we only re-skin them. No remote font imports.
+   デザインの基準   : /Users/praneybehl/Downloads/Documentify-docs-style-guide.html
+   もとにしたブリーフ : agent://DocumentifyDesignScout
+   方針             : VitePress の既定テーマの CSS 変数と、いくつかのセレクターを上書きする。
+                      アクセシブルな既定のコンポーネント（検索、サイドバーのドロワー、
+                      アウトライン、スキップリンク、外観の切り替え）は決して置き換えず、
+                      見た目だけを変える。外部のフォントは読み込まない。
 
-   Borrowed from Documentify : quiet cool-gray editorial framework, low-contrast
-   hairlines, narrow reading measure, centered search, grouped left rail, sticky
-   right outline, restrained lavender + cyan accents, refined cards/tables/code.
-   Deliberately dropped : the literal floating 1560px panel + 36px canvas margin,
-   drop shadow, version badge, auth CTAs, social row, secondary product nav.
+   Documentify から取り入れたもの : 控えめな寒色系グレーの編集的な枠組み、
+   コントラストの低い細線、狭い行幅、中央の検索、グループに分けた左のレール、
+   追従する右のアウトライン、抑えたラベンダーとシアンのアクセント、
+   整えたカード・表・コード。
+   あえて取り入れなかったもの : 1560px の浮いたパネルと 36px の背景の余白そのもの、
+   ドロップシャドウ、バージョンのバッジ、認証の CTA、ソーシャルの行、製品の副ナビゲーション。
    ========================================================================== */
 
 /* -----------------------------------------------------------------------------
-   1. Typography — Inter-compatible UI/body + JetBrains-compatible mono.
-   No @font-face / no network: Inter & JetBrains Mono are used only if present
-   locally; otherwise a rich cool system stack takes over (zero-dependency).
+   1. タイポグラフィ — UI と本文は Inter 互換、等幅は JetBrains Mono 互換。
+   @font-face もネットワークも使わない。Inter と JetBrains Mono はローカルにある場合だけ使い、
+   なければ寒色系のシステムフォントのスタックで代替する（依存なし）。
    -------------------------------------------------------------------------- */
 :root {
   --vp-font-family-base:
@@ -31,87 +32,87 @@
 }
 
 /* =============================================================================
-   2. LIGHT TOKEN SET — cool-gray canvas, white article panel
+   2. ライトテーマのトークン — 寒色系グレーの背景と白い本文パネル
    ========================================================================== */
 :root {
-  /* Backgrounds: white article, faint-cool side rails, quiet soft fills */
-  --vp-c-bg: #ffffff;          /* article / nav surface                    */
-  --vp-c-bg-alt: #f6f7f8;      /* sidebar rail (quiet, hairline-separated)  */
-  --vp-c-bg-elv: #ffffff;      /* dialogs / search modal                    */
-  --vp-c-bg-soft: #f1f3f5;     /* feature cards, table head, code-group tabs*/
+  /* 背景: 白い本文、わずかに寒色のサイドレール、控えめな塗り */
+  --vp-c-bg: #ffffff;          /* 本文とナビゲーションの面 */
+  --vp-c-bg-alt: #f6f7f8;      /* サイドバーのレール（控えめで、細線で区切る） */
+  --vp-c-bg-elv: #ffffff;      /* ダイアログと検索モーダル */
+  --vp-c-bg-soft: #f1f3f5;     /* 機能カード、表のヘッダー、コードグループのタブ */
 
-  /* Borders — deliberately low-contrast hairlines */
-  --vp-c-border: #e3e6e9;      /* interactive outlines                      */
-  --vp-c-divider: #edeff2;     /* section hairlines                         */
-  --vp-c-gutter: #edeff2;      /* rail dividers                             */
+  /* 境界線 — あえてコントラストを低くした細線 */
+  --vp-c-border: #e3e6e9;      /* 操作できる要素の輪郭 */
+  --vp-c-divider: #edeff2;     /* セクションの区切り線 */
+  --vp-c-gutter: #edeff2;      /* レールの区切り線 */
 
-  /* Text — cool charcoal → gray ramp (headings darkened per-selector below) */
-  --vp-c-text-1: #374151;      /* body ink                                  */
-  --vp-c-text-2: #626b78;      /* muted / inactive nav                      */
-  --vp-c-text-3: #626b78;      /* subtle / placeholders / icons — AA small text */
+  /* テキスト — 寒色系のチャコールからグレーへの階調（見出しは下のセレクターごとに濃くする） */
+  --vp-c-text-1: #374151;      /* 本文の文字色 */
+  --vp-c-text-2: #626b78;      /* 控えめな文字と、非アクティブなナビゲーション */
+  --vp-c-text-3: #626b78;      /* 淡い文字、プレースホルダー、アイコン — 小さい文字で AA を満たす */
 
-  /* Brand accent — restrained lavender-indigo (links, active, buttons) */
-  --vp-c-brand-1: #4f46e5;     /* 6.3:1 on white — link/active text         */
-  --vp-c-brand-2: #4338ca;     /* hover                                     */
-  --vp-c-brand-3: #4f46e5;     /* solid bg (white text = 6.3:1)             */
+  /* ブランドのアクセント — 抑えたラベンダー寄りのインディゴ（リンク、アクティブ状態、ボタン） */
+  --vp-c-brand-1: #4f46e5;     /* 白地で 6.3:1 — リンクとアクティブ状態の文字 */
+  --vp-c-brand-2: #4338ca;     /* ホバー時 */
+  --vp-c-brand-3: #4f46e5;     /* 塗りの背景（白文字で 6.3:1） */
   --vp-c-brand-soft: rgba(79, 70, 229, 0.12);
 
-  /* Secondary accent — cyan (echoes the hero gradient's cyan end).
-     Retarget the "tip" family from brand→cyan; "note" stays lavender.      */
-  --vp-c-tip-1: #0e7490;       /* 5.4:1 on white                            */
+  /* 第2のアクセント — シアン（ヒーローのグラデーションのシアン側に合わせる）。
+     "tip" 系はブランド色からシアンに変え、"note" はラベンダーのままにする。 */
+  --vp-c-tip-1: #0e7490;       /* 白地で 5.4:1 */
   --vp-c-tip-2: #0891b2;
   --vp-c-tip-3: #06b6d4;
   --vp-c-tip-soft: rgba(6, 182, 212, 0.12);
 
-  /* Warning → warmer amber than VP's default brown */
-  --vp-c-yellow-1: #a35a12;    /* 5.2:1 on white                            */
+  /* 警告 — VitePress 既定の茶色より暖かみのあるアンバー */
+  --vp-c-yellow-1: #a35a12;    /* 白地で 5.2:1 */
   --vp-c-yellow-2: #b45309;
   --vp-c-yellow-3: #d97706;
   --vp-c-yellow-soft: rgba(217, 119, 6, 0.12);
 
-  /* Layout geometry (Documentify measure) */
+  /* レイアウトの寸法（Documentify の行幅） */
   --vp-layout-max-width: 1560px;
   --vp-sidebar-width: 290px;
   --vp-nav-height: 64px;
 
-  /* Code slab: one elevation below the white article, with a hairline */
+  /* コードブロック: 白い本文より一段低い面に、細線を付ける */
   --vp-code-block-bg: #f6f7f9;
-  --vp-code-color: var(--vp-c-text-1);        /* inline code = dark ink     */
-  --vp-code-bg: var(--vp-c-bg-soft);          /* inline code quiet fill     */
+  --vp-code-color: var(--vp-c-text-1);        /* インラインコードは濃い文字色 */
+  --vp-code-bg: var(--vp-c-bg-soft);          /* インラインコードの控えめな塗り */
   --vp-code-line-height: 1.8;
   --vp-code-font-size: 0.86em;
 
-  /* Home hero — the pastel lavender→cyan gradient lives ONLY here */
+  /* ホームのヒーロー — ラベンダーからシアンへのパステルのグラデーションは、ここでだけ使う */
   --vp-home-hero-name-background: linear-gradient(120deg, #4f46e5 5%, #7c6ff0 45%, #0891b2);
-  --vp-home-hero-name-color: transparent;   /* let the gradient show through */
+  --vp-home-hero-name-color: transparent;   /* グラデーションが透けて見えるようにする */
   --vp-home-hero-image-background-image: linear-gradient(-45deg, #b6a4ec 30%, #8fe6ef);
   --vp-home-hero-image-filter: blur(56px);
 }
 
 /* =============================================================================
-   3. DARK TOKEN SET — intentional cool-charcoal (not inverted white)
+   3. ダークテーマのトークン — 白を反転させたものではなく、意図して選んだ寒色系のチャコール
    ========================================================================== */
 .dark {
-  --vp-c-bg: #111827;          /* article / nav panel                       */
-  --vp-c-bg-alt: #0b1018;      /* sidebar rail = outer canvas (recedes)     */
-  --vp-c-bg-elv: #172033;      /* dialogs / search modal (raised)           */
-  --vp-c-bg-soft: #172033;     /* cards, table head, code-group tabs        */
+  --vp-c-bg: #111827;          /* 本文とナビゲーションのパネル */
+  --vp-c-bg-alt: #0b1018;      /* サイドバーのレールは外側の背景と同じ色（奥に引っ込んで見える） */
+  --vp-c-bg-elv: #172033;      /* ダイアログと検索モーダル（浮き上がって見える） */
+  --vp-c-bg-soft: #172033;     /* カード、表のヘッダー、コードグループのタブ */
 
   --vp-c-border: #29344a;
   --vp-c-divider: #222c3f;
   --vp-c-gutter: #0b1018;
 
-  --vp-c-text-1: #d1d5db;      /* body ink                                  */
-  --vp-c-text-2: #9ca3af;      /* muted / inactive                          */
-  --vp-c-text-3: #9ca3af;      /* subtle — AA small text on charcoal         */
+  --vp-c-text-1: #d1d5db;      /* 本文の文字色 */
+  --vp-c-text-2: #9ca3af;      /* 控えめな文字と、非アクティブな要素 */
+  --vp-c-text-3: #9ca3af;      /* 淡い文字 — チャコール地の小さい文字で AA を満たす */
 
-  /* Lifted lavender so accents stay legible on charcoal */
-  --vp-c-brand-1: #a5a0f5;     /* 7.5:1 on #111827                          */
-  --vp-c-brand-2: #b8b3f8;     /* hover (brighter)                          */
-  --vp-c-brand-3: #635bd6;     /* solid bg (white text = 5.3:1)             */
+  /* チャコール地でもアクセントが読めるように、ラベンダーを明るくする */
+  --vp-c-brand-1: #a5a0f5;     /* #111827 の地で 7.5:1 */
+  --vp-c-brand-2: #b8b3f8;     /* ホバー時（より明るく） */
+  --vp-c-brand-3: #635bd6;     /* 塗りの背景（白文字で 5.3:1） */
   --vp-c-brand-soft: rgba(139, 133, 244, 0.16);
 
-  /* Lifted cyan */
+  /* 明るくしたシアン */
   --vp-c-tip-1: #67e8f9;
   --vp-c-tip-2: #22d3ee;
   --vp-c-tip-3: #0891b2;
@@ -122,11 +123,11 @@
   --vp-c-yellow-3: #b45309;
   --vp-c-yellow-soft: rgba(249, 180, 78, 0.16);
 
-  /* Raised code/card surface (lighter than the panel in dark) */
+  /* 浮き上がったコードとカードの面（ダークテーマではパネルより明るい） */
   --vp-code-block-bg: #172033;
-  --vp-code-bg: #1f2937;       /* inline code quiet-selected fill           */
+  --vp-code-bg: #1f2937;       /* インラインコードの控えめな塗り */
 
-  /* Low-luminance hero gradient adaptation for dark */
+  /* ダークテーマ向けに輝度を下げたヒーローのグラデーション */
   --vp-home-hero-name-background: linear-gradient(120deg, #a5a0f5 10%, #7dd3fc);
   --vp-home-hero-name-color: transparent;
   --vp-home-hero-image-background-image: linear-gradient(-45deg, #33295a 30%, #16434b);
@@ -134,7 +135,7 @@
 }
 
 /* =============================================================================
-   4. NAV BAR — editorial wordmark + centered quiet-fill search
+   4. ナビゲーションバー — 編集的なワードマークと、中央に置いた控えめな塗りの検索ボタン
    ========================================================================== */
 .VPNavBar .title,
 .VPNavBarTitle .title {
@@ -146,8 +147,8 @@
 .dark .VPNavBar .title,
 .dark .VPNavBarTitle .title { color: #f3f4f6; }
 
-/* Center the local-search trigger in the space between wordmark and menu.
-   .VPNavBarSearch already has flex-grow:1 at >=768px; we just center it. */
+/* ローカル検索のボタンを、ワードマークとメニューの間の中央に置く。
+   .VPNavBarSearch は 768px 以上ですでに flex-grow:1 なので、中央に寄せるだけでよい。 */
 @media (min-width: 768px) {
   .VPNavBarSearch {
     justify-content: center;
@@ -190,11 +191,11 @@
 }
 
 /* =============================================================================
-   5. LEFT SIDEBAR — grouped rail, pill rows, distinguishable active state
+   5. 左のサイドバー — グループに分けたレール、ピル型の行、見分けやすいアクティブ状態
    ========================================================================== */
 .VPSidebar { padding-top: 8px; }
 
-/* Group headings (level-0): crisp, weighty, generous spacing between groups */
+/* グループの見出し（レベル 0）: くっきりと太く、グループの間を広く空ける */
 .VPSidebarItem.level-0 { padding-bottom: 12px; }
 .VPSidebarItem.level-0 > .item > .text,
 .VPSidebarItem.level-0 > .item .text {
@@ -206,7 +207,7 @@
 .dark .VPSidebarItem.level-0 > .item .text { color: #f3f4f6; }
 .VPSidebarItem.level-0 + .VPSidebarItem.level-0 { margin-top: 18px; }
 
-/* Row links — quiet pills (8px radius), 15.5px, comfortable hit area */
+/* 行のリンク — 控えめなピル型（角丸 8px）、15.5px、押しやすい当たり判定 */
 .VPSidebar .VPSidebarItem .link,
 .VPSidebar .VPSidebarItem .item > .text {
   border-radius: 8px;
@@ -221,8 +222,8 @@
 .VPSidebar .VPSidebarItem .link:hover { background: var(--vp-c-bg-soft); }
 .VPSidebar .VPSidebarItem .link:hover .text { color: var(--vp-c-text-1); }
 
-/* Active page: quiet fill + 2px accent edge + foreground ink (never a black
-   slab — matches the brief's dark-mode instruction, applied to both modes). */
+/* アクティブなページ: 控えめな塗り、2px のアクセントの縁、前景の文字色（黒いベタ塗りにはしない。
+   ブリーフのダークモードの指示に合わせ、ライトとダークの両方に当てる）。 */
 .VPSidebar .VPSidebarItem.is-active > .item .link {
   background: var(--vp-c-brand-soft);
   box-shadow: inset 2px 0 0 var(--vp-c-brand-1);
@@ -237,10 +238,10 @@
 .dark .VPSidebar .VPSidebarItem.is-active > .item .link .text { color: #f3f4f6; }
 
 /* =============================================================================
-   6. RIGHT OUTLINE (aside) — sticky on-page nav, wider Documentify rail
-   Only rendered >=1280px by VitePress → naturally hidden below that.
-   .aside / .aside-container / .aside-curtain live in scoped SFC styles, so
-   dimensional overrides need !important.
+   6. 右のアウトライン（aside） — 追従するページ内ナビゲーションと、幅を広げた Documentify のレール。
+   VitePress は 1280px 以上でだけ描画するので、それより狭い画面では自然に隠れる。
+   .aside、.aside-container、.aside-curtain は SFC のスコープ付きスタイルにあるので、
+   寸法を上書きするには !important が必要である。
    ========================================================================== */
 @media (min-width: 1280px) {
   .VPDoc.has-aside .aside { max-width: 300px !important; }
@@ -263,21 +264,21 @@
 }
 .VPDocAsideOutline .outline-link:hover,
 .VPDocAsideOutline .outline-link.active { color: var(--vp-c-text-1); }
-/* The moving indicator = a 2px foreground/accent rule against the 1px rail */
+/* 移動するインジケーターは、1px のレールに重ねた 2px の前景色またはアクセント色の線 */
 .VPDocAsideOutline .outline-marker {
   width: 2px;
   background-color: var(--vp-c-brand-1);
 }
 
 /* =============================================================================
-   7. ARTICLE MEASURE — narrow, editorial reading column (~72ch / 820px)
-   Overrides scoped VPDoc content-container (default 688px) → !important.
+   7. 本文の行幅 — 読みやすい狭めの編集的なカラム（約 72ch / 820px）。
+   スコープ付きの VPDoc の content-container（既定は 688px）を上書きするので !important を使う。
    ========================================================================== */
 .VPDoc.has-aside .content-container,
 .VPDoc .content-container { max-width: 820px !important; }
 
 /* =============================================================================
-   8. MARKDOWN PROSE (.vp-doc) — compact Inter hierarchy
+   8. Markdown の本文（.vp-doc） — Inter による詰まった見出しの階層
    ========================================================================== */
 .vp-doc h1 {
   font-size: clamp(2rem, 4.5vw + 0.9rem, 2.625rem);  /* 32px → 42px          */
@@ -311,12 +312,12 @@
 
 .vp-doc h4 { font-size: 1.0625rem; font-weight: 600; color: var(--vp-c-text-1); }
 
-/* Body copy: 17px / 1.65 */
+/* 本文: 17px / 行の高さ 1.65 */
 .vp-doc p,
 .vp-doc li { font-size: 17px; line-height: 1.65; }
 .vp-doc p { margin: 16px 0; }
 
-/* Lede: the intro paragraph immediately after the page title — 19px / 1.5 */
+/* リード文: ページタイトルの直後にある導入の段落 — 19px / 行の高さ 1.5 */
 .vp-doc h1 + p {
   font-size: 19px;
   line-height: 1.5;
@@ -349,14 +350,14 @@
 }
 .vp-doc blockquote > p { font-size: 16px; }
 
-/* Header anchor (#) — quiet, appears on hover, brand on focus */
+/* 見出しのアンカー（#） — 控えめに表示し、ホバーで現れ、フォーカス時はブランド色にする */
 .vp-doc .header-anchor { color: var(--vp-c-text-3); font-weight: 400; }
 .vp-doc .header-anchor:hover,
 .vp-doc .header-anchor:focus-visible { color: var(--vp-c-brand-1); }
 
 /* =============================================================================
-   9. TABLES — hairline grid, quiet header, subtle zebra (Documentify density)
-   VitePress renders .vp-doc table as display:block; overflow-x:auto already.
+   9. 表 — 細線の罫線、控えめなヘッダー、淡いしま模様（Documentify の密度）。
+   VitePress は .vp-doc table をすでに display:block; overflow-x:auto で描画している。
    ========================================================================== */
 .vp-doc table {
   border-collapse: collapse;
@@ -378,11 +379,11 @@
 .vp-doc tr:nth-child(2n) { background: var(--vp-c-bg-soft); }
 
 /* =============================================================================
-   10. CODE — light slab in light mode, hairline boundary, visible copy button.
-   Token foreground colors are supplied by Shiki's dual github-light/dark theme
-   (config-side); here we own the slab surface, inline chips, and chrome.
+   10. コード — ライトモードでは明るい面、細線の境界、見えるコピーボタン。
+   トークンの文字色は、設定側で指定した Shiki の github-light/dark のデュアルテーマが決める。
+   ここで扱うのは、コードブロックの面、インラインコードのチップ、周りの装飾である。
    ========================================================================== */
-/* Inline code — 6px chip, quiet fill, dark ink, hairline (Documentify) */
+/* インラインコード — 角丸 6px のチップ、控えめな塗り、濃い文字色、細線（Documentify） */
 .vp-doc :not(pre) > code {
   background: var(--vp-code-bg);
   border: 1px solid var(--vp-c-divider);
@@ -392,10 +393,10 @@
   color: var(--vp-c-text-1);
 }
 .dark .vp-doc :not(pre) > code { border-color: var(--vp-c-border); color: #e5e7eb; }
-/* Do not double-border code that sits inside links/headings */
+/* リンクや見出しの中にあるコードには、枠線を二重に付けない */
 .vp-doc a > code { color: var(--vp-c-brand-1); }
 
-/* Block slab — one elevation off the article, hairline, generous inner pad */
+/* コードブロックの面 — 本文から一段離した面、細線、広めの内側の余白 */
 .vp-doc div[class*='language-'] {
   border-radius: 12px;
   border: 1px solid var(--vp-c-divider);
@@ -412,10 +413,10 @@
   line-height: 1.8;
   padding: 0 24px;
 }
-/* Language tag — quiet, upper-right */
+/* 言語のタグ — 控えめに右上に置く */
 .vp-doc div[class*='language-'] > span.lang { color: var(--vp-c-text-3); font-size: 12px; }
 
-/* Copy button — clearly visible (not fully hidden until hover) */
+/* コピーボタン — はっきり見えるようにする（ホバーするまで完全に隠すことはしない） */
 .vp-doc div[class*='language-'] > button.copy {
   opacity: 0.55;
   background-color: var(--vp-code-copy-code-bg);
@@ -427,13 +428,13 @@
 .vp-doc div[class*='language-'] > button.copy:focus-visible { opacity: 1; }
 .vp-doc div[class*='language-'] > button.copy:hover { border-color: var(--vp-c-brand-1); }
 
-/* Code groups — quiet tabs on the soft surface */
+/* コードグループ — 淡い面の上の控えめなタブ */
 .vp-doc .vp-code-group .tabs { background: var(--vp-c-bg-soft); }
 
 /* =============================================================================
-   11. CUSTOM CONTAINERS (::: tip / info / warning / danger / details)
-   Keep VitePress's accessible tinted boxes but add a 3px editorial accent edge
-   and accent-colored titles (echoes the old site's left-border callouts).
+   11. カスタムコンテナ（::: tip / info / warning / danger / details）。
+   VitePress のアクセシブルな色付きボックスはそのまま使い、3px のアクセントの縁と、
+   アクセント色のタイトルを加える（以前のサイトの、左に罫線のある注記に合わせる）。
    ========================================================================== */
 .vp-doc .custom-block {
   border-radius: 10px;
@@ -456,9 +457,9 @@
 .vp-doc .custom-block.details { border-left-color: var(--vp-c-border); }
 
 /* =============================================================================
-   12. MERMAID — diagrams sit in the article column, respect light/dark tokens.
-   We own the container (neutral soft card, centered, horizontal overflow);
-   the SVG's own stroke/fill colors come from the mermaid theme (config-side).
+   12. MERMAID — 図は本文のカラムに置き、ライトとダークのトークンに従う。
+   ここで扱うのはコンテナ（中立的な淡いカード、中央寄せ、横方向のはみ出し）だけで、
+   SVG の線と塗りの色は、設定側で指定した mermaid のテーマが決める。
    ========================================================================== */
 .vp-doc .mermaid {
   margin: 24px 0;
@@ -478,9 +479,9 @@
 }
 
 /* =============================================================================
-   13. HOME PAGE — hero name gradient (set via vars above) + refined features.
-   Avoid the "identical card grid" slop: quiet bordered boxes, restrained
-   icons, subtle hover lift — no gradient text on metrics, no glass.
+   13. ホームページ — ヒーローの名前のグラデーション（上の変数で設定）と、整えた機能紹介。
+   同じカードを並べただけの雑な見た目を避ける。控えめな枠付きのボックス、抑えたアイコン、
+   ホバー時のわずかな浮き上がりにとどめ、数値のグラデーション文字やすりガラスの効果は使わない。
    ========================================================================== */
 .VPHome .VPHero .name { letter-spacing: -0.03em; }
 .VPHome .VPHero .text { color: var(--vp-c-text-1); letter-spacing: -0.02em; }
@@ -514,7 +515,7 @@
 .VPFeatures .VPFeature .details { font-size: 15px; color: var(--vp-c-text-2); }
 
 /* =============================================================================
-   14. DOC FOOTER — prev / next pager (Documentify pager look)
+   14. ドキュメントのフッター — 前後のページへのページャー（Documentify のページャーの見た目）
    ========================================================================== */
 .VPDocFooter .pager-link {
   border: 1px solid var(--vp-c-divider);
@@ -532,15 +533,15 @@
 .VPDocFooter .pager-link .title { color: var(--vp-c-brand-1); font-weight: 600; }
 
 /* =============================================================================
-   15. RESPONSIVE — mobile/tablet. Below 960px VitePress swaps the left rail for
-   its accessible hamburger drawer and (below 1280) hides the right outline;
-   we only adjust the article for comfortable full-width reading.
+   15. レスポンシブ — モバイルとタブレット。960px 未満では、VitePress が左のレールを
+   アクセシブルなハンバーガーメニューのドロワーに切り替え、1280px 未満では右のアウトラインを隠す。
+   ここでは、全幅で読みやすくなるように本文だけを調整する。
    ========================================================================== */
 @media (max-width: 959px) {
   .vp-doc p,
   .vp-doc li { font-size: 16.5px; }
   .vp-doc h2 { margin-top: 40px; padding-top: 22px; }
-  /* Cards collapse to one column (VitePress grid) — keep them full-bleed */
+  /* カードは1列にまとまる（VitePress のグリッド） — 端まで広げたままにする */
   .VPFeatures .VPFeature { border-radius: 12px; }
 }
 @media (max-width: 640px) {
@@ -549,14 +550,14 @@
 }
 
 /* =============================================================================
-   16. FOCUS & MOTION — visible focus rings; honour reduced-motion.
+   16. フォーカスと動き — フォーカスリングを見えるようにし、reduced-motion の設定に従う。
    ========================================================================== */
 :where(a, button, input, summary, .VPSidebarItem .link, .outline-link):focus-visible {
   outline: 2px solid var(--vp-c-brand-1);
   outline-offset: 2px;
   border-radius: 4px;
 }
-/* Skip-to-content link (VitePress default) — brand it on focus */
+/* 本文へスキップするリンク（VitePress の既定） — フォーカス時にブランド色にする */
 .VPSkipLink:focus,
 .VPSkipLink:focus-visible {
   background: var(--vp-c-bg-elv);

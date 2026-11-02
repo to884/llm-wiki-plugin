@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Direct contracts for section splitting in the canonical Python retriever."""
+"""正規の Python 版検索器における、セクション分割の契約を直接確かめるテスト。"""
 
 import importlib.util
 import unittest

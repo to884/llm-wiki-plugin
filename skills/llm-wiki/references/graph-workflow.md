@@ -1,24 +1,24 @@
-# Graph Workflow
+# グラフのワークフロー
 
-The graph layer is the optional **compiled index** over the markdown wiki. It does not replace the wiki — it sits alongside it under `wiki/graph/` and is reproducible from the markdown at any time. The point is to make typed, provenance-backed relationships machine-queryable while keeping markdown canonical.
+グラフ層は、Markdown の wiki の上に任意で作る**コンパイル済みのインデックス**である。wiki を置き換えるものではない。`wiki/graph/` の下に wiki と並べて置き、いつでも Markdown から作り直せる。目的は、出所の裏づけを持つ型付きの関係を機械でクエリできるようにしつつ、正本は Markdown のままにすることである。
 
-If `wiki/graph/ontology.yaml` is absent, the wiki is pre-graph: don't run extract/lint/query and don't fabricate ontology files. Either propose adding the layer, or proceed without it.
+`wiki/graph/ontology.yaml` がない場合、その wiki はグラフ層を導入する前のものである。extract、lint、query は実行せず、オントロジーのファイルをでっち上げてもならない。グラフ層の追加を提案するか、グラフ層なしで進める。
 
-## What the graph captures
+## グラフが表すもの
 
-Three classes of edge come out of an extract:
+extract で得られるエッジは、次の3種類である。
 
-1. **Typed semantic edges** declared in a page's `graph.relationships[]` frontmatter. Examples: `founded`, `proposed`, `depends_on`. Each one carries an explicit `source` (a source-page slug), an `evidence` quote, a `confidence` (high/medium/low), and a `status` (current/historical/proposed/disputed/superseded). The extractor never invents these.
-2. **`mentions` edges** — one per body `[[wikilink]]` (deduplicated per page). Confidence is `low`; they accelerate navigation but should not be cited as evidence of a typed relationship.
-3. **`sourced_from`** edges — one per slug in a non-source page's frontmatter `sources:` list, pointing at the source page. **`summarizes_raw`** edges — one per source page's `raw:` field, with the raw file path as the (string-literal) object.
+1. ページの frontmatter の `graph.relationships[]` で宣言した**型付きの意味のエッジ**。例: `founded`、`proposed`、`depends_on`。それぞれ、明示的な `source`（ソースページのスラッグ）、`evidence` の引用、`confidence`（high/medium/low）、`status`（current/historical/proposed/disputed/superseded）を持つ。extract がこれらを作り出すことはない。
+2. **`mentions` エッジ**。本文の `[[wikilink]]` 1つにつき1本できる（ページごとに重複は除く）。確信度は `low` である。目的のページを早く見つけるのには役立つが、型付きの関係の証拠として引用してはならない。
+3. **`sourced_from`** エッジ。ソースページ以外のページの frontmatter にある `sources:` リストのスラッグ1つにつき1本でき、ソースページを指す。**`summarizes_raw`** エッジ。ソースページの `raw:` フィールド1つにつき1本でき、raw ファイルのパスを（文字列リテラルの）目的語とする。
 
-## Frontmatter schema
+## frontmatter のスキーマ
 
 ```yaml
 graph:
-  node_id: person:praney-behl       # optional; default <node_type>:<slug>
-  node_type: person                  # optional; default mapped from type/kind via ontology
-  canonical: true                    # mark canonical when multiple slugs alias the same entity
+  node_id: person:praney-behl       # 任意。既定は <node_type>:<slug>
+  node_type: person                  # 任意。既定はオントロジーを使って type/kind から決まる
+  canonical: true                    # 複数のスラッグが同じエンティティの別名になっているとき、正本に印を付ける
   aliases: [Praney, praney@example.com]
   relationships:
     - predicate: founded
@@ -27,7 +27,7 @@ graph:
       evidence: "Solo technical founder and sole director..."
       confidence: high
       status: current
-      # optional:
+      # 任意:
       # valid_from: 2025-01-15
       # valid_to: 2026-03-01
       # notes: "..."
@@ -36,91 +36,91 @@ graph:
       # supersedes: <node-id-or-edge-id>
 ```
 
-Required relationship fields: `predicate`, `object`, `source`, `evidence`, `confidence`, `status`.
+関係に必須のフィールドは、`predicate`、`object`、`source`、`evidence`、`confidence`、`status` である。
 
-`node_id` format is `<node_type>:<slug>`. The default is derived from the page's `type`/`kind` via the ontology's `maps_from` block. `decision`, `claim`, and `raw` are explicit-only — they don't have wiki pages, so they only show up as edge objects. If a typed edge points at one of these, the `wiki_graph_lint.py` flag for "broken object reference" will fire until either (a) you create a page for it, or (b) you add it to the ontology with `explicit_only: true` and accept that lint will continue to flag the reference.
+`node_id` の形式は `<node_type>:<slug>` である。既定値は、オントロジーの `maps_from` ブロックを使って、ページの `type`/`kind` から決まる。`decision`、`claim`、`raw` は明示的にだけ使うノードの種類である。wiki のページを持たないので、エッジの目的語としてだけ現れる。型付きエッジがこれらのどれかを指していると、`wiki_graph_lint.py` は「リンク切れの目的語の参照」として指摘する。この指摘は、(a) そのページを作るか、(b) `explicit_only: true` を付けてオントロジーに追加し、lint が引き続きその参照を指摘することを受け入れるまで続く。
 
-## The ontology
+## オントロジー
 
-`wiki/graph/ontology.yaml` is the contract. It declares:
+`wiki/graph/ontology.yaml` は、グラフ層の取り決めである。次のものを宣言する。
 
-- `node_types[*].maps_from` — how page `type`/`kind` projects onto a node type.
-- `predicates[*]` — the allowed predicates, each with `subject_types`, `object_types`, and `requires_evidence`. `"*"` is a wildcard for either side.
+- `node_types[*].maps_from`: ページの `type`/`kind` をノードの種類にどう対応させるか。
+- `predicates[*]`: 使ってよい述語。それぞれ `subject_types`、`object_types`、`requires_evidence` を持つ。`"*"` は、主語と目的語のどちらの側でもワイルドカードになる。
 
-Edit the ontology when you need a new domain predicate. Re-run `wiki_graph_lint.py` to validate; existing typed edges will be caught if they no longer match.
+分野に固有の新しい述語が必要になったら、オントロジーを編集する。`wiki_graph_lint.py` を再実行して検証する。既存の型付きエッジが合わなくなっていれば、それも検出される。
 
-## When to add a typed edge vs a plain `[[wikilink]]`
+## 型付きエッジを追加するか、ふつうの `[[wikilink]]` にするか
 
-Add a typed edge when:
+次の場合は、型付きエッジを追加する。
 
-- A specific source explicitly states the relationship.
-- You can quote a snippet of evidence.
-- The predicate is meaningful for downstream queries ("who founded what", "what did Stephanie propose").
+- 特定のソースが、その関係を明示的に述べている。
+- 証拠として引用できる文がある。
+- その述語が、あとのクエリで意味を持つ（「誰が何を創業したか」「Stephanie は何を提案したか」）。
 
-Use a plain `[[wikilink]]` when:
+次の場合は、ふつうの `[[wikilink]]` を使う。
 
-- The relationship is implicit, atmospheric, or you're hedging.
-- You cannot pin the claim to a single source quote.
-- The predicate would be `mentions` anyway.
+- 関係が暗黙的である、雰囲気でしかない、または留保を付けたい。
+- その主張を、1つのソースの引用に結びつけられない。
+- どちらにしても述語が `mentions` になる。
 
-When in doubt, write the wikilink and skip the typed edge. The lint surfaces missing evidence; it does not punish under-claiming.
+迷ったら、wikilink を書き、型付きエッジはスキップする。lint は証拠の欠落を指摘するが、控えめな主張をとがめることはない。
 
-## Extract / lint / query loop
+## extract / lint / query の流れ
 
 ```bash
-# Validate the typed metadata first; lint is conservative, never edits.
+# まず型付きメタデータを検証する。lint は控えめに動き、ファイルを編集しない。
 uv run --script scripts/wiki_graph_lint.py wiki/
 
-# Compile to nodes.jsonl, edges.jsonl, graph.sqlite, graph.graphml.
+# nodes.jsonl、edges.jsonl、graph.sqlite、graph.graphml にコンパイルする。
 uv run --script scripts/wiki_graph_extract.py wiki/
 
-# Navigate.
+# グラフをたどる。
 python scripts/wiki_graph_query.py wiki/ neighbors --node product:konvy
 python scripts/wiki_graph_query.py wiki/ edges    --subject person:stephanie-emmanouel
 python scripts/wiki_graph_query.py wiki/ path     --from person:praney-behl --to product:konvy
 python scripts/wiki_graph_query.py wiki/ facts    --about product:konvy
 ```
 
-`--json` works on both lint and query commands.
+`--json` は、lint と query のどちらのコマンドでも使える。
 
-## Ingest workflow integration
+## 取り込みのワークフローとの組み合わせ
 
-After Step 6 of the standard ingest workflow (after surgical updates and source page creation), run:
+標準の取り込みのワークフローの手順 6 のあと（必要な箇所だけの更新と、ソースページの作成のあと）に、次のことを行う。
 
-1. If new typed edges were added on the page being ingested, run `wiki_graph_lint.py`. Triage findings with the user before extract.
-2. Run `wiki_graph_extract.py` to refresh the compiled artifacts.
-3. Append a sub-line under the ingest's `log.md` entry:
+1. 取り込むページに新しい型付きエッジを追加した場合は、`wiki_graph_lint.py` を実行する。extract の前に、検出結果をユーザーと一緒に仕分ける。
+2. `wiki_graph_extract.py` を実行して、コンパイル済みの成果物を更新する。
+3. `log.md` の取り込みの項目の下に、次のサブ行を追記する。
    `   graph: +N nodes, +M typed edges (predicates: founded, contains_product, ...)`
 
-Skip both if the page being ingested has no `graph.relationships[]` and no new pages were created — the graph layer is unchanged.
+取り込むページに `graph.relationships[]` がなく、新しいページも作らなかった場合は、どちらもスキップする。グラフ層は変わらないからである。
 
-## Query workflow integration
+## クエリのワークフローとの組み合わせ
 
-When the user asks a question that smells relational ("what's connected to X", "who proposed Y", "trace the path from A to B"):
+ユーザーの質問が関係を問うものらしい場合（「X とつながっているものは？」「Y を提案したのは誰？」「A から B への経路をたどって」）は、次のようにする。
 
-1. Read the index as usual.
-2. If `wiki/graph/graph.sqlite` exists and is fresher than the latest log entry, query it for typed edges around the candidate pages — `neighbors`, `edges`, `facts` are the most useful.
-3. Read the wiki pages behind the relevant nodes/edges. Don't answer from graph rows alone for high-stakes claims; the `evidence` field is a hint, not the source of truth.
-4. Cite with `[[wikilinks]]` to wiki pages, not graph rows.
+1. いつもどおりインデックスを読む。
+2. `wiki/graph/graph.sqlite` があり、最新のログの項目より新しい場合は、候補のページの周りにある型付きエッジをクエリする。`neighbors`、`edges`、`facts` がもっとも役に立つ。
+3. 関係するノードやエッジの元になっている wiki ページを読む。重要な主張については、グラフの行だけをもとに答えてはならない。`evidence` フィールドは手がかりであって、正本ではない。
+4. 引用には、グラフの行ではなく wiki ページへの `[[wikilinks]]` を使う。
 
-If `graph.sqlite` is stale (older than the most recent ingest in `log.md`), regenerate first, then query.
+`graph.sqlite` が古い（`log.md` にある最新の取り込みより古い）場合は、先に作り直してからクエリする。
 
-## Generated artifact policy
+## 生成される成果物の扱い
 
-| File | Canonical? | Default tracking |
+| ファイル | 正本か | 既定の管理方法 |
 |------|-----------|------------------|
-| `wiki/graph/ontology.yaml` | Yes — edit by hand | Tracked |
-| `wiki/graph/nodes.jsonl` | Generated | Optional — `wiki/graph/.gitignore` does not ignore it; track if you want graph diffs in PRs |
-| `wiki/graph/edges.jsonl` | Generated | Same as above |
-| `wiki/graph/graph.sqlite` | Generated | **Gitignored** by default (large, binary) |
-| `wiki/graph/graph.graphml` | Generated | **Gitignored** by default |
+| `wiki/graph/ontology.yaml` | 正本。手で編集する | git で管理する |
+| `wiki/graph/nodes.jsonl` | 生成物 | 任意。`wiki/graph/.gitignore` では無視していない。PR でグラフの差分を見たいなら git で管理する |
+| `wiki/graph/edges.jsonl` | 生成物 | 上と同じ |
+| `wiki/graph/graph.sqlite` | 生成物 | 既定で **gitignore** する（大きいバイナリーのため） |
+| `wiki/graph/graph.graphml` | 生成物 | 既定で **gitignore** する |
 
-The bootstrapped `wiki/graph/.gitignore` ignores `graph.sqlite` and `graph.graphml`. Edit it if your team prefers different policy.
+初期化で作られる `wiki/graph/.gitignore` は、`graph.sqlite` と `graph.graphml` を無視する。チームで別の方針にしたいなら、このファイルを編集する。
 
-## Anti-patterns
+## 避けるべきパターン
 
-- **Typed edges without evidence.** Defeats the entire point. Lint will flag them; do not silence.
-- **Editing `nodes.jsonl` / `edges.jsonl` / `graph.sqlite` by hand.** Edit the markdown; regenerate.
-- **Inventing ontology entries to make a typed edge "fit".** The ontology should reflect domain reality, not paper over a too-eager edge. Either add the predicate with proper `subject_types`/`object_types`, or use `mentions`.
-- **Treating graph rows as evidence in answers.** Always cite the wiki page; the graph just told you which wiki page to read.
-- **Forgetting to regenerate after an ingest.** The graph diverges silently. Tie extract to ingest in muscle memory.
+- **証拠のない型付きエッジ。** グラフ層の意味がまったくなくなる。lint が指摘するので、指摘を黙らせてはならない。
+- **`nodes.jsonl`、`edges.jsonl`、`graph.sqlite` を手で編集する。** Markdown を編集し、作り直す。
+- **型付きエッジを「合わせる」ために、オントロジーの項目をでっち上げる。** オントロジーは分野の実態を表すべきもので、無理に作ったエッジを取り繕うためのものではない。適切な `subject_types`/`object_types` を付けて述語を追加するか、`mentions` を使う。
+- **回答の中で、グラフの行を証拠として扱う。** 必ず wiki ページを引用する。グラフは、どの wiki ページを読むべきかを教えてくれただけである。
+- **取り込みのあとで、作り直すのを忘れる。** グラフが気づかないうちに wiki とずれていく。取り込んだら extract を実行する、と習慣にしておく。

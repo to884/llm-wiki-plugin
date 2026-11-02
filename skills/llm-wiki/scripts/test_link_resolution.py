@@ -1,28 +1,27 @@
 #!/usr/bin/env python3
-"""Regression tests for wikilink resolution.
+"""wikilink の解決の回帰テスト。
 
-Stdlib only, no test framework — run it directly:
+標準ライブラリだけを使い、テストフレームワークは使わない。直接実行する:
 
     python3 skills/llm-wiki/scripts/test_link_resolution.py
 
-Exits 0 on success, 1 on any failure.
+成功すれば 0、1件でも失敗すれば 1 で終了する。
 
-Why this file exists
---------------------
-`wiki_lint.py`, `wiki_graph_extract.py`, and `wiki_search.py` all compared raw
-wikilink text against page slugs, where a slug is the bare filename stem. Every
-path-qualified link — `[[entities/kalman-filter]]`, a very common form in real
-wikis — therefore matched nothing. The linter reported them all as broken, the
-graph extractor silently emitted no `mentions` edge for them, and `--backlinks`
-missed them. In one wiki of 55 pages that was 142 false "broken link" reports
-out of 153, plus 15 pages misreported as orphans.
+このファイルがある理由
+----------------------
+`wiki_lint.py`、`wiki_graph_extract.py`、`wiki_search.py` はどれも、wikilink の生のテキストを
+ページのスラッグと比べていた。スラッグはファイル名のステムそのものである。そのため、
+実際の wiki でとてもよく使われる `[[entities/kalman-filter]]` のような、パスを付けたリンクは
+どれにも一致しなかった。linter はそれらをすべてリンク切れと報告し、グラフの抽出器は
+それらの `mentions` エッジを黙って出力せず、`--backlinks` も見落としていた。
+ある 55 ページの wiki では、153 件の「リンク切れ」の報告のうち 142 件が誤りで、
+さらに 15 ページが誤って孤立ページと報告されていた。
 
-The fix normalizes before comparing. The subtle part, and the reason for the
-guard cases below, is that a directory prefix must be treated as a CONSTRAINT
-rather than stripped: naively reducing to the stem would make `[[raw/foo]]`
-resolve to `sources/foo.md`. That collision is not hypothetical — source pages
-are conventionally named after the raw file they summarize, so stem-stripping
-turns a genuinely broken out-of-tree link into a false pass.
+修正では、比べる前に正規化する。注意が必要な点であり、下のガードのケースを置く理由でもあるのは、
+ディレクトリの接頭辞を取り除かずに「制約」として扱わなければならないことである。
+単純にステムに縮めると、`[[raw/foo]]` が `sources/foo.md` に解決されてしまう。
+この衝突は仮定の話ではない。ソースページは、要約する raw ファイルにちなんで名付けるのが慣例なので、
+ステムだけにすると、ツリーの外を指す本当のリンク切れを誤って合格にしてしまう。
 """
 
 import contextlib
@@ -39,8 +38,8 @@ import wiki_search  # noqa: E402
 import wiki_stats  # noqa: E402
 
 
-# A wiki containing BOTH sources/<stem>.md and (out of tree) raw/<stem>.md,
-# which is the collision the path constraint exists to handle.
+# sources/<stem>.md と、ツリーの外にある raw/<stem>.md の両方を含む wiki。
+# パスによる制約は、まさにこの衝突を扱うためにある。
 BY_PATH = {
     "sources/2024-01-15-field-notes": "2024-01-15-field-notes",
     "entities/kalman-filter": "kalman-filter",
@@ -54,7 +53,7 @@ BY_SLUG = {
 }
 
 RESOLVE_CASES = [
-    # (link, expected, why)
+    # (リンク, 期待する結果, 理由)
     ("entities/kalman-filter", "kalman-filter", "path-qualified, path exists"),
     ("shannon-entropy", "shannon-entropy", "bare stem, page exists"),
     ("entities/kalman-filter#History", "kalman-filter", "heading anchor stripped"),
@@ -64,7 +63,7 @@ RESOLVE_CASES = [
     ("/entities/kalman-filter/", "kalman-filter", "stray leading/trailing slashes"),
     ("Entities/Kalman-Filter", None,
      "matching is case-SENSITIVE, symmetric with bare-slug matching"),
-    # --- guards: these must NOT resolve ---
+    # --- ガード: これらは解決されてはならない ---
     ("raw/2024-01-15-field-notes", None,
      "GUARD: out-of-tree path must not bind to the same-stem sources page"),
     ("personas/kalman-filter", None,
@@ -137,9 +136,9 @@ def main():
           "--backlinks can inspect a missing target", failures)
     print()
 
-    # wiki_stats counts popularity and deliberately does NOT verify resolution,
-    # so it reduces to the stem. Pin that documented difference so nobody
-    # "fixes" it into a correctness check by accident.
+    # wiki_stats は被リンクの多さを数えるもので、意図して解決の正しさを検証しない。
+    # そのためステムに縮める。この文書化した違いをテストで固定し、誰かが誤って
+    # 正しさのチェックに「直して」しまわないようにする。
     print("stats: stem-only counting (resolution deliberately NOT verified)")
     for link, expected, why in STEM_CASES:
         check("stats", wiki_stats.link_stem(link), expected,

@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Evaluate the optional decision checks (D1, D2, D3, D5) on synthetic fixtures.
+"""任意の判定チェック（D1、D2、D3、D5）を、合成したフィクスチャで評価する。
 
-Usage:
+使い方:
     python eval/decisions/run_eval.py --backend fake [--out results.json]
     python eval/decisions/run_eval.py --backend local --meta llama_cpp_build=b11976 --out results-local.json
 
-Backends: fake (offline heuristics), local, typesafe, openrouter, liquid (see wiki_decide.py).
-Only synthetic fixture text goes to a backend.
+バックエンド: fake（オフラインのヒューリスティック）、local、typesafe、openrouter、liquid（wiki_decide.py を参照）。
+バックエンドに送るのは、合成したフィクスチャのテキストだけである。
 
-For each check the runner fits the threshold that maximizes F1 on the tune split
-(even positions of the id-sorted fixtures) and reports metrics on the held-out
-test split (odd positions) and on all fixtures.
+ランナーはチェックごとに、調整用の分割（id 順に並べたフィクスチャの偶数番目）で
+F1 が最大になる閾値を決め、取り分けておいたテスト用の分割（奇数番目）と
+フィクスチャ全体について指標を報告する。
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ TOP = 5
 
 
 # ---------------------------------------------------------------------------
-# Metrics
+# 指標
 # ---------------------------------------------------------------------------
 
 def prf(pred: list[bool], gold: list[bool]) -> dict:
@@ -64,7 +64,7 @@ def auroc(scores: list[float], gold: list[bool]) -> float | None:
 
 
 def fit_threshold(predict, gold: list[bool]) -> float:
-    """Lowest grid threshold with the best F1 (ties favour recall). predict(t) -> list[bool]."""
+    """F1 が最大になるグリッド上の閾値のうち、もっとも低いものを返す（同点なら再現率を優先する）。predict(t) -> list[bool]。"""
     best_t, best_f1 = 0.5, -1.0
     for t in GRID:
         f1 = prf(predict(t), gold)["f1"]
@@ -79,7 +79,7 @@ def split(items: list[dict]) -> tuple[list[dict], list[dict]]:
 
 
 # ---------------------------------------------------------------------------
-# Scoring helpers
+# 採点用のヘルパー
 # ---------------------------------------------------------------------------
 
 class Recorder:
@@ -142,7 +142,7 @@ def row_key(row: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Checks
+# チェック
 # ---------------------------------------------------------------------------
 
 def d1_metrics(queries: list[dict], threshold: float) -> dict:
@@ -213,7 +213,7 @@ def run_d1(rec: Recorder, search_mode: str) -> dict:
 
 
 def binary_report(items: list[dict], flag) -> dict:
-    """items carry id, gold (bool) and score/answer fields consumed by flag(item, t)."""
+    """items の各要素は、id、gold（bool）と、flag(item, t) が使う score または answer のフィールドを持つ。"""
     ok = [i for i in items if i.get("answer") is not None]
     tune, test = split(ok)
     best_t = fit_threshold(lambda t: [flag(i, t) for i in tune], [i["gold"] for i in tune])

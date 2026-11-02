@@ -1,87 +1,87 @@
 ---
-title: Commands
-description: "Reference for all nine /wiki:* slash commands: init, ingest, query, lint, stats, graph, upgrade, learn, evolve."
+title: コマンド
+description: "9つの /wiki:* スラッシュコマンド（init、ingest、query、lint、stats、graph、upgrade、learn、evolve）のリファレンス。"
 ---
 
 <!-- Adapted from: docs/commands.html (source: README.md "Commands" table, commands/wiki/{init,ingest,query,lint,stats,graph,upgrade}.md). -->
 
-# Commands
+# コマンド {#commands}
 
-Nine `/wiki:*` slash commands ship with the Claude Code plugin. In other agents, phrase the same requests in natural language. The underlying skill triggers either way.
+Claude Code のプラグインには、9つの `/wiki:*` スラッシュコマンドが含まれている。ほかのエージェントでは、同じ依頼を自然言語で伝える。どちらの場合も、元になるスキルが呼び出される。
 
-| Command | What it does |
+| コマンド | 内容 |
 | --- | --- |
-| [`/wiki:init [--global]`](#init) | Bootstrap a personal global wiki or a wiki in the current project. |
-| [`/wiki:ingest <source>`](#ingest) | Process a new source into the wiki; refreshes the graph layer when present. |
-| [`/wiki:query <question>`](#query) | Answer a question from the wiki with citations. |
-| [`/wiki:lint`](#lint) | Structural and semantic health check. |
-| [`/wiki:stats`](#stats) | Show size, link density, and which scaling threshold the wiki is at. |
-| [`/wiki:graph <action>`](#graph) | Compile, lint, or query the typed graph layer. |
-| [`/wiki:learn <task artifacts>`](#learn) | Capture verified experience and consolidate reusable patterns. |
-| [`/wiki:evolve <goal or action>`](#evolve) | Stage, evaluate, inspect, apply or roll back a skill improvement. |
-| [`/wiki:upgrade`](#upgrade) | Upgrade an existing wiki to the current plugin version. |
+| [`/wiki:init [--global]`](#init) | 個人用のグローバルな wiki、または現在のプロジェクトの wiki を作る。 |
+| [`/wiki:ingest <source>`](#ingest) | 新しいソースを処理して wiki に取り込む。グラフ層があれば、それも更新する。 |
+| [`/wiki:query <question>`](#query) | wiki をもとに、出典つきで質問に答える。 |
+| [`/wiki:lint`](#lint) | 構造と内容の健全性をチェックする。 |
+| [`/wiki:stats`](#stats) | 規模、リンク密度と、スケーリングのどの閾値に達しているかを表示する。 |
+| [`/wiki:graph <action>`](#graph) | 型付きグラフ層をコンパイル、lint、またはクエリする。 |
+| [`/wiki:learn <task artifacts>`](#learn) | 検証済みの経験を記録し、再利用できるパターンにまとめる。 |
+| [`/wiki:evolve <goal or action>`](#evolve) | スキルの改善をステージング、評価、確認、適用、ロールバックする。 |
+| [`/wiki:upgrade`](#upgrade) | 既存の wiki を、現在のプラグインのバージョンにアップグレードする。 |
 
 ## `/wiki:init` {#init}
 
-Bootstrap a new LLM Wiki. Use `--global` for `~/wiki/` with raw sources under `~/wiki/raw/`; omit it for `wiki/` and `raw/` in the current project. Optional `--wiki-dir` / `--raw-dir` arguments override those defaults.
+新しい LLM Wiki を作る。`--global` を付けると、`~/wiki/` に作り、raw ソースは `~/wiki/raw/` に置く。付けなければ、現在のプロジェクトの `wiki/` と `raw/` に作る。`--wiki-dir` と `--raw-dir` を指定すると、これらの既定値を変えられる。
 
 ```bash
 /wiki:init
 /wiki:init --global
 ```
 
-The command confirms the storage scope and paths, bootstraps the wiki, then installs and verifies pinned FastEmbed, sqlite-vec, and PyYAML dependencies through `uv`, caches the local embedding model, builds the parse cache, and embeds every current section. It walks through `SCHEMA.md` and proposes the matching global or project agent-memory integration only after runtime JSON reports `"status": "ready"`. It does not ingest a source or crawl projects automatically.
+このコマンドは、保存先のスコープとパスを確認して wiki を作る。続いて、バージョンを固定した FastEmbed、sqlite-vec、PyYAML を `uv` でインストールして動作を確かめ、ローカルの埋め込みモデルをキャッシュし、パースキャッシュを作り、現在の全セクションをベクトル化する。実行環境の JSON が `"status": "ready"` を返したあとでだけ、`SCHEMA.md` をユーザーと一緒に確認し、構成に合ったグローバルまたはプロジェクトのエージェントのメモリとの連携を提案する。ソースの取り込みや、プロジェクトの自動巡回は行わない。
 
 ## `/wiki:ingest <source>` {#ingest}
 
-Ingest a source (paper, article, transcript, PDF, notes) into the wiki using the skill's ingest workflow.
+スキルの取り込みワークフローに従って、ソース（論文、記事、文字起こし、PDF、メモ）を wiki に取り込む。
 
 ```bash
 /wiki:ingest raw/attention-is-all-you-need.pdf
 ```
 
-The agent reads `SCHEMA.md`, places the raw source under `raw/`, chunk-reads if it is large, discusses key takeaways, surveys the wiki for touched pages, writes the source-summary page, makes surgical `str_replace` updates, creates new pages for new entities and concepts (each with an inbound link), updates the index, and appends one line to `log.md`. If the graph layer is present and the source supports typed edges, it lints and re-extracts the graph. Full detail in [Workflows → Ingest](/v3/workflows#ingest).
+エージェントは `SCHEMA.md` を読み、raw ソースを `raw/` に置き、大きければ分割して読み、要点を話し合う。そのうえで、wiki を調べて関係するページを洗い出し、ソースの要約ページを書き、`str_replace` で必要な箇所だけを更新し、新しいエンティティとコンセプトには新しいページを作り（それぞれに被リンクを付ける）、インデックスを更新し、`log.md` に1行追記する。グラフ層があり、ソースが型付きエッジを裏づけている場合は、グラフに lint をかけて抽出し直す。詳しくは [ワークフロー → 取り込み](/v3/workflows#ingest) を参照。
 
 ## `/wiki:query <question>` {#query}
 
-Answer a question against the wiki with citations.
+wiki をもとに、出典つきで質問に答える。
 
 ```bash
 /wiki:query How does attention scale with sequence length?
 ```
 
-The agent reads the index (or relevant shard), follows selected `[[wikilinks]]`, and synthesizes an answer with citations. If index summaries are insufficient it runs local hybrid search:
+エージェントはインデックス（または該当する分割インデックス）を読み、必要な `[[wikilinks]]` をたどり、出典つきの回答をまとめる。インデックスの要約だけでは足りない場合は、ローカルのハイブリッド検索を実行する。
 
 ```bash
 uv run --script skills/llm-wiki/scripts/wiki_search.py \
   "<query terms>" --top 10 --cache --json
 ```
 
-FastEmbed + sqlite-vec semantic ranking is fused with BM25; no API key or outbound wiki/query text is involved. For dependency-free lexical search, bypass PEP 723 resolution with `python skills/llm-wiki/scripts/wiki_search.py "<query>" --no-embed`; use `--granularity page` for whole-page ranking. See [Search & retrieval](/v3/search). Relational questions can also consult `graph.sqlite`; substantive answers can be filed back into `wiki/synthesis/`.
+FastEmbed + sqlite-vec によるセマンティックな順位付けを、BM25 と統合する。API キーは不要で、wiki やクエリのテキストを外部に送ることもない。依存パッケージを使わない語彙ベースの検索にするには、`python skills/llm-wiki/scripts/wiki_search.py "<query>" --no-embed` で PEP 723 の依存解決を経由せずに実行する。ページ単位で順位を付けるには `--granularity page` を使う。[検索と取得](/v3/search) を参照。関係を問う質問では `graph.sqlite` も参照できる。中身のある回答は `wiki/synthesis/` に保存できる。
 
 ## `/wiki:lint` {#lint}
 
-Run a structural and semantic health check. Add `--suggest-pages` to surface concepts that should be promoted to their own page.
+構造と内容の健全性をチェックする。`--suggest-pages` を付けると、独立したページにすべきコンセプトを挙げる。
 
 ```bash
 /wiki:lint
 ```
 
-The structural pass runs `wiki_lint.py` to catch orphans, broken wikilinks, oversized pages, missing frontmatter, stale pages, and duplicate slugs. The semantic pass reads recently-updated pages and hub pages for contradictions and gaps. Every finding is presented as a proposed edit: nothing is applied silently. Full detail in [Workflows → Lint](/v3/workflows#lint).
+構造のチェックでは `wiki_lint.py` を実行し、孤立ページ、リンク切れの wikilink、大きすぎるページ、frontmatter の欠落、更新の止まったページ、重複したスラッグを検出する。内容のチェックでは、最近更新されたページとハブページを読み、矛盾や足りない点を探す。検出結果はすべて編集案として示され、黙って適用されることはない。詳しくは [ワークフロー → lint](/v3/workflows#lint) を参照。
 
 ## `/wiki:stats` {#stats}
 
-Show wiki size, shape, and link density, and which scaling threshold the wiki is at.
+wiki の規模、構成、リンク密度と、スケーリングのどの閾値に達しているかを表示する。
 
 ```bash
 /wiki:stats
 ```
 
-Runs `wiki_stats.py` and interprets the output: whether you are approaching a sharding threshold (150 pages / 300-line index), the routine-search threshold (300 pages), or a weekly-lint cadence (500 pages); whether any pages exceed the 400-line soft cap or 800-line hard cap; and whether link density looks low.
+`wiki_stats.py` を実行し、出力を解釈する。インデックスの分割の閾値（150 ページまたはインデックス 300 行）、検索スクリプトを日常的に使う閾値（300 ページ）、週1回の lint の閾値（500 ページ）に近づいているか、400 行のソフト上限や 800 行のハード上限を超えるページがあるか、リンク密度が低すぎないかを伝える。
 
 ## `/wiki:graph <action>` {#graph}
 
-Compile, lint, or query the wiki's typed graph layer. The graph is optional and requires `wiki/graph/ontology.yaml`.
+wiki の型付きグラフ層をコンパイル、lint、またはクエリする。グラフは任意で、使うには `wiki/graph/ontology.yaml` が必要である。
 
 ```bash
 /wiki:graph extract
@@ -91,22 +91,22 @@ Compile, lint, or query the wiki's typed graph layer. The graph is optional and 
 /wiki:graph facts --about product:konvy
 ```
 
-`extract` compiles the markdown into `nodes.jsonl`, `edges.jsonl`, `graph.sqlite`, and `graph.graphml`; `lint` validates typed edges; the query subcommands navigate the compiled graph. Markdown stays canonical: the graph can be deleted and rebuilt at any time. See the [Graph layer guide](/v3/graph).
+`extract` は markdown をコンパイルして `nodes.jsonl`、`edges.jsonl`、`graph.sqlite`、`graph.graphml` を作る。`lint` は型付きエッジを検証する。クエリ系のサブコマンドは、コンパイル済みのグラフをたどる。正本は markdown のままなので、グラフはいつ削除しても作り直せる。[グラフ層のガイド](/v3/graph) を参照。
 
 ## `/wiki:upgrade` {#upgrade}
 
-Upgrade an existing wiki with idempotent file operations, mandatory runtime installation/index synchronization, and a walked `SCHEMA.md` merge.
+既存の wiki をアップグレードする。冪等なファイル操作、必須の実行環境のインストールとインデックスの同期、`SCHEMA.md` のマージ（ユーザーと一緒にセクションごとに確認する）を行う。
 
 ```bash
 /wiki:upgrade
 ```
 
-Resolves the installed `init_wiki.py` separately from the configured global or project wiki, then runs it with `--upgrade`. Existing content stays untouched while the complete pinned local runtime is installed and verified, parse/vector indexes synchronize, and missing `SCHEMA.md` sections are walked one at a time. See [Upgrade to v3](/v3/upgrade).
+インストール済みの `init_wiki.py` と、設定されたグローバルまたはプロジェクトの wiki を別々に特定し、`--upgrade` を付けて実行する。既存のコンテンツには手を付けずに、バージョンを固定したローカルの実行環境一式をインストールして動作を確かめ、パースとベクトルのインデックスを同期し、`SCHEMA.md` に欠けているセクションを1つずつ確認していく。[v3 へのアップグレード](/v3/upgrade) を参照。
 
 ## `/wiki:learn <task artifacts>` {#learn}
 
-Capture verified successes or failures as immutable raw experience, ingest a source page and consolidate a reusable pattern with evidence, applicability and counterexamples. No skill is changed and no paid model evaluation is launched. See [Learning and skill evolution](/v3/evolution).
+検証済みの成功や失敗を、変更不可の raw の経験として記録する。それをソースページとして取り込み、証拠、適用できる範囲、反例を付けた再利用できるパターンにまとめる。スキルは変更せず、費用のかかるモデルの評価も始めない。[学習とスキルの改善](/v3/evolution) を参照。
 
 ## `/wiki:evolve <goal or action>` {#evolve}
 
-Run bounded training, consolidate observed evidence, propose one complete skill change, select on validation, and test the frozen result independently. `history` and `show <id>` inspect past attempts; `apply <id>` installs an authorized, reviewed passing candidate; `rollback <id>` restores its baseline if no intervening edits occurred. See [Learning and skill evolution](/v3/evolution) for runner setup, the demonstration suites, budget controls and recovery.
+範囲を区切った学習を行い、観測した証拠をまとめ、1つのスキル全体に対する変更を提案し、検証用データで選び、固定した結果を独立にテストする。`history` と `show <id>` で過去の試行を確認できる。`apply <id>` は、承認とレビューを済ませ、評価に合格した候補をインストールする。`rollback <id>` は、そのあとに別の編集がなければ、元の状態に戻す。ランナーの設定、デモ用のスイート、予算の管理、障害からの復旧については [学習とスキルの改善](/v3/evolution) を参照。

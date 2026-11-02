@@ -1,43 +1,43 @@
-# Retrieval Setup Interview
+# 検索のセットアップのための質問
 
-Use this grouped interview before `/wiki:init` and `/wiki:upgrade`. Both commands then install and verify the complete local runtime; there is no lazy or partial setup path.
+`/wiki:init` と `/wiki:upgrade` の前に、この質問をまとめて行う。どちらのコマンドも、そのあとでローカルの実行環境一式をインストールし、動作を確認する。セットアップを後回しにしたり、一部だけで済ませたりする手順はない。
 
-## Inspect before asking
+## 質問する前に調べる
 
-Check:
+次の点を確かめる。
 
-- whether `uv` is available (required prerequisite);
-- whether `FASTEMBED_CACHE_PATH` is set (report only the path, never modify it silently);
-- whether `<wiki-root>/.wiki-cache/search-index.json` exists;
-- whether `<wiki-root>/.wiki-cache/embeddings.sqlite` exists and contains `semantic_sections` rows.
+- `uv` が使えるか（必須の前提条件）。
+- `FASTEMBED_CACHE_PATH` が設定されているか（パスを報告するだけで、黙って変更してはならない）。
+- `<wiki-root>/.wiki-cache/search-index.json` があるか。
+- `<wiki-root>/.wiki-cache/embeddings.sqlite` があり、`semantic_sections` の行が入っているか。
 
-Report state precisely:
+状態は正確に報告する。
 
-- **Prerequisite ready:** `uv` and Python 3.10+ are available.
-- **Semantic dependencies ready:** the pinned runtime loads FastEmbed, sqlite-vec, and PyYAML.
-- **Model cached:** the local `BAAI/bge-small-en-v1.5` model has been downloaded.
-- **Wiki synchronized:** `setup_wiki.py` emitted `"status": "ready"` and its section count equals the vector count.
+- **前提条件が整っている:** `uv` と Python 3.10 以上が使える。
+- **セマンティック検索の依存パッケージが整っている:** バージョンを固定した実行環境で、FastEmbed、sqlite-vec、PyYAML を読み込める。
+- **モデルがキャッシュされている:** ローカルの `BAAI/bge-small-en-v1.5` モデルがダウンロード済みである。
+- **wiki が同期されている:** `setup_wiki.py` が `"status": "ready"` を出力し、そのセクション数がベクトル数と一致している。
 
-A database file alone is not proof that the corpus is synchronized. Initialization and upgrade always run the setup script, which performs the incremental sync before reporting readiness.
+データベースのファイルがあるだけでは、コーパスが同期されている証拠にはならない。初期化とアップグレードでは必ずセットアップのスクリプトを実行し、スクリプトは差分の同期を行ってから準備完了を報告する。
 
-## Ask once, as a group
+## 1回でまとめて聞く
 
-1. **Storage scope and paths:** choose one personal global wiki (suggest `~/wiki/` with `~/wiki/raw/`) or a project wiki (default `wiki/` with `raw/`), then confirm both paths.
-2. **Model cache:** use `~/.cache/llm-wiki/fastembed/`, or set `FASTEMBED_CACHE_PATH` to another local directory?
-3. **Graph layer:** configure typed graph metadata now, keep the generated graph available but unused, or defer?
-4. **Agent integration:** which agent-memory file should point to the wiki, or skip?
+1. **保存先の範囲とパス:** 個人用のグローバルな wiki（`~/wiki/` と `~/wiki/raw/` を提案する）か、プロジェクトの wiki（既定は `wiki/` と `raw/`）かを選んでもらい、両方のパスを確認する。
+2. **モデルのキャッシュ:** `~/.cache/llm-wiki/fastembed/` を使うか、`FASTEMBED_CACHE_PATH` を別のローカルのディレクトリに設定するか。
+3. **グラフ層:** 型付きグラフのメタデータを今設定するか、生成されるグラフは使える状態にしておくだけで使わないか、後回しにするか。
+4. **エージェントとの連携:** どのエージェントのメモリファイルから wiki を指すか、または見送るか。
 
-Explain these facts before setup:
+セットアップの前に、次のことを説明する。
 
-- Initialization and every upgrade install pinned FastEmbed, sqlite-vec, and PyYAML through `uv`.
-- Setup downloads the pinned model once, builds the parse cache, and embeds every current section; it embeds only new or changed sections on later runs and removes deleted sections.
-- Wiki sections and queries stay on the machine; no API key, remote endpoint, request fee, or provider retention policy applies.
-- Per-wiki vectors are derived data in `<wiki-root>/.wiki-cache/embeddings.sqlite` and can be deleted safely.
-- Direct `python wiki_search.py "<query>" --no-embed` remains available for later dependency-free BM25 searches, but it does not replace mandatory initialization or upgrade setup.
+- 初期化とアップグレードのたびに、`uv` を通じて、バージョンを固定した FastEmbed、sqlite-vec、PyYAML をインストールする。
+- セットアップでは、バージョンを固定したモデルを1回だけダウンロードし、パースキャッシュを作り、現在のすべてのセクションをベクトル化する。2回目以降は、新しいセクションと変更されたセクションだけをベクトル化し、削除されたセクションは取り除く。
+- wiki のセクションとクエリはマシンの外に出ない。API キー、リモートのエンドポイント、リクエストごとの料金、プロバイダーのデータ保持の方針は関係しない。
+- wiki ごとのベクトルは `<wiki-root>/.wiki-cache/embeddings.sqlite` にある派生データで、削除しても問題ない。
+- `python wiki_search.py "<query>" --no-embed` を直接実行すれば、あとで依存パッケージを使わない BM25 の検索ができる。ただし、これは初期化やアップグレードでの必須のセットアップの代わりにはならない。
 
-## Record non-secret state
+## 秘密情報を含まない状態を記録する
 
-The current `SCHEMA.md` retrieval block should say:
+現在の `SCHEMA.md` の検索のブロックには、次のように書く。
 
 ```markdown
 - Semantic backend: local FastEmbed + sqlite-vec (`BAAI/bge-small-en-v1.5`, 384 dimensions). No wiki or query text leaves the machine.
@@ -45,46 +45,46 @@ The current `SCHEMA.md` retrieval block should say:
 - Semantic setup verified: YYYY-MM-DD | not yet built
 ```
 
-Do not store absolute paths unless the user explicitly wants a machine-specific schema. Do not add legacy `Embedding mode`, provider, endpoint, or API-validation fields.
+ユーザーがマシン固有のスキーマを明示的に望まない限り、絶対パスは記録しない。旧来の `Embedding mode`、プロバイダー、エンドポイント、API の検証のフィールドは追加しない。
 
-## Validate mandatory setup
+## 必須のセットアップを検証する
 
-Initialization and upgrade call this automatically:
+初期化とアップグレードは、次のコマンドを自動で呼び出す。
 
 ```bash
 uv run --script skills/llm-wiki/scripts/setup_wiki.py --wiki wiki --cache
 ```
 
-Require all of the following before reporting readiness:
+準備完了を報告する前に、次のすべてを満たしていることを確かめる。
 
-1. JSON reports `"status": "ready"`.
-2. Dependencies list the pinned FastEmbed, sqlite-vec, and PyYAML packages.
-3. Model is `BAAI/bge-small-en-v1.5` with dimension `384`.
-4. `wiki/.wiki-cache/search-index.json` and `embeddings.sqlite` exist.
-5. `sections` equals the `semantic_sections` and `semantic_vectors` row counts.
-6. A second setup run reports the same counts and does not print an embedding batch.
+1. JSON が `"status": "ready"` を報告している。
+2. 依存パッケージに、バージョンを固定した FastEmbed、sqlite-vec、PyYAML が並んでいる。
+3. モデルが `BAAI/bge-small-en-v1.5` で、次元数が `384` である。
+4. `wiki/.wiki-cache/search-index.json` と `embeddings.sqlite` がある。
+5. `sections` が、`semantic_sections` と `semantic_vectors` の行数と一致している。
+6. セットアップを2回目に実行しても同じ件数が報告され、ベクトル化のバッチが出力されない。
 
-If setup fails, report the exact failed command and safe exception. Check `uv`, model-download access, local disk space, and sqlite extension loading. Do not describe initialization or upgrade as complete.
+セットアップが失敗した場合は、失敗したコマンドと、外に出しても安全な例外の内容をそのまま報告する。`uv`、モデルをダウンロードできるか、ローカルのディスクの空き容量、sqlite の拡張を読み込めるかを確かめる。初期化やアップグレードが完了したと説明してはならない。
 
-## Hosted wikis
+## ホスト型 wiki
 
-A hosted wiki needs no local runtime setup. The server makes its own search index:
+ホスト型 wiki では、ローカルの実行環境のセットアップは不要である。サーバーが自身の検索インデックスを作る。
 
-- Keyword search uses SQLite FTS5 in the wiki Durable Object. A commit is searchable by keyword at once.
-- Semantic search uses Workers AI `@cf/baai/bge-small-en-v1.5` (CLS pooling, L2-normalized, 384 dimensions) and a Vectorize index. A personal wiki fits in the Workers AI free allocation of 10,000 neurons a day.
-- Rank fusion is RRF with the same constants as `wiki_search.py`. Results are equivalent to local results, not identical, because the BM25 constants and the embedding runtime are different.
-- The server embeds changed sections in batches after each commit. `vector_lag` in `wiki_overview` and in search responses counts the sections that Vectorize does not serve yet. The server confirms each vector, and sends it again when Vectorize did not store it.
-- Without the Vectorize or Workers AI binding, search is lexical only. Search responses show the mode.
-- Wiki text and queries go to your Cloudflare account. They do not go to another provider unless the owner enables a hosted decision backend (`decision-models.md`).
+- キーワード検索は、wiki の Durable Object の中の SQLite FTS5 を使う。コミットした内容は、すぐにキーワードで検索できる。
+- セマンティック検索は、Workers AI の `@cf/baai/bge-small-en-v1.5`（CLS プーリング、L2 正規化、384 次元）と Vectorize のインデックスを使う。個人用の wiki なら、Workers AI の無料枠である1日 10,000 ニューロンに収まる。
+- 順位の統合には、`wiki_search.py` と同じ定数の RRF を使う。BM25 の定数と埋め込みの実行環境が異なるので、結果はローカルの結果と同等だが、同一ではない。
+- サーバーは、コミットのたびに、変更されたセクションをバッチでベクトル化する。`wiki_overview` と検索のレスポンスにある `vector_lag` は、Vectorize がまだ返せないセクションの数である。サーバーはベクトルを1つずつ確認し、Vectorize に保存されていなければ送り直す。
+- Vectorize や Workers AI のバインディングがない場合、検索は語彙ベースだけになる。検索のレスポンスにモードが示される。
+- wiki のテキストとクエリは、自分の Cloudflare アカウントに送られる。所有者がホスト型の判定バックエンドを有効にしない限り（`decision-models.md`）、ほかのプロバイダーに送られることはない。
 
-Do not copy `.wiki-cache/` to a hosted wiki. The import command skips it. Local and hosted vectors never mix. A `pull` mirror can run local `setup_wiki.py` for offline search.
+`.wiki-cache/` をホスト型 wiki にコピーしてはならない。インポートのコマンドはこれをスキップする。ローカルのベクトルとホスト型のベクトルが混ざることはない。`pull` ミラーでは、オフラインで検索するためにローカルの `setup_wiki.py` を実行できる。
 
-Record this state in the `SCHEMA.md` retrieval block of a hosted wiki:
+ホスト型 wiki の `SCHEMA.md` の検索のブロックには、次のように記録する。
 
 ```markdown
 - Semantic backend: hosted (Workers AI `@cf/baai/bge-small-en-v1.5` + Vectorize, 384 dimensions). Wiki text stays in the owner's Cloudflare account.
 ```
 
-## Upgrade from v2 provider caches
+## v2 のプロバイダーのキャッシュからアップグレードする
 
-`wiki/.wiki-cache/embeddings.jsonl` is obsolete, ignored, and may contain historical provider metadata. It is fully derived, so offer to delete it; deletion requires the user's approval because it is an existing file. No content migration or remote re-send is needed. Mandatory v3 setup builds `embeddings.sqlite` locally.
+`wiki/.wiki-cache/embeddings.jsonl` は使われなくなったファイルで、無視される。以前のプロバイダーのメタデータが含まれていることがある。すべて派生データなので、削除を提案する。既存のファイルなので、削除にはユーザーの承認が必要である。内容の移行や、リモートへの再送信は必要ない。v3 の必須のセットアップが、ローカルで `embeddings.sqlite` を作る。

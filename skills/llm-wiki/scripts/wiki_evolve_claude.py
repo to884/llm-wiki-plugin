@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Optional Claude Code runner for wiki_evolve.py's query pilot.
+"""wiki_evolve.py のクエリのパイロットで任意に使う、Claude Code のランナー。
 
-Reads one JSON request on stdin, returns one JSON result on stdout. Requires
-an installed, authenticated Claude CLI with --restricted and --json-schema.
-Uses the shared neutral adapter, disables ambient skills/MCP servers, and counts observed
-tool-use events. Model inference uses your Claude account; it is not local.
+標準入力から JSON のリクエストを1つ読み、標準出力に JSON の結果を1つ返す。
+--restricted と --json-schema に対応した、インストール済みで認証済みの Claude CLI が必要である。
+共通の中立的なアダプターを使い、環境にあるスキルと MCP サーバーを無効にし、観測した
+tool-use のイベントを数える。モデルの推論には自分の Claude アカウントを使い、ローカルでは行わない。
 
-Runner argv JSON: ["python3", "/absolute/skill/scripts/wiki_evolve_claude.py"]
+ランナーの argv の JSON: ["python3", "/absolute/skill/scripts/wiki_evolve_claude.py"]
 """
 
 import json
@@ -31,7 +31,7 @@ def parse_events(lines):
         raise ValueError('Claude did not complete a structured answer')
     result = results[0]
     output = result['structured_output']
-    # Count each emitted tool-use ID once, excluding the JSON output formatter.
+    # 出力された tool-use の ID はそれぞれ1回だけ数える。JSON の出力フォーマッターは除く。
     calls = {block['id'] for e in events if e.get('type') == 'assistant'
              for block in e.get('message', {}).get('content', [])
              if block.get('type') == 'tool_use' and block.get('name') != 'StructuredOutput'}

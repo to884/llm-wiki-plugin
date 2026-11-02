@@ -1,30 +1,30 @@
 ---
-description: Move a local LLM Wiki to a hosted wiki, verify it, then keep the local folder as a read-only mirror.
+description: ローカルの LLM Wiki をホスト型の wiki に移行して検証し、ローカルのフォルダーは読み取り専用のミラーとして残す。
 argument-hint: "[<wiki-dir>] [--raw <raw-dir>] [--no-raw]"
 ---
 
-Migrate a local wiki to a hosted wiki. Use the `llm-wiki` skill and `skills/llm-wiki/references/hosted-mode.md`.
+ローカルの wiki をホスト型の wiki に移行する。`llm-wiki` スキルと `skills/llm-wiki/references/hosted-mode.md` を使う。
 
-Arguments (if any): $ARGUMENTS
+引数（あれば）: $ARGUMENTS
 
-Set `REMOTE="${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_remote.py"` for the steps below.
+以下の手順では `REMOTE="${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_remote.py"` とする。
 
-1. Resolve `<WIKI_ROOT>` and `<RAW_ROOT>` from the arguments, the nearest project instructions, global agent instructions, or the current project's `wiki/` and `raw/`. Confirm that `<WIKI_ROOT>/SCHEMA.md` exists. Never combine two wikis.
-2. Run `python3 "$REMOTE" status`. If no connection exists, run the token branch of `/wiki:init --hosted <url>` first. The import uses `wiki_remote.py`, so it needs a token also when my MCP client signs in with OAuth. The token needs `write` scope, and `raw:write` for raw files. An empty wiki is the normal target. If the remote wiki already has pages, tell me and ask before you continue.
-3. Run local lint once: `python "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_lint.py" "<WIKI_ROOT>"`. Keep the finding counts for step 7.
-4. Dry run: `python3 "$REMOTE" import "<WIKI_ROOT>" --raw "<RAW_ROOT>" --dry-run`. Use `--no-raw` if I asked for it or if the server has no raw storage. Show me the counts: pages to upload, pages that are identical, raw files, bytes, and any refusals.
-5. Ask for approval. Then run the same command without `--dry-run`. The import uploads in small batches. It skips identical files. If it stops, run the same command again. It continues from where it stopped.
-6. Read the JSON report.
-   - Exit code 0: every page and raw file that the import selected has the same SHA-256 on the server. Exit code 0 does not prove that the import selected all of your content.
-   - Exit code 1: a mismatch. Show the mismatched paths. Do not continue.
-   - Exit code 3: the import did not replace some remote pages. `pages.divergent` lists remote pages that are different and that an earlier import did not write; in this case the import wrote nothing. `pages.changed_during_import` lists remote pages that another writer changed while the import ran. Show the paths. Use `--overwrite` only if I approve it for those paths.
-   - Always read the `skipped` list and the `raw.skipped` list, also when the exit code is 0. Each entry has a `path` and a `reason`. Put each entry in one of two groups:
-     - Expected exclusions: `generated` (files in `graph/` that the server builds again, for example `nodes.jsonl` and `graph.sqlite`), and caches or copies that you do not want on the server. Hidden files and folders (`.git`, `.obsidian`, `.wiki-cache`) are skipped and are not in the lists.
-     - Missing source content: `too_large`, `not_utf8`, `not_text`, `symlink`, `invalid_path`, `path_too_long`, and any other page or raw file that must be on the server.
-   - Show me both groups. For each file with missing source content, tell me how to fix it (split a large page, convert the file to UTF-8, copy the target of a symlink, rename the path), then run the import again. Do not go to step 8 while missing source content remains, unless I accept each missing file by name.
-7. Verify on the server: run `python3 "$REMOTE" lint` and compare the counts with step 3. Run two or three searches that I know the answers to with `python3 "$REMOTE" search "<query>"`. Report the differences. Small search ranking differences are normal.
-8. Ask whether to keep the local folder as a read-only mirror. If yes, explain that the next pull replaces local files with the server copy and saves a changed local file as `<file>.local-<timestamp>`. After my approval, run `python3 "$REMOTE" pull "<WIKI_ROOT>"`. Add `--git` if `<WIKI_ROOT>` is in a git repository and I want a commit for each pull.
-9. Propose the hosted-wiki stanza from `references/agent-memory-integration.md` to replace the local stanza. Show the exact change. Write it only after I approve.
-10. Tell me that the local folder is now a mirror: edits there do not go to the server. `/wiki:learn` and `/wiki:evolve` can run on the mirror. `python3 "$REMOTE" export <file>.tar.gz` makes a full backup at any time.
+1. `<WIKI_ROOT>` と `<RAW_ROOT>` は、引数、もっとも近いプロジェクトの指示、グローバルなエージェントの指示の順に探し、どれにもなければ現在のプロジェクトの `wiki/` と `raw/` とする。`<WIKI_ROOT>/SCHEMA.md` があることを確認する。2つの wiki を混ぜてはならない。
+2. `python3 "$REMOTE" status` を実行する。接続がなければ、先に `/wiki:init --hosted <url>` のトークンの手順を実行する。インポートには `wiki_remote.py` を使うので、ユーザーの MCP クライアントが OAuth でサインインしている場合でもトークンが必要になる。トークンには `write` スコープが、raw ファイルを送るなら `raw:write` も必要である。移行先は、空の wiki が通常である。リモートの wiki にすでにページがある場合は、そのことをユーザーに伝え、続けてよいかを聞く。
+3. ローカルで lint を1回実行する: `python "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_lint.py" "<WIKI_ROOT>"`。検出件数は手順 7 で使うので控えておく。
+4. ドライラン: `python3 "$REMOTE" import "<WIKI_ROOT>" --raw "<RAW_ROOT>" --dry-run`。ユーザーが求めた場合や、サーバーに raw ストレージがない場合は `--no-raw` を使う。アップロードするページ数、内容が同じページ数、raw ファイル数、バイト数、拒否されたものがあればその内容を示す。
+5. 承認を得てから、同じコマンドを `--dry-run` なしで実行する。インポートは小さなバッチに分けてアップロードし、内容が同じファイルはスキップする。途中で止まったら、同じコマンドをもう一度実行すれば、止まったところから再開する。
+6. JSON のレポートを読む。
+   - 終了コード 0: インポートが選んだすべてのページと raw ファイルについて、サーバー上の SHA-256 が一致している。ただし、終了コード 0 は、インポートがすべてのコンテンツを選んだことを保証するものではない。
+   - 終了コード 1: 不一致がある。一致しなかったパスを示し、先に進まない。
+   - 終了コード 3: リモートのページの一部を、インポートが置き換えなかった。`pages.divergent` には、内容が異なり、以前のインポートが書いたものでもないリモートのページが並ぶ。この場合、インポートは何も書き込んでいない。`pages.changed_during_import` には、インポートの実行中にほかの書き手が変更したリモートのページが並ぶ。それらのパスを示す。`--overwrite` は、それらのパスについてユーザーが承認した場合にだけ使う。
+   - 終了コードが 0 でも、`skipped` と `raw.skipped` のリストは必ず読む。各項目には `path` と `reason` がある。各項目を次の2つのグループに分ける。
+     - 想定どおりの除外: `generated`（`graph/` 内でサーバーが作り直すファイル。たとえば `nodes.jsonl` や `graph.sqlite`）と、サーバーに置く必要のないキャッシュやコピー。隠しファイルと隠しフォルダー（`.git`、`.obsidian`、`.wiki-cache`）はスキップされ、リストにも載らない。
+     - 欠けているソースコンテンツ: `too_large`、`not_utf8`、`not_text`、`symlink`、`invalid_path`、`path_too_long`、そのほかサーバーに置く必要のあるページや raw ファイル。
+   - 両方のグループを示す。ソースコンテンツが欠けているファイルごとに直し方（大きいページを分割する、ファイルを UTF-8 に変換する、シンボリックリンクの参照先をコピーする、パスの名前を変える）を伝え、そのあとインポートを再実行する。欠けているソースコンテンツが残っている間は、ユーザーが欠けている各ファイルを名前を挙げて了承しない限り、手順 8 に進まない。
+7. サーバー上で検証する。`python3 "$REMOTE" lint` を実行し、件数を手順 3 と比べる。答えをユーザーが知っている検索を2〜3件、`python3 "$REMOTE" search "<query>"` で実行し、違いを報告する。検索順位が少し違うのは正常である。
+8. ローカルのフォルダーを読み取り専用のミラーとして残すかを聞く。残す場合は、次回の pull でローカルのファイルがサーバーのコピーで置き換えられ、変更されたローカルのファイルは `<file>.local-<timestamp>` として保存されることを説明する。ユーザーの承認を得てから、`python3 "$REMOTE" pull "<WIKI_ROOT>"` を実行する。`<WIKI_ROOT>` が git リポジトリの中にあり、pull のたびにコミットを作りたい場合は `--git` を付ける。
+9. `references/agent-memory-integration.md` にあるホスト型 wiki 用の記述で、ローカル用の記述を置き換えるよう提案する。変更内容をそのまま示し、ユーザーが承認してから書き込む。
+10. ローカルのフォルダーがミラーになったことをユーザーに伝える。ミラーで編集しても、その変更はサーバーには反映されない。`/wiki:learn` と `/wiki:evolve` はミラー上で実行できる。`python3 "$REMOTE" export <file>.tar.gz` を使えば、いつでも完全なバックアップを作れる。
 
-Rollback: until step 8, the local wiki and agent instructions do not change. To stop, keep using the local wiki.
+ロールバック: 手順 8 までは、ローカルの wiki とエージェントの指示は変わらない。移行をやめる場合は、そのままローカルの wiki を使い続ければよい。

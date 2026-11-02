@@ -1,88 +1,88 @@
-# Architecture
+# アーキテクチャ
 
-This document explains the three-layer / three-operation architecture in detail. The main `SKILL.md` summarises it; this is the reference you reach for when you need to know *why* a design decision exists or how to handle an edge case.
+この文書では、3つの層と3つの操作からなるアーキテクチャを詳しく説明する。メインの `SKILL.md` はその要約である。この文書は、ある設計がなぜそうなっているのか、または特殊なケースをどう扱うのかを知りたいときに参照する。
 
-## The three layers
+## 3つの層
 
-### Raw sources
+### raw ソース
 
-Raw sources are the user's curated input material. They live in `raw/` (or wherever the project's `SCHEMA.md` declares). They are **immutable** — the LLM reads from them but never modifies them. This immutability is load-bearing: it means the wiki can always be re-derived from the raw sources if it gets corrupted, and it gives the user a stable ground truth they can audit independently.
+raw ソースは、ユーザーが選んだ入力資料である。`raw/`（またはプロジェクトの `SCHEMA.md` が指定する場所）に置く。raw ソースは**変更不可**である。LLM は読むだけで、変更しない。この変更不可という性質は重要である。wiki が壊れても raw ソースからいつでも導き直せるし、ユーザーが独立して確かめられる、変わらない正しい情報源にもなる。
 
-What goes in `raw/`: PDFs, web articles converted to markdown (the Obsidian Web Clipper is one popular path), transcripts, code repos, dataset descriptions, screenshots, hand-typed notes the user wants the wiki to incorporate. What does *not* go in `raw/`: anything the LLM generated — that all belongs in the wiki layer.
+`raw/` に置くもの: PDF、markdown に変換した Web 記事（Obsidian Web Clipper がよく使われる方法の1つ）、文字起こし、コードリポジトリ、データセットの説明、スクリーンショット、ユーザーが wiki に取り込んでほしい手書きのメモ。`raw/` に置かないもの: LLM が生成したもの。それらはすべて wiki の層に属する。
 
-A useful convention is one source per file (or per directory if the source has multiple pieces, e.g. a paper plus its appendix), with a slugified filename that ends up matching the wiki's source-summary page name. This makes the back-pointer from the wiki to the raw source trivial.
+便利な規約として、1つのソースを1つのファイルにする（論文と付録のように複数の部分からなるソースなら、1つのディレクトリにする）。ファイル名はスラッグ化し、最終的に wiki のソースの要約ページの名前と一致させる。こうすると、wiki から raw ソースへの参照が簡単になる。
 
-### The wiki
+### wiki
 
-The wiki is a directory of LLM-generated markdown files. The LLM owns this layer entirely — it creates pages, updates them when new sources arrive, maintains cross-references, and keeps everything consistent. The user reads it (typically through Obsidian, but any markdown viewer works); the LLM writes it.
+wiki は、LLM が生成した markdown ファイルのディレクトリである。この層はすべて LLM が受け持つ。ページを作り、新しいソースが届けば更新し、相互参照を保守し、全体の一貫性を保つ。ユーザーは wiki を読み（たいていは Obsidian で読むが、どの markdown ビューアーでもよい）、LLM が書く。
 
-The wiki directory is conventionally split into subdirectories by **page type**:
+wiki のディレクトリは、慣例として**ページの種類**ごとのサブディレクトリに分ける。
 
-- `wiki/sources/` — one summary page per ingested source. Captures what the source said, in the LLM's words, with a citation back to the raw file. These are append-mostly: you write one when you ingest a source and rarely modify it after.
-- `wiki/entities/` — pages about specific things: people, products, papers, places, companies, events. Anything that has a proper noun or could plausibly be a Wikipedia article subject. These accumulate updates as new sources mention the entity.
-- `wiki/concepts/` — pages about ideas, methods, frameworks, abstractions. These are the most heavily cross-referenced pages and the ones most likely to evolve as understanding deepens.
-- `wiki/synthesis/` — cross-cutting analyses, comparisons, query answers filed back. This is where exploration compounds: a comparison the user asked for becomes a page the next query can build on.
+- `wiki/sources/`: 取り込んだソースごとの要約ページ。ソースが何を言っていたかを、LLM の言葉で、raw ファイルへの出典つきで記録する。ほぼ追加するだけのページで、ソースを取り込むときに1つ書き、そのあとはめったに変更しない。
+- `wiki/entities/`: 具体的なもののページ。人、製品、論文、場所、企業、出来事などで、固有名詞を持つもの、または Wikipedia の記事の題材になりそうなものすべてである。新しいソースがそのエンティティに触れるたびに更新が積み重なる。
+- `wiki/concepts/`: 考え方、手法、フレームワーク、抽象概念のページ。もっとも多く相互参照されるページで、理解が深まるにつれてもっとも変わりやすい。
+- `wiki/synthesis/`: 横断的な分析、比較、保存したクエリの回答。調べた内容が積み重なる場所である。ユーザーが求めた比較が、次のクエリの土台になるページになる。
 
-`SCHEMA.md` may declare additional types (e.g. `wiki/decisions/` for an engineering team, `wiki/characters/` for a fan wiki, `wiki/experiments/` for a research lab). Adding a new type costs nothing — make the directory, document it in the schema, update the index template.
+`SCHEMA.md` で、ほかの種類を追加してもよい（エンジニアリングチームなら `wiki/decisions/`、ファンの wiki なら `wiki/characters/`、研究室なら `wiki/experiments/` など）。新しい種類を追加するのに手間はかからない。ディレクトリを作り、スキーマに書き、インデックスのテンプレートを更新すればよい。
 
-### The schema
+### スキーマ
 
-`SCHEMA.md` lives at the wiki root and is **the configuration file** that turns a generic LLM into a disciplined wiki maintainer for *this specific* knowledge base. It documents the page types in use, the tag taxonomy, the naming conventions, any custom workflow steps, and the user's stylistic preferences (e.g. "always include a 'Why this matters' section on concept pages", "never use bullet lists in summaries").
+`SCHEMA.md` は wiki のルートに置く**設定ファイル**で、汎用の LLM を、*この特定の*ナレッジベースを規律正しく保守する担当者に変える。使っているページの種類、タグの体系、命名の規約、独自のワークフローの手順、ユーザーの書き方の好み（「コンセプトのページには必ず 'Why this matters' のセクションを入れる」「要約では箇条書きを使わない」など）を記す。
 
-The schema is **co-evolved** with the user. On bootstrap it starts from the default template in `assets/SCHEMA.md.template`, but every user will customize it as they discover what fits their domain. When you notice a recurring pattern in the user's edits or feedback that isn't in the schema, propose adding it. When the schema starts contradicting itself or growing unwieldy, propose pruning it.
+スキーマはユーザーと一緒に**改訂していく**。初期化のときは `assets/SCHEMA.md.template` の既定のテンプレートから始まるが、ユーザーは自分の分野に合うものが分かってくるにつれて、それぞれカスタマイズしていく。ユーザーの編集やフィードバックに、スキーマに書かれていない繰り返しのパターンを見つけたら、追加を提案する。スキーマが自己矛盾を起こし始めたり、扱いにくいほど大きくなったりしたら、整理を提案する。
 
-The schema is the first file you read when entering an existing wiki. Its conventions override the defaults documented in the skill.
+既存の wiki に入るときは、最初にスキーマを読む。スキーマの規約は、スキルに書いた既定値より優先される。
 
-### The graph (optional, compiled)
+### グラフ（コンパイルで生成する任意の層）
 
-The wiki may carry a fourth layer at `wiki/graph/`: a compiled, queryable view of the typed `graph:` metadata in page frontmatter and the body wikilinks. It contains a hand-edited `ontology.yaml` (the contract: which node types and predicates exist) plus generated artifacts (`nodes.jsonl`, `edges.jsonl`, `graph.sqlite`, `graph.graphml`) produced by `wiki_graph_extract.py`. **Markdown is canonical**; the graph can be deleted and regenerated from the markdown without losing knowledge.
+wiki には、`wiki/graph/` に4つ目の層を置ける。ページの frontmatter にある型付きの `graph:` メタデータと、本文の wikilink を、コンパイルしてクエリできるようにしたものである。手で編集する `ontology.yaml`（どのノードの種類と述語があるかを決める取り決め）と、`wiki_graph_extract.py` が生成する成果物（`nodes.jsonl`、`edges.jsonl`、`graph.sqlite`、`graph.graphml`）を含む。**正本は Markdown である。**グラフは削除して markdown から生成し直しても、知識は失われない。
 
-Its purpose is to make typed, provenance-backed relationships machine-queryable — "who founded what", "what does Konvy depend on", "shortest path from A to B" — without giving up the editability and human-legibility of markdown. Typed edges require an explicit `source` (a source-page slug) and `evidence` quote; the extractor never invents them. Plain `[[wikilinks]]` in the body produce low-confidence `mentions` edges, which are useful for navigation but not for evidence.
+グラフの目的は、出典の裏づけを持つ型付きの関係を、markdown の編集しやすさや人の読みやすさを手放さずに、機械でクエリできるようにすることである。たとえば「誰が何を創業したか」「Konvy は何に依存しているか」「A から B への最短経路」といったクエリである。型付きエッジには、明示的な `source`（ソースページのスラッグ）と `evidence` の引用が必要で、抽出スクリプトがそれをでっち上げることはない。本文の通常の `[[wikilinks]]` からは確信度の低い `mentions` エッジが生まれる。これはナビゲーションには役立つが、証拠にはならない。
 
-Use the graph layer when the user's questions are predominantly relational and the cost of maintaining typed metadata is paying for itself. Skip it for purely textual wikis. Full reference: `graph-workflow.md`.
+ユーザーの質問の多くが関係を問うもので、型付きメタデータを保守する手間に見合う効果があるときに、グラフ層を使う。テキストだけの wiki では使わない。詳しいリファレンスは `graph-workflow.md` である。
 
-## The three operations
+## 3つの操作
 
-### Ingest
+### 取り込み
 
-A new source has arrived. The user has dropped a file in `raw/` (or pasted content and asked you to file it). The job is to integrate this source into the wiki such that future queries can benefit from it.
+新しいソースが届いた。ユーザーがファイルを `raw/` に置いた（または内容を貼り付けて、保存するよう求めた）。この作業の目的は、今後のクエリで役立つように、このソースを wiki に組み込むことである。
 
-The shape of an ingest: read the source (chunked if large), discuss the key takeaways with the user briefly, write a summary page in `wiki/sources/`, identify which existing pages are touched, surgically update those pages, create new pages for any new entities or concepts, update the relevant index, and append to the log.
+取り込みの流れは次のとおりである。ソースを読み（大きければ分割して読む）、要点をユーザーと簡単に話し合い、`wiki/sources/` に要約ページを書き、関係する既存のページを洗い出し、それらのページを必要な箇所だけ更新し、新しいエンティティやコンセプトのページを作り、該当するインデックスを更新し、ログに追記する。
 
-The temptation to skip the discussion step is strong, but resist it — the user's reaction to the takeaways often reveals what should be emphasized in the wiki versus left out. Ingest is not a batch import; it's a collaborative reading.
+話し合いの手順を飛ばしたくなるが、飛ばしてはならない。要点に対するユーザーの反応から、wiki で何を強調し、何を省くべきかが分かることが多い。取り込みは一括インポートではなく、一緒に読む作業である。
 
-For the full procedure, see `ingest-workflow.md`.
+詳しい手順は `ingest-workflow.md` を参照。
 
-### Query
+### クエリ
 
-The user asks a question. The job is to answer it from the wiki, with citations, and to file the answer back if it represents new synthesis.
+ユーザーが質問する。この作業の目的は、wiki をもとに出典つきで答え、回答が新しいシンセシスであれば保存することである。
 
-The shape of a query: read the index to identify candidate pages; read those pages; if needed, follow `[[wikilinks]]` from those pages or grep for backlinks; synthesize the answer with `[[wikilink]]` citations; offer to file the answer into `wiki/synthesis/` if it's substantive enough to be worth keeping.
+クエリの流れは次のとおりである。インデックスを読んで候補のページを見つけ、それらのページを読み、必要なら、そのページの `[[wikilinks]]` をたどるか、被リンクを grep で探す。`[[wikilink]]` を出典として付けて回答をまとめ、残しておく価値があるほど中身のある回答なら、`wiki/synthesis/` への保存を提案する。
 
-The compounding effect of the wiki only works if good answers get filed back. A comparison you generated, a connection you discovered, an analysis you produced — these should not evaporate into chat history. Default to offering to file; let the user decline if the answer was too trivial or too transient.
+wiki に知識が積み重なっていくのは、よい回答が保存される場合だけである。作った比較、見つけたつながり、行った分析を、チャットの履歴の中に消えさせてはならない。保存を提案するのを基本とし、回答がささいなものや一時的なものなら、ユーザーが断れるようにする。
 
-For the full procedure, see `query-workflow.md`.
+詳しい手順は `query-workflow.md` を参照。
 
-### Lint
+### lint
 
-Periodic health check. The job is to find structural and semantic problems before they compound.
+定期的な健全性チェックである。この作業の目的は、構造上の問題と内容の問題を、積み重なる前に見つけることである。
 
-Structural problems are mechanical and the bundled `wiki_lint.py` script catches them: orphan pages with no inbound links, broken `[[wikilinks]]` to nonexistent pages, oversized pages that need splitting, missing or malformed frontmatter, suspicious staleness (a page that hasn't been updated despite many recent ingests touching its topic).
+構造上の問題は機械的に見つけられるもので、付属の `wiki_lint.py` スクリプトが検出する。被リンクのない孤立ページ、存在しないページへのリンク切れの `[[wikilinks]]`、分割が必要な大きすぎるページ、frontmatter の欠落や形式の誤り、更新が止まっている疑いのあるページ（その話題に触れる取り込みが最近何度もあったのに、更新されていないページ）である。
 
-Semantic problems need the LLM: contradictions between pages, claims that newer sources have superseded, concepts mentioned in many pages but lacking their own page, cross-references that should exist but don't, knowledge gaps the user might want to fill.
+内容の問題には LLM が必要である。ページどうしの矛盾、新しいソースによって古くなった主張、多くのページで言及されているのに専用のページがないコンセプト、張られているべきなのに張られていない相互参照、ユーザーが補いたいかもしれない知識の不足がこれに当たる。
 
-Lint findings are presented as proposed edits, not silent rewrites. The user approves changes. This is essential for trust — a wiki that mutates under the user is not a wiki the user can rely on.
+lint の検出結果は、黙って書き換えるのではなく、編集案として示す。変更はユーザーが承認する。これは信頼のために欠かせない。ユーザーの知らないうちに内容が変わる wiki は、ユーザーが頼れる wiki ではない。
 
-For the full procedure, see `lint-workflow.md`.
+詳しい手順は `lint-workflow.md` を参照。
 
-## Why this architecture
+## このアーキテクチャにした理由
 
-A few load-bearing design choices and the reasoning behind them.
+重要な設計上の選択と、その理由をいくつか挙げる。
 
-**Why markdown files instead of a database.** Markdown is portable (no proprietary format), version-controllable (the wiki is a git repo for free), human-editable (the user can fix things directly when needed), and natively legible to LLMs (no schema translation overhead). The downsides — no true relational queries, no transaction guarantees, no constraint enforcement — are acceptable for a personal/team knowledge base because the LLM enforces conventions through linting rather than the storage layer. For domains where these tradeoffs invert (e.g. tracking 100,000 customer records with strict referential integrity), use an actual database; this pattern is wrong for that.
+**データベースではなく markdown ファイルを使う理由。** Markdown は持ち運びやすく（独自の形式ではない）、バージョン管理でき（wiki はそのまま git リポジトリになる）、人が編集でき（必要なときにユーザーが直接直せる）、LLM がそのまま読める（スキーマを変換する手間がない）。本当の意味での関係クエリができない、トランザクションの保証がない、制約を強制できないといった欠点は、個人やチームのナレッジベースなら許容できる。規約は、保存の層ではなく、LLM が lint を通じて守らせるからである。このトレードオフが逆になる分野（厳密な参照整合性が必要な 10 万件の顧客レコードの管理など）では、本物のデータベースを使う。このパターンはそうした用途には向かない。
 
-**Why the LLM owns the wiki layer.** Splitting ownership creates merge conflicts. If both the user and the LLM edit pages, the LLM's mental model of the wiki goes stale and it starts producing inconsistent updates. The user owns sources (they decide what to ingest) and questions (they decide what to ask). The LLM owns the wiki (it does the bookkeeping). The user *can* edit the wiki when they spot something wrong, but those edits should be the exception, not the workflow, and they should be communicated to the LLM ("I cleaned up the page on X, please proceed accordingly").
+**wiki の層を LLM が受け持つ理由。** 受け持ちを分けると、マージの競合が起きる。ユーザーと LLM の両方がページを編集すると、LLM が把握している wiki の状態が古くなり、一貫性のない更新をし始める。ユーザーはソース（何を取り込むか）と質問（何を尋ねるか）を受け持つ。LLM は wiki（記録の整理）を受け持つ。ユーザーは誤りに気づいたときに wiki を編集してもよいが、それは例外であって、通常の作業の流れにすべきではない。また、編集したことは LLM に伝える（「X のページを整理したので、それを踏まえて進めてほしい」）。
 
-**Why an explicit schema file.** Without it, conventions drift. Two ingests a week apart produce slightly differently-shaped pages, and a month later the wiki is internally inconsistent. The schema is the contract that makes the LLM's bookkeeping disciplined. It also makes the wiki portable — a different LLM, or a different conversation with the same LLM, can pick up where the last one left off because the conventions are documented rather than implicit in chat history.
+**スキーマのファイルを明示的に置く理由。** スキーマがないと、規約がずれていく。1週間あけて行った2回の取り込みで、少しずつ形の違うページができ、1か月後には wiki の内部で一貫性がなくなる。スキーマは、LLM の記録の整理を規律正しくするための取り決めである。また、wiki を持ち運べるようにもする。規約がチャットの履歴の中に暗黙に埋もれているのではなく、文書にしてあるので、別の LLM でも、同じ LLM との別の会話でも、前回の続きから作業できる。
 
-**Why filing answers back matters.** A query is an act of synthesis. The LLM read N pages and produced an answer that connects them. That synthesis is itself valuable knowledge — the next query that touches the same topic shouldn't have to re-derive it. Filing back is what turns the wiki from a passive archive into a compounding artifact.
+**回答を保存することが大切な理由。** クエリは統合の作業である。LLM は N 個のページを読み、それらを結び付ける回答を作った。その統合自体が価値のある知識であり、同じ話題に触れる次のクエリでそれを導き直す必要はないはずである。保存することで、wiki はただの受け身のアーカイブから、知識が積み重なっていく成果物に変わる。

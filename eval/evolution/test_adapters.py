@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Protocol and failure integration tests; these do not claim live model gains."""
+"""プロトコルと失敗時の結合テスト。実際のモデルで性能が上がることを示すものではない。"""
 from datetime import date
 import json
 import os
@@ -14,7 +14,7 @@ import wiki_evolve as lifecycle
 import wiki_evolve_api as api
 import wiki_evolve_loop as loop
 
-# Pricing expires in production; protocol fixtures use the reviewed date.
+# 本番では料金情報に有効期限がある。プロトコルのフィクスチャでは、レビュー済みの日付を使う。
 class ReviewedDate(date):
     @classmethod
     def today(cls):
@@ -130,7 +130,7 @@ for e in events:
         assert json.loads((root/'interrupted.jsonl').read_text())['item']['command'] == 'cat source.md'
     finally:
         os.environ.clear(); os.environ.update(old)
-    # Refuse all opaque CLI USD configurations, including transfer, before calls.
+    # 中身の分からない CLI の USD 設定は、転用評価も含めて、呼び出す前にすべて拒否する。
     config = {'budget': {'max_calls': 10, 'max_seconds': 10, 'timeout': 5, 'max_usd': 10},
               **{r: {'argv': [sys.executable,str(SCRIPTS/'wiki_evolve_agent.py'),'claude'], 'model': 'sonnet'}
                  for r in ('inference','judge','maintainer','proposer')}}
@@ -142,7 +142,7 @@ for e in events:
     dependency.write_text('edited during trial')
     fails(lambda: ledger.invoke('judge', {}, root), 'runtime changed')
     assert ledger.count == 0 and not list(root.glob('call-start-*.json'))
-    # An unreservable call never reaches the provider; uncertain calls retain debit.
+    # 予約できない呼び出しはプロバイダーに届かない。結果が不確かな呼び出しは、引き落とし分を保持したままにする。
     api_request = dict(request, model='claude-sonnet-5', max_usd=.01, trace_path=str(root/'api.jsonl'))
     fails(lambda: api.execute(dict(api_request, max_usd=float('inf'))), 'finite')
     expires = api.PRICE_EXPIRES

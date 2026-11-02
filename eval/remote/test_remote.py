@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Tests for skills/llm-wiki/scripts/wiki_remote.py.
+skills/llm-wiki/scripts/wiki_remote.py のテスト。
 
-The tests start an in-process fake server (stdlib http.server in a thread).
-The fake server copies the parts of the v4 JSON API that the CLI uses.
-No network access and no real wiki data are necessary.
+テストは、同じプロセス内でフェイクサーバー（スレッドで動かす標準ライブラリの http.server）を起動する。
+フェイクサーバーは、v4 の JSON API のうち CLI が使う部分を再現している。
+ネットワークへの接続も、実際の wiki のデータも必要ない。
 
-Run:
+実行方法:
     python eval/remote/test_remote.py
 """
 
@@ -50,7 +50,7 @@ def now() -> str:
 
 
 class FakeWiki:
-    """In-memory state of one hosted wiki."""
+    """1つのホスト型 wiki のメモリ上の状態。"""
 
     def __init__(self):
         self.lock = threading.Lock()
@@ -67,12 +67,12 @@ class FakeWiki:
         self.commits: list[dict] = []
         self.corrupt: set[str] = set()
         self.truncate_export = False
-        # Called with the wiki before each commit is checked (simulates a concurrent agent).
+        # 各コミットを検査する前に、wiki を引数にして呼ばれる（同時に書き込む別のエージェントを模擬する）。
         self.before_commit = None
-        # Apply the next N commits, then answer 503 as if the response was lost.
+        # 次の N 件のコミットを適用したあと、レスポンスが失われたかのように 503 を返す。
         self.lose_responses = 0
 
-    # -- helpers used by tests ------------------------------------------------
+    # -- テストで使うヘルパー ------------------------------------------------
     def seed(self, path: str, content: str, author: str = "agent") -> None:
         with self.lock:
             self._write(path, content, author)
@@ -87,7 +87,7 @@ class FakeWiki:
     def count(self, method: str, path: str) -> int:
         return sum(1 for m, p, _, _ in self.requests if m == method and p == path)
 
-    # -- internals -------------------------------------------------------------
+    # -- 内部処理 -------------------------------------------------------------
     def _write(self, path: str, content: str, author: str) -> dict:
         self.seq += 1
         stored = content + "\n<!-- corrupted -->" if path in self.corrupt else content
@@ -165,7 +165,7 @@ class FakeWiki:
         return {"error": {"code": "conflict", "message": f"{reason} at {path}", "details": details}}
 
     def move(self, src: str, dst: str) -> None:
-        """One commit that moves a page: both changes share one seq, like the real server."""
+        """ページを移動する1件のコミット。実際のサーバーと同じく、2つの変更は同じ seq を共有する。"""
         with self.lock:
             self.seq += 1
             rec = dict(self.pages.pop(src), path=dst, rev=self.seq)
@@ -474,8 +474,8 @@ class LoginAndConfigTests(RemoteTestCase):
 
 class ClientQueryTests(unittest.TestCase):
     def test_get_accepts_a_query_parameter_named_path(self):
-        # history, diff and revision send `path` as a query parameter; it must not
-        # collide with the route argument of Client.get.
+        # history、diff、revision は `path` をクエリパラメーターとして送る。これが
+        # Client.get のルートの引数とぶつかってはならない。
         client = wiki_remote.Client("http://127.0.0.1:1", TOKEN)
         seen: dict = {}
 
@@ -623,7 +623,7 @@ class ImportTests(RemoteTestCase):
         (root / "entities" / "alpha.md").write_text("# Alpha v2\n", encoding="utf-8")
         (root / "entities" / "beta.md").write_text("# Beta v2\n", encoding="utf-8")
         agent = "# Alpha edited by an agent during the import\n"
-        # The agent writes after the import read the manifest and before its commit.
+        # インポートがマニフェストを読んだあと、コミットする前に、エージェントが書き込む。
         self.wiki.before_commit = lambda w: w.seed("entities/alpha.md", agent)
         report = self.import_report(str(root), "--no-raw", expect=3)
         self.assertEqual(self.wiki.pages["entities/alpha.md"]["content"], agent)
@@ -851,13 +851,13 @@ class PullTests(RemoteTestCase):
         (outside / "b.md").write_text("B1\n")
         shutil.rmtree(target / "notes")
         (target / "notes").symlink_to(outside, target_is_directory=True)
-        # A delete through the link must not remove the file outside the mirror.
+        # リンク経由の削除で、ミラーの外にあるファイルを消してはならない。
         self.wiki.remove("notes/b.md")
         code, _, err = run_cli("pull", str(target))
         self.assertEqual(code, 1)
         self.assertIn("symbolic link", err)
         self.assertEqual((outside / "b.md").read_text(), "B1\n")
-        # A write through a link must not create a file outside the mirror.
+        # リンク経由の書き込みで、ミラーの外にファイルを作ってはならない。
         fresh = self.tmp / "mirror2"
         fresh.mkdir()
         (fresh / "docs").symlink_to(outside, target_is_directory=True)
@@ -880,7 +880,7 @@ class PullTests(RemoteTestCase):
         code, _, err = run_cli("pull", str(target))
         self.assertEqual(code, 1)
         self.assertIn("symbolic link", err)
-        # Nothing was read through the link, written through it, or pulled.
+        # リンク経由の読み込み、書き込み、pull は、どれも行われていない。
         self.assertEqual(outside.read_text(), secret)
         self.assertTrue((target / wiki_remote.PULL_STATE_FILE).is_symlink())
         self.assertFalse((target / "a.md").exists())
@@ -906,7 +906,7 @@ class PullTests(RemoteTestCase):
         self.assertFalse((target / "notes" / "a.md").exists())
         self.assertTrue(any("notes" in w for w in report["warnings"]))
         self.assertEqual(report["pending"], ["notes"])
-        # The cursor moved on, but the blocked write is retried once the folder is free.
+        # カーソルは先に進んだが、ブロックされた書き込みは、フォルダーが空けば再試行される。
         (target / "notes" / "mine.txt").unlink()
         report = self.pull(target)
         self.assertEqual(report["written"], ["notes"])
@@ -1115,7 +1115,7 @@ class HelpTextTests(unittest.TestCase):
         for text in texts:
             self.assertNotIn("honest", text.lower())
             for sentence in text.replace("\n", " ").split(". "):
-                self.assertLessEqual(len(sentence.split()), 60)  # usage lines are long; prose is checked below
+                self.assertLessEqual(len(sentence.split()), 60)  # usage の行は長いので、説明文の部分は下で確かめる
         for action in parser._subparsers._group_actions:  # noqa: SLF001
             for name, sub in action.choices.items():
                 prose = [sub.description or ""] + [a.help or "" for a in sub._actions]  # noqa: SLF001

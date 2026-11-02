@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Installed-agent adapters for all evolution roles. JSON stdin/stdout.
+"""スキル改善のすべてのロールで使う、インストール済みエージェント用のアダプター。入出力は標準入出力の JSON。
 
-Usage in runner argv: ["python3", "/absolute/wiki_evolve_agent.py", "codex"]
-Authentication belongs to the installed CLI. Codex reports tokens, not USD;
-use a call/time budget with max_usd=null for subscription-backed trials.
+ランナーの argv での使い方: ["python3", "/absolute/wiki_evolve_agent.py", "codex"]
+認証はインストール済みの CLI が行う。Codex が報告するのはトークン数で、USD ではない。
+サブスクリプションを使う試行では、max_usd=null として、呼び出し回数と時間の予算を使う。
 """
 import argparse
 import json
@@ -35,7 +35,7 @@ def schema(role, request=None):
                     'scope': string, 'counterexamples': string, 'evidence': evidence})}})
     if role == 'proposer':
         evidence = {'type': 'array', 'items': dict(string, enum=list(request.get('patterns', {})))} if request else strings
-        # Arrays keep structured-output schemas portable (no arbitrary object properties).
+        # 配列を使うと、構造化出力のスキーマを移植しやすくなる（任意のオブジェクトのプロパティを使わない）。
         return obj({'files': {'type': 'array', 'items': obj({'path': string, 'content': {'type': ['string', 'null']}})},
                     'reason': string, 'evidence': evidence})
     raise ValueError('Unknown role')
@@ -203,7 +203,7 @@ def execute(agent, request):
             lines = '\n'.join(json.dumps(e) for e in events)
             output = (parse_codex(lines, json.loads(result_path.read_text())) if agent == 'codex' else
                       parse_claude(lines) if agent == 'claude' else parse_native(agent, events))
-            # Version discovery is metadata: it must not discard a completed paid run.
+            # バージョンの取得はメタデータにすぎない。完了した有料の実行を捨てる理由にしてはならない。
             try:
                 version = subprocess.run([command[0], '--version'], text=True, capture_output=True, timeout=10)
                 output['agent_version'] = (version.stdout.strip() or version.stderr.strip() or 'unknown') if version.returncode == 0 else 'unknown'

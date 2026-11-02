@@ -62,7 +62,7 @@ function installAccessibilityEnhancements() {
 
 export default {
   extends: DefaultTheme,
-  // Show the old-version warning at the top of every docs/v3/ page.
+  // docs/v3/ のすべてのページの先頭に、旧版であることの警告を表示する。
   Layout: () => h(DefaultTheme.Layout, null, { 'doc-before': () => h(LegacyBanner) }),
   enhanceApp() {
     if (typeof document !== 'undefined') installAccessibilityEnhancements()

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline tests for the optional decision layer. Uses the fake backend only."""
+"""任意の判定レイヤーのオフラインテスト。フェイクバックエンドだけを使う。"""
 
 from __future__ import annotations
 
@@ -129,7 +129,7 @@ class ReaderTests(unittest.TestCase):
             self.assertEqual(ctx.exception.code, "invalid_answer")
 
     def test_gate_fails_open_on_nan_from_json(self):
-        # json.loads accepts NaN, so a backend can send it.
+        # json.loads は NaN を受け付けるので、バックエンドが NaN を送ってくることがある。
         answer = json.loads('{"answers": {"relevant": {"choice": "A", "probabilities": {"A": NaN, "B": NaN}}}}')
         client = wd.DecisionClient("fake", "fake://", "fake", transport=lambda r: answer)
         rows = [{"title": "T", "heading_path": []}] * 3
@@ -214,13 +214,13 @@ class ConfigTests(unittest.TestCase):
             self.write_config(tmp)
             os.environ["LLM_WIKI_URL"] = "https://env.example.invalid"
             os.environ["LLM_WIKI_TOKEN"] = "lw_main_env"
-            # An explicit profile wins over the environment and keeps its wiki.
+            # 明示したプロファイルは環境変数より優先され、そのプロファイルの wiki が使われる。
             c = wd.client_from_config("hosted", profile="team")
             self.assertEqual((c.url, c.key, c.wiki), ("https://team.example.invalid", "lw_team_t", "team"))
-            # Without a profile the environment wins over the default profile.
+            # プロファイルを指定しなければ、環境変数が既定のプロファイルより優先される。
             c = wd.client_from_config("hosted")
             self.assertEqual((c.url, c.key), ("https://env.example.invalid", "lw_main_env"))
-            # LLM_WIKI_CONFIG is read when the environment has no credentials.
+            # 環境変数に認証情報がないときは、LLM_WIKI_CONFIG を読む。
             os.environ.pop("LLM_WIKI_URL")
             os.environ.pop("LLM_WIKI_TOKEN")
             c = wd.client_from_config("hosted")

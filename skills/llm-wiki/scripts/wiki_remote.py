@@ -1,24 +1,22 @@
 #!/usr/bin/env python3
 """
-wiki_remote.py - Command-line client for a hosted LLM Wiki server (v4).
+wiki_remote.py - ホスト型の LLM Wiki のサーバー（v4）を使うためのコマンドラインクライアント。
 
-Uses only the Python standard library (Python 3.10 or later).
+Python の標準ライブラリだけを使う（Python 3.10 以降）。
 
-The client connects to the JSON API of a hosted wiki (`/api/v1`). It moves a
-local wiki to the server (`import`), keeps a pull-only mirror (`pull`), makes
-a tarball of all pages (`export`), uploads raw files, and prints MCP
-configuration for agent clients.
+このクライアントは、ホスト型 wiki の JSON API（`/api/v1`）に接続する。ローカルの wiki を
+サーバーに移し（`import`）、pull 専用のミラーを保ち（`pull`）、全ページの tarball を作り（`export`）、
+raw ファイルをアップロードし、エージェントのクライアント向けの MCP の設定を出力する。
 
-Configuration:
-    ~/.config/llm-wiki/remote.json (mode 0600):
+設定:
+    ~/.config/llm-wiki/remote.json（モード 0600）:
         {"default": "<name>", "profiles": {"<name>": {"url": ..., "token": ..., "wiki": ...}}}
-    Environment: LLM_WIKI_URL, LLM_WIKI_TOKEN, LLM_WIKI_CONFIG (other config file).
-    An explicit --profile wins over the environment. The environment wins
-    over the default profile.
+    環境変数: LLM_WIKI_URL、LLM_WIKI_TOKEN、LLM_WIKI_CONFIG（別の設定ファイル）。
+    明示した --profile は環境変数より優先される。環境変数は既定のプロファイルより優先される。
 
-Exit codes: 0 success, 1 failure, 2 usage error, 3 conflict.
+終了コード: 0 成功、1 失敗、2 使い方の誤り、3 競合。
 
-Usage:
+使い方:
     python3 wiki_remote.py login --url https://wiki.example.workers.dev --token lw_main_...
     python3 wiki_remote.py import ~/wiki --dry-run
     python3 wiki_remote.py pull ~/wiki-mirror --git
@@ -60,24 +58,24 @@ URL_ENV = "LLM_WIKI_URL"
 TOKEN_ENV = "LLM_WIKI_TOKEN"
 CONFIG_ENV = "LLM_WIKI_CONFIG"
 
-# Server limits (see the v4 commit rules).
+# サーバーの上限（v4 のコミットの規則を参照）。
 MAX_PAGE_BYTES = 1_500_000
 MAX_COMMIT_OPS = 200
 MAX_COMMIT_BYTES = 4_000_000
-# Largest JSON request body the server API reads. JSON escapes make it larger than the content.
+# サーバーの API が読む JSON のリクエストボディの最大サイズ。JSON のエスケープで、中身より大きくなる。
 MAX_JSON_BODY = 5 * 1024 * 1024
 MAX_PATH_BYTES = 512
 CHANGES_LIMIT = 200
 
-# Delays (seconds) between retries of idempotent requests. Tests set zeros.
+# 冪等なリクエストを再試行する間隔（秒）。テストでは 0 にする。
 RETRY_DELAYS: tuple[float, ...] = (0.5, 1.0, 2.0, 4.0)
 MAX_RETRY_AFTER = 30.0
 TIMEOUT = 60
 
 TEMPLATE_RE = re.compile(r"^\.[a-z0-9-]+-template\.(md|json)$")
 LOCAL_COPY_RE = re.compile(r"\.local-\d{8}T\d{6}Z(-\d+)?$")
-# Under top-level graph/ only the ontology and Markdown notes are source files.
-# wiki_graph_extract.py makes the other files there (jsonl, sqlite, graphml).
+# トップレベルの graph/ の下で、ソースファイルなのはオントロジーと Markdown のメモだけである。
+# そこにあるほかのファイル（jsonl、sqlite、graphml）は wiki_graph_extract.py が作る。
 GRAPH_SOURCE_RE = re.compile(r"^graph/(ontology\.ya?ml|.*\.md)$")
 CONTROL_RE = re.compile(r"[\x00-\x1f\x7f]")
 NAME_RE = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -86,12 +84,12 @@ EXPORT_MANIFEST = ".llm-wiki-export.json"
 
 
 # ---------------------------------------------------------------------------
-# Errors and output
+# エラーと出力
 # ---------------------------------------------------------------------------
 
 
 class CliError(Exception):
-    """A failure that ends the command with an exit code."""
+    """コマンドを終了コード付きで終わらせる失敗。"""
 
     def __init__(self, message: str, exit_code: int = EXIT_FAIL):
         super().__init__(message)
@@ -99,7 +97,7 @@ class CliError(Exception):
 
 
 class ApiFailure(CliError):
-    """An error response from the server (`{error: {code, message, details}}`)."""
+    """サーバーからのエラーレスポンス（`{error: {code, message, details}}`）。"""
 
     def __init__(self, status: int, code: str, message: str, details=None):
         super().__init__(message, EXIT_CONFLICT if status == 409 else EXIT_FAIL)
@@ -133,7 +131,7 @@ def utc_stamp() -> str:
 
 
 def atomic_write_bytes(path: str, data: bytes, mode: int | None = None) -> None:
-    """Write `data` to a temp file in the same folder, then rename it into place."""
+    """`data` を同じフォルダーの一時ファイルに書き、それを目的の名前に rename する。"""
     parent = os.path.dirname(path) or "."
     os.makedirs(parent, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=parent, prefix=".tmp-llm-wiki-")
@@ -169,7 +167,7 @@ def load_json_file(path: str):
 
 
 def path_problem(rel: str) -> str | None:
-    """Return a reason when the server will refuse this relative path."""
+    """サーバーがこの相対パスを拒否する場合に、その理由を返す。"""
     if not rel or rel.startswith("/") or "\\" in rel:
         return "invalid_path"
     if CONTROL_RE.search(rel):
@@ -188,7 +186,7 @@ def path_problem(rel: str) -> str | None:
 
 
 def check_server_path(rel: str) -> list[str]:
-    """Return the parts of a server path. Refuse paths that can leave a folder."""
+    """サーバーのパスの各部分を返す。フォルダーの外に出られるパスは拒否する。"""
     if not rel or rel.startswith("/") or "\\" in rel or CONTROL_RE.search(rel):
         raise CliError(f"The server sent an unsafe path: {rel!r}")
     parts = rel.split("/")
@@ -198,11 +196,11 @@ def check_server_path(rel: str) -> list[str]:
 
 
 def safe_join(root: str, rel: str) -> str:
-    """Join a server path to a local folder. Refuse paths that leave the folder.
+    """サーバーのパスをローカルのフォルダーに連結する。フォルダーの外に出るパスは拒否する。
 
-    Every part of the path below `root` must not be a symbolic link, and the
-    real parent folder must stay inside the real `root`. Call this before each
-    read, write, rename, or delete in the folder.
+    `root` より下のパスのどの部分もシンボリックリンクであってはならず、実際の親フォルダーは
+    実際の `root` の中になければならない。フォルダーの中で読み込み、書き込み、rename、
+    削除をするたびに、その前にこれを呼ぶ。
     """
     parts = check_server_path(rel)
     path = root
@@ -218,7 +216,7 @@ def safe_join(root: str, rel: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Configuration
+# 設定
 # ---------------------------------------------------------------------------
 
 
@@ -269,7 +267,7 @@ def normalize_url(url: str) -> str:
 
 
 def resolve_connection(args, need_token: bool = True) -> tuple[str, str | None, str | None, str | None]:
-    """Return (url, token, wiki, profile name) for this command."""
+    """このコマンドで使う (url, token, wiki, profile name) を返す。"""
     cfg = load_config()
     explicit = getattr(args, "profile", None)
     name = explicit or cfg.get("default")
@@ -295,7 +293,7 @@ def resolve_connection(args, need_token: bool = True) -> tuple[str, str | None, 
 
 
 # ---------------------------------------------------------------------------
-# HTTP client
+# HTTP クライアント
 # ---------------------------------------------------------------------------
 
 
@@ -352,7 +350,7 @@ class Client:
         headers: dict | None = None,
         idempotent: bool | None = None,
     ):
-        """Send one request and return the open response. Retry idempotent requests."""
+        """リクエストを1つ送り、開いたままのレスポンスを返す。冪等なリクエストは再試行する。"""
         if idempotent is None:
             idempotent = method in ("GET", "HEAD", "PUT", "DELETE")
         hdrs = {"User-Agent": USER_AGENT, "Accept": "application/json"}
@@ -389,7 +387,7 @@ class Client:
                 raise CliError(f"Cannot reach {self.base}: {reason}") from None
 
     def call(self, method: str, path: str, query=None, body=None, idempotent: bool | None = None):
-        """Send a JSON request and return the decoded JSON response."""
+        """JSON のリクエストを送り、デコードした JSON のレスポンスを返す。"""
         with self.open(method, path, query=query, body=body, idempotent=idempotent) as resp:
             raw = resp.read()
         if not raw:
@@ -400,7 +398,7 @@ class Client:
             raise CliError(f"The server sent a response that is not JSON for {method} {path}.")
 
     def get(self, route: str, /, **query):
-        # `route` is positional-only, so a query parameter named `path` works.
+        # `route` は位置専用引数なので、`path` という名前のクエリパラメーターも使える。
         return self.call("GET", route, query=query or None)
 
     def post(self, path: str, body, idempotent: bool = False):
@@ -417,7 +415,7 @@ def raw_url_path(rel: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# login, status, admin commands
+# login、status、管理用のコマンド
 # ---------------------------------------------------------------------------
 
 
@@ -572,7 +570,7 @@ class LocalPage:
 
 
 def scan_pages(wiki_dir: str, exclude_dirs: set[str]) -> tuple[list[LocalPage], list[dict]]:
-    """Walk a local wiki with the server exclusion rules. Never writes."""
+    """サーバーの除外規則に従ってローカルの wiki を走査する。書き込みはしない。"""
     pages: list[LocalPage] = []
     skipped: list[dict] = []
     for root, dirs, files in os.walk(wiki_dir):
@@ -652,12 +650,12 @@ def scan_raw(raw_dir: str) -> tuple[list[dict], list[dict]]:
 
 
 def upsert_op(page: LocalPage, expected: str | None) -> dict:
-    """An upsert with a precondition: None means the page must not exist yet."""
+    """前提条件付きの upsert。None は、ページがまだ存在してはならないことを表す。"""
     return {"op": "upsert", "path": page.path, "content": page.text, "expected_sha256": expected}
 
 
 def json_bytes(value) -> int:
-    # Same encoding as Client.open, so the count matches the request body.
+    # Client.open と同じエンコードにして、数えたバイト数がリクエストボディと一致するようにする。
     return len(json.dumps(value, ensure_ascii=False).encode("utf-8"))
 
 
@@ -668,11 +666,10 @@ def import_message(count: int, name: str) -> str:
 def make_batches(
     items: list[tuple[LocalPage, dict]], max_files: int, max_bytes: int, name: str
 ) -> tuple[list[list[tuple[LocalPage, dict]]], list[LocalPage]]:
-    """Split upserts into commits. Return (batches, pages too large for one request).
+    """upsert をコミットに分ける。(batches, 1回のリクエストに収まらないページ) を返す。
 
-    The server counts the message in its commit byte limit, so the content of
-    a batch gets at most `max_bytes` minus the message. The JSON body of each
-    request also stays below MAX_JSON_BODY.
+    サーバーはコミットのバイト数の上限にメッセージも含めて数えるので、1つのバッチの内容は
+    最大で `max_bytes` からメッセージを引いた分になる。各リクエストの JSON のボディも MAX_JSON_BODY 未満に収める。
     """
     message_bytes = len(import_message(max_files, name).encode("utf-8"))
     content_limit = min(max_bytes, MAX_COMMIT_BYTES - message_bytes)
@@ -683,7 +680,7 @@ def make_batches(
     size = 0
     body = envelope
     for page, op in items:
-        op_body = json_bytes(op) + 2  # 2 bytes for the ", " separator
+        op_body = json_bytes(op) + 2  # 区切りの ", " の 2 バイト
         if envelope + op_body > MAX_JSON_BODY or page.size > MAX_COMMIT_BYTES - message_bytes:
             too_large.append(page)
             continue
@@ -706,7 +703,7 @@ def import_state_path(url: str, wiki: str, wiki_dir: str) -> str:
 
 
 def remote_raw_index(client: Client) -> dict[str, str] | None:
-    """Return {path: sha256} of remote raw files, or None when raw storage is off."""
+    """リモートの raw ファイルの {path: sha256} を返す。raw ストレージが無効なら None を返す。"""
     try:
         entries = client.get("/api/v1/raw", prefix="")
     except ApiFailure as exc:
@@ -768,8 +765,8 @@ def cmd_import(args) -> int:
     divergent: list[dict] = []
     for page in pages:
         remote_sha = remote.get(page.path)
-        # The precondition is the remote state the import saw. A remote edit after
-        # this read makes the server refuse the upsert, so the import never hides it.
+        # 前提条件は、インポートが見たリモートの状態である。この読み込みのあとに
+        # リモートで編集されるとサーバーが upsert を拒否するので、インポートがその編集を隠すことはない。
         if remote_sha == page.sha:
             identical.append(page.path)
         elif remote_sha is None or state["pages"].get(page.path) == remote_sha:
@@ -870,14 +867,14 @@ def cmd_import(args) -> int:
         while pending:
             body = {"message": import_message(len(pending), name), "ops": [op for _, op in pending]}
             try:
-                # Each upsert carries the remote SHA-256 it expects, so a sent-again
-                # request cannot replace a newer remote edit.
+                # 各 upsert は、期待するリモートの SHA-256 を持つ。そのため、もう一度送られた
+                # リクエストが、より新しいリモートの編集を置き換えることはない。
                 result = client.post("/api/v1/commit", body, idempotent=True)
             except ApiFailure as exc:
                 reason = exc.details.get("reason") if isinstance(exc.details, dict) else None
                 if exc.status != 409 or reason not in ("exists", "sha_mismatch"):
                     return stop(index, exc)
-                # A commit is all or nothing. Read the remote state again and sort the pages.
+                # コミットはすべて成功するか、何も反映されないかのどちらかである。リモートの状態を読み直してページを分類する。
                 try:
                     current = client.get("/api/v1/manifest").get("pages") or {}
                 except CliError as read_exc:
@@ -886,7 +883,7 @@ def cmd_import(args) -> int:
                 for page, op in pending:
                     rsha = current.get(page.path)
                     if rsha == page.sha:
-                        # An earlier request (for example a retry) already wrote this page.
+                        # 以前のリクエスト（たとえば再試行）が、このページをすでに書いている。
                         state["pages"][page.path] = page.sha
                         report["pages"]["uploaded"] += 1
                     elif rsha == op["expected_sha256"]:
@@ -934,7 +931,7 @@ def cmd_import(args) -> int:
         atomic_write_json(state_path, state, mode=0o600)
         note(f"Raw: uploaded {report['raw']['uploaded']} files. {len(raw_identical)} were already on the server.")
 
-    # Verification: every local page and raw file must match the server.
+    # 検証: ローカルのすべてのページと raw ファイルが、サーバーと一致していなければならない。
     final = client.get("/api/v1/manifest").get("pages") or {}
     mismatches: list[dict] = []
     for page in pages:
@@ -988,14 +985,14 @@ def _prune_empty_dirs(root: str, path: str) -> None:
 
 
 def _git(dir_: str, *cmd: str, stdin: str | None = None) -> subprocess.CompletedProcess:
-    # Literal pathspecs: page names such as "a[1].md" are file names, not patterns.
+    # パススペックを文字どおりに扱う。"a[1].md" のようなページ名はパターンではなくファイル名である。
     return subprocess.run(
         ["git", "--literal-pathspecs", "-C", dir_, *cmd], input=stdin, capture_output=True, text=True
     )
 
 
 def git_commit(dir_: str, paths: list[str], message: str) -> dict:
-    """Commit only `paths`. Other staged changes stay staged and out of the commit."""
+    """`paths` だけをコミットする。ほかのステージ済みの変更は、ステージしたままコミットに含めない。"""
     probe = _git(dir_, "rev-parse", "--is-inside-work-tree")
     if probe.returncode != 0 or probe.stdout.strip() != "true":
         return {"committed": False, "reason": "not_a_git_repository"}
@@ -1024,7 +1021,7 @@ def cmd_pull(args) -> int:
     client = make_client(args)
     who = client.get("/api/v1/whoami")
     wiki = who.get("wiki") or client.wiki or "main"
-    # The state file gets the same symlink check as pages: never read or replace a link.
+    # 状態ファイルにもページと同じシンボリックリンクのチェックをかける。リンクを読んだり置き換えたりはしない。
     state_path = safe_join(target, PULL_STATE_FILE)
     state = load_json_file(state_path)
     if state is None:
@@ -1034,8 +1031,8 @@ def cmd_pull(args) -> int:
             f"{target} mirrors {state.get('url')} wiki '{state.get('wiki')}'. Use another folder.", EXIT_USAGE
         )
     state.setdefault("files", {})
-    # Paths whose write a local file or folder blocked. The cursor moves on, so
-    # these are retried from the current page on every later pull.
+    # ローカルのファイルやフォルダーによって書き込みがブロックされたパス。カーソルは先に進むので、
+    # 以降の pull のたびに、現在のページから再試行する。
     pending: set[str] = set(state.get("pending") or [])
     start_seq = int(state.get("seq") or 0)
     since = start_seq
@@ -1046,7 +1043,7 @@ def cmd_pull(args) -> int:
     warnings: list[str] = []
 
     def keep_local(path: str, rel: str) -> None:
-        # Reserve a new name with O_EXCL so a copy never replaces an older copy.
+        # O_EXCL で新しい名前を確保し、コピーが古いコピーを置き換えないようにする。
         n = 0
         while True:
             copy = f"{path}.local-{stamp}" + (f"-{n}" if n else "")
@@ -1081,7 +1078,7 @@ def cmd_pull(args) -> int:
         pending.discard(rel)
 
     def blocked_by_local(rel: str, path: str) -> str | None:
-        """Return why local content blocks this write. Removes only an empty folder."""
+        """ローカルの内容がこの書き込みをブロックする理由を返す。削除するのは空のフォルダーだけである。"""
         if os.path.isdir(path):
             try:
                 os.rmdir(path)
@@ -1134,7 +1131,7 @@ def cmd_pull(args) -> int:
             state.pop("pending", None)
         atomic_write_json(state_path, state)
 
-    # Retry writes that local content blocked on an earlier pull.
+    # 以前の pull でローカルの内容にブロックされた書き込みを再試行する。
     for rel in sorted(pending):
         try:
             page = client.get("/api/v1/page", path=rel)
@@ -1149,8 +1146,8 @@ def cmd_pull(args) -> int:
     while True:
         resp = client.get("/api/v1/changes", since=since, limit=CHANGES_LIMIT)
         changes = resp.get("changes") or []
-        # Each path shows only its latest state, so the order inside one page is free.
-        # Deletions go first: a move from notes/a.md to notes needs the folder gone.
+        # 各パスには最新の状態しか現れないので、1ページの中の順序は問わない。
+        # 削除を先に行う。notes/a.md から notes への移動では、フォルダーがなくなっている必要がある。
         for ch in changes:
             if ch.get("deleted"):
                 apply_delete(ch)
@@ -1198,7 +1195,7 @@ def cmd_pull(args) -> int:
 
 
 # ---------------------------------------------------------------------------
-# export, raw
+# export、raw
 # ---------------------------------------------------------------------------
 
 
@@ -1319,7 +1316,7 @@ def cmd_raw(args) -> int:
 
 
 # ---------------------------------------------------------------------------
-# search, read, commit, history, lint, graph, review, settings
+# search、read、commit、history、lint、graph、review、settings
 # ---------------------------------------------------------------------------
 
 
@@ -1579,10 +1576,10 @@ MCP_CLIENTS = ("claude-code", "codex", "cursor", "gemini", "opencode", "omp", "p
 
 
 def build_mcp_config(client: str, url: str, name: str, token: str | None, wiki: str | None) -> dict:
-    """Return {target, format, snippet, notes} for one MCP client.
+    """1つの MCP クライアント向けの {target, format, snippet, notes} を返す。
 
-    Without a token the snippet references LLM_WIKI_TOKEN in the syntax of the
-    client, so the token never shows in the output.
+    トークンがない場合、snippet はそのクライアントの構文で LLM_WIKI_TOKEN を参照するので、
+    トークンが出力に現れることはない。
     """
     mcp_url = url.rstrip("/") + "/mcp"
     extra = {"X-LLM-Wiki": wiki} if wiki else {}
@@ -1648,8 +1645,8 @@ def build_mcp_config(client: str, url: str, name: str, token: str | None, wiki: 
                 "notes": notes}
 
     if client in ("omp", "pi"):
-        # Both read {"mcpServers": ...} and expand ${VAR} in headers.
-        # Paths: omp docs (mcp-config.md) and https://pi.dev/docs/latest/mcp.
+        # どちらも {"mcpServers": ...} を読み、ヘッダーの ${VAR} を展開する。
+        # パスの出典: omp のドキュメント（mcp-config.md）と https://pi.dev/docs/latest/mcp。
         server = {"type": "http", "url": mcp_url, "headers": {"Authorization": bearer("${%s}" % TOKEN_ENV), **extra}}
         if client == "pi":
             target = "~/.pi/agent/mcp.json (all projects) or .pi/mcp.json (one project)"
@@ -1684,7 +1681,7 @@ def cmd_mcp_config(args) -> int:
 
 
 # ---------------------------------------------------------------------------
-# Argument parser
+# 引数のパーサー
 # ---------------------------------------------------------------------------
 
 

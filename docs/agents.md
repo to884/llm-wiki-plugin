@@ -1,42 +1,42 @@
 ---
-title: Agents
-description: Which coding agents support the llm-wiki skill, how to install for each, and the agent-memory file to use.
+title: エージェント
+description: llm-wiki スキルに対応しているコーディングエージェント、それぞれのインストール方法、使うエージェントのメモリファイル。
 ---
 
 <!-- Adapted from: docs/agents.html (source: README.md agent table, skills/llm-wiki/references/agent-memory-integration.md). -->
 
-# Agents
+# エージェント {#agents}
 
-The `llm-wiki` skill uses the standard [agentskills.io](https://agentskills.io) format, so it runs in every agent below. The wiki operations are available through the installed skill: init/runtime setup, hybrid or lexical search, structural lint, stats, graph lint, graph extraction, and graph query. Dependency-bearing scripts use pinned PEP 723 environments through `uv run --script`.
+`llm-wiki` スキルは標準の [agentskills.io](https://agentskills.io) 形式なので、以下のどのエージェントでも動く。wiki の操作は、インストールしたスキルを通じて使える。対象は、init と実行環境のセットアップ、ハイブリッド検索または語彙ベースの検索、構造の lint、統計、グラフの lint、グラフの抽出、グラフのクエリである。依存パッケージを必要とするスクリプトは、`uv run --script` を通じて、バージョンを固定した PEP 723 の環境で動く。
 
-## Support matrix
+## 対応表 {#support-matrix}
 
-| Agent | `--agent` value | Invoke via | Scripts run |
+| エージェント | `--agent` の値 | 呼び出し方 | スクリプトの実行 |
 | --- | --- | --- | :---: |
-| Claude Code | `claude-code` | `/wiki:*` slash commands (bundled) or natural language | ✅ |
-| Codex (OpenAI) | `codex` | `/skills` or `$llm-wiki` / natural language | ✅ |
-| Cursor | `cursor` | `/llm-wiki` or natural language | ✅ |
-| Gemini CLI | `gemini-cli` | `/skills` management commands / natural language | ✅ |
-| OpenCode | `opencode` | natural language (agent invokes the native `skill` tool) | ✅ |
-| OpenClaw | `openclaw` | auto-exposed as a user command | ✅ |
-| Pi Agent | `pi` | `/skill:llm-wiki` or natural language | ✅ |
-| OMP ("Oh My Pi") | manual (see below) | natural language (skills auto-surface via `skill://`) | ✅ |
-| Hermes Agent | manual (see below) | natural language | ✅ |
+| Claude Code | `claude-code` | `/wiki:*` スラッシュコマンド（同梱）または自然言語 | ✅ |
+| Codex (OpenAI) | `codex` | `/skills` または `$llm-wiki` / 自然言語 | ✅ |
+| Cursor | `cursor` | `/llm-wiki` または自然言語 | ✅ |
+| Gemini CLI | `gemini-cli` | `/skills` の管理コマンド / 自然言語 | ✅ |
+| OpenCode | `opencode` | 自然言語（エージェントがネイティブの `skill` ツールを呼び出す） | ✅ |
+| OpenClaw | `openclaw` | ユーザーコマンドとして自動で公開される | ✅ |
+| Pi Agent | `pi` | `/skill:llm-wiki` または自然言語 | ✅ |
+| OMP ("Oh My Pi") | 手動（下記参照） | 自然言語（スキルは `skill://` で自動的に公開される） | ✅ |
+| Hermes Agent | 手動（下記参照） | 自然言語 | ✅ |
 
-OpenCode also reads `.claude/skills/` and `~/.claude/skills/`, so a Claude Code install works there without a second install.
+OpenCode は `.claude/skills/` と `~/.claude/skills/` も読むので、Claude Code 向けにインストールしてあれば、改めてインストールしなくても使える。
 
-## Install snippets
-Install [`uv`](https://docs.astral.sh/uv/getting-started/installation/) first. Every agent invokes the same pinned local runtime; no agent-specific Python environment is required.
+## インストールのコマンド例 {#install-snippets}
+最初に [`uv`](https://docs.astral.sh/uv/getting-started/installation/) をインストールする。どのエージェントも、バージョンを固定した同じローカルの実行環境を呼び出すので、エージェントごとの Python 環境は要らない。
 
 
-**Claude Code** gets the full plugin (skill + slash commands + manifest):
+**Claude Code** には、プラグイン一式（スキル、スラッシュコマンド、マニフェスト）が入る。
 
 ```bash
 /plugin marketplace add praneybehl/llm-wiki-plugin
 /plugin install llm-wiki@llm-wiki
 ```
 
-**Codex, Cursor, Gemini CLI, OpenCode, OpenClaw, Pi** install the skill through the `skills` CLI. Substitute the matrix's `--agent` value:
+**Codex、Cursor、Gemini CLI、OpenCode、OpenClaw、Pi** では、`skills` CLI でスキルをインストールする。対応表の `--agent` の値に置き換えて使う。
 
 ```bash
 npx skills add praneybehl/llm-wiki-plugin -a codex -g
@@ -47,9 +47,9 @@ npx skills add praneybehl/llm-wiki-plugin -a openclaw -g
 npx skills add praneybehl/llm-wiki-plugin -a pi -g
 ```
 
-Drop `-g` to install into the current project only.
+現在のプロジェクトだけにインストールするには、`-g` を外す。
 
-**OMP ("Oh My Pi")** and **Hermes Agent** aren't yet in the `npx skills` registry: clone the repo and symlink the skill into the agent's skills directory. OMP reads managed/user skills from `~/.omp/agent/skills/` and surfaces them via `skill://`:
+**OMP ("Oh My Pi")** と **Hermes Agent** は、まだ `npx skills` のレジストリに載っていない。リポジトリをクローンし、エージェントのスキル用ディレクトリにスキルへのシンボリックリンクを張る。OMP は、管理対象のスキルとユーザーのスキルを `~/.omp/agent/skills/` から読み込み、`skill://` で公開する。
 
 ```bash
 git clone https://github.com/praneybehl/llm-wiki-plugin.git
@@ -58,44 +58,44 @@ ln -s "$(pwd)/llm-wiki-plugin/skills/llm-wiki" ~/.omp/agent/skills/llm-wiki
 ln -s "$(pwd)/llm-wiki-plugin/skills/llm-wiki" ~/.hermes/skills/llm-wiki
 ```
 
-## Agent-memory file
+## エージェントのメモリファイル {#agent-memory-file}
 
-After a wiki is bootstrapped, add a short stanza so the agent remembers its location. Put a stable user-level path such as `~/wiki/` in the agent's global instructions for one personal wiki across projects, or a relative path in the project's memory file for a project-only wiki. The filename depends on the agent:
+wiki を作ったら、エージェントがその場所を覚えておけるように、短い記述を追加する。プロジェクトをまたいで使う個人用の wiki なら、`~/wiki/` のようなユーザーレベルの固定パスをエージェントのグローバルな指示に書く。プロジェクト専用の wiki なら、相対パスをプロジェクトのメモリファイルに書く。ファイル名はエージェントによって違う。
 
-| Agent | Memory file |
+| エージェント | メモリファイル |
 | --- | --- |
 | Claude Code | `CLAUDE.md` |
 | Codex (OpenAI) | `AGENTS.md` |
-| Cursor | `AGENTS.md` (or `.cursor/rules/*.mdc`) |
-| OpenCode | `AGENTS.md` (also reads `CLAUDE.md`) |
+| Cursor | `AGENTS.md`（または `.cursor/rules/*.mdc`） |
+| OpenCode | `AGENTS.md`（`CLAUDE.md` も読む） |
 | Gemini CLI | `GEMINI.md` |
 | Pi Agent | `AGENTS.md` |
 | OpenClaw | `AGENTS.md` |
 | OMP (Oh My Pi) | `AGENTS.md` |
 
-Running multiple agents? Prefer `AGENTS.md` as the canonical file where supported and symlink `CLAUDE.md` to it. The skill never writes a memory file without your approval. Global and project stanza variants live in `skills/llm-wiki/references/agent-memory-integration.md`.
+複数のエージェントを使う場合は、対応しているエージェントでは `AGENTS.md` を正本にし、`CLAUDE.md` をそこへのシンボリックリンクにするのがよい。スキルが、ユーザーの承認なしにメモリファイルに書き込むことはない。グローバル用とプロジェクト用の記述の例は、`skills/llm-wiki/references/agent-memory-integration.md` にある。
 
 ::: info
-Slash commands are Claude Code–only. Everywhere else, invoke the skill by natural language: "add this paper to the wiki", "what does the wiki say about X", "lint the wiki". The wiki itself is agent-agnostic: ingest with one agent, query with another.
+スラッシュコマンドは Claude Code 専用である。ほかのエージェントでは、「この論文を wiki に追加して」「X について wiki には何と書いてある？」「wiki に lint をかけて」のように、自然言語でスキルを呼び出す。wiki そのものは特定のエージェントに依存しないので、あるエージェントで取り込み、別のエージェントでクエリすることもできる。
 :::
 
-## Hosted wiki access
+## ホスト型 wiki へのアクセス {#hosted-wiki-access}
 
-Every agent in the matrix can also use a [hosted wiki](/hosted) over MCP (Streamable HTTP at `https://<your-worker>/mcp`). Each agent gets its own token, so commit history shows which agent made each change. Agents without MCP can use the JSON API or `wiki_remote.py`.
+対応表にあるどのエージェントも、MCP（`https://<your-worker>/mcp` の Streamable HTTP）で[ホスト型 wiki](/hosted) を使える。エージェントごとに専用のトークンを持つので、コミット履歴を見れば、どの変更をどのエージェントが行ったかが分かる。MCP に対応していないエージェントは、JSON API か `wiki_remote.py` を使える。
 
-| Agent | MCP configuration |
+| エージェント | MCP の設定 |
 | --- | --- |
-| Claude Code | `claude mcp add --transport http ...` or `.mcp.json` |
-| Codex (OpenAI) | `[mcp_servers.llm-wiki]` in `~/.codex/config.toml` |
+| Claude Code | `claude mcp add --transport http ...` または `.mcp.json` |
+| Codex (OpenAI) | `~/.codex/config.toml` の `[mcp_servers.llm-wiki]` |
 | Cursor | `~/.cursor/mcp.json` |
-| Gemini CLI | `~/.gemini/settings.json` (`httpUrl`) |
-| OpenCode | `opencode.json` (`type: "remote"`) |
-| OMP | `~/.omp/agent/mcp.json` (all projects) or `.omp/mcp.json` (one project) |
-| Pi | `~/.pi/agent/mcp.json` (all projects) or `.pi/mcp.json` (one project); built-in MCP, or `pi mcp add` |
-| Hermes, OpenClaw, other | URL plus `Authorization: Bearer <token>` header |
+| Gemini CLI | `~/.gemini/settings.json`（`httpUrl`） |
+| OpenCode | `opencode.json`（`type: "remote"`） |
+| OMP | `~/.omp/agent/mcp.json`（全プロジェクト）または `.omp/mcp.json`（1つのプロジェクト） |
+| Pi | `~/.pi/agent/mcp.json`（全プロジェクト）または `.pi/mcp.json`（1つのプロジェクト）。組み込みの MCP、または `pi mcp add` |
+| Hermes、OpenClaw、その他 | URL と `Authorization: Bearer <token>` ヘッダー |
 
-The exact text for each client is on the [Hosted wiki](/hosted#connect-agents-over-mcp) page, on your server's `/setup` page, and in the output of `python3 skills/llm-wiki/scripts/wiki_remote.py mcp-config <client>`. Clients that support OAuth can connect without a token. For the memory file, use the hosted-wiki stanza in `skills/llm-wiki/references/agent-memory-integration.md`.
+クライアントごとの設定の文面は、[ホスト型 wiki](/hosted#connect-agents-over-mcp) のページ、サーバーの `/setup` ページ、`python3 skills/llm-wiki/scripts/wiki_remote.py mcp-config <client>` の出力にある。OAuth に対応したクライアントは、トークンなしで接続できる。メモリファイルには、`skills/llm-wiki/references/agent-memory-integration.md` にあるホスト型 wiki 用の記述を使う。
 
-## Experience and procedure improvements
+## 経験の記録と手順の改善 {#experience-and-procedure-improvements}
 
-All listed skill-compatible agents can run `/wiki:learn` and `/wiki:evolve` workflows through natural language using the installed `references/evolution-workflow.md` and `scripts/wiki_evolve.py`. Only Claude Code has the literal slash commands. Capture and lifecycle tooling use Python stdlib. The shared evaluation adapter includes all nine hosts. Their installed versions, authentication, permitted tools and reported accounting differ; see the evolution execution requirements and live-study report. No new agent integration is required to capture lessons. See [Learning and skill evolution](/evolution).
+一覧にあるスキル対応のエージェントはどれも、インストールされた `references/evolution-workflow.md` と `scripts/wiki_evolve.py` を使い、自然言語で `/wiki:learn` と `/wiki:evolve` のワークフローを実行できる。スラッシュコマンドそのものがあるのは Claude Code だけである。記録とライフサイクル管理のツールは、Python の標準ライブラリだけを使う。共通の評価用アダプターは、9つのホストすべてに対応している。ただし、ホストごとに、インストールされているバージョン、認証、使えるツール、報告される使用量の集計が異なる。改善ワークフローの実行要件と、実地検証のレポートを参照。教訓を記録するために、新しくエージェントとの連携を作る必要はない。[学習とスキルの改善](/evolution)を参照。

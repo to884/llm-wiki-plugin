@@ -1,28 +1,28 @@
 ---
-description: Run a structural and semantic health check on the LLM Wiki.
+description: LLM Wiki の構造と内容の両面で健全性をチェックする。
 argument-hint: "[--suggest-pages]"
 ---
 
-Run a lint pass on the wiki using the `llm-wiki` skill's lint workflow.
+`llm-wiki` スキルの lint ワークフローに従い、wiki に lint をかける。
 
-Arguments (if any): $ARGUMENTS
+引数（あれば）: $ARGUMENTS
 
-0. Resolve `<WIKI_ROOT>` from an explicit user path, the nearest project instructions, global agent instructions, or finally the current project's `wiki/`. Never assume `${PWD}/wiki` when instructions name another wiki.
-1. Read `<WIKI_ROOT>/SCHEMA.md` first if you haven't this session: it may declare additional lint rules.
-2. Run the structural lint script: `python "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_lint.py" "<WIKI_ROOT>"`. Add `--suggest-pages` if I asked for it. This catches orphans, broken wikilinks, oversized pages, missing frontmatter, stale pages, and duplicate slugs.
-2b. If `<WIKI_ROOT>/graph/ontology.yaml` exists, also run `uv run --script "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_graph_lint.py" "<WIKI_ROOT>"`. Triage typed-edge findings (unknown predicates, missing evidence, broken object refs, alias collisions) the same way as structural ones: propose fixes, don't apply silently. After approved fixes, suggest running `uv run --script "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_graph_extract.py" "<WIKI_ROOT>"`.
-3. Walk through the structural findings with me and propose a fix for each: don't apply fixes silently. Wait for my approval per item or in batch.
-4. Run the semantic pass: read the most recently updated pages and the most-linked-to hubs (use `python "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_search.py" "" --wiki "<WIKI_ROOT>" --top-linked 10` to find them). Look for contradictions with older pages, unstated cross-references, and concepts mentioned in many pages but lacking their own page.
-5. Surface gaps: topics I've expressed interest in but haven't ingested yet, claims that newer sources have superseded.
-6. After applying approved fixes, update the index entries that changed and append one line to `log.md` summarizing the lint pass.
-7. If the lint report is too long for me to triage comfortably, that's a signal the cadence is wrong (lint more often) or the schema needs revision: call it out.
+0. `<WIKI_ROOT>` は、ユーザーが明示したパス、もっとも近いプロジェクトの指示、グローバルなエージェントの指示の順に探し、どれにもなければ現在のプロジェクトの `wiki/` とする。指示が別の wiki を指定しているときに、`${PWD}/wiki` を前提にしてはならない。
+1. このセッションでまだ読んでいなければ、最初に `<WIKI_ROOT>/SCHEMA.md` を読む。追加の lint ルールが定義されていることがある。
+2. 構造の lint スクリプトを実行する: `python "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_lint.py" "<WIKI_ROOT>"`。ユーザーが求めた場合は `--suggest-pages` を付ける。このスクリプトは、孤立ページ、リンク切れの wikilink、大きすぎるページ、frontmatter の欠落、更新の止まったページ、重複したスラッグを検出する。
+2b. `<WIKI_ROOT>/graph/ontology.yaml` がある場合は、`uv run --script "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_graph_lint.py" "<WIKI_ROOT>"` も実行する。型付きエッジの検出結果（未知の述語、証拠の欠落、リンク切れの目的語の参照、エイリアスの衝突）も、構造の検出結果と同じように仕分ける。つまり、修正案を示し、黙って適用しない。承認された修正を適用したら、`uv run --script "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_graph_extract.py" "<WIKI_ROOT>"` の実行を提案する。
+3. 構造の検出結果をユーザーと一緒に1件ずつ確認し、それぞれに修正案を示す。黙って修正を適用してはならない。1件ずつ、またはまとめての承認を待つ。
+4. 内容の確認を行う。最近更新されたページと、もっとも多くリンクされているハブページを読む（`python "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_search.py" "" --wiki "<WIKI_ROOT>" --top-linked 10` で見つけられる）。古いページとの矛盾、張られていない相互参照、多くのページで言及されているのに専用のページがないコンセプトを探す。
+5. 足りていない点を挙げる。ユーザーが関心を示したのにまだ取り込んでいないトピックや、新しいソースによってすでに古くなった主張がこれに当たる。
+6. 承認された修正を適用したら、変わったインデックスの項目を更新し、lint の結果をまとめた行を `log.md` に1行追記する。
+7. lint のレポートが長すぎて、ユーザーが無理なく仕分けられない場合は、lint の頻度が合っていない（もっと頻繁にかけるべき）か、スキーマを見直す必要があるという兆候である。そのことをユーザーに指摘する。
 
-**Hosted wiki.** If the resolved wiki is a hosted URL (or the instructions name one), use hosted mode from `skills/llm-wiki/references/hosted-mode.md`: the MCP tools, or `python3 "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_remote.py"` when MCP is not available. Use these forms of the steps above:
+**ホスト型 wiki。** 特定した wiki がホスト型の URL である場合（または指示でホスト型の URL が指定されている場合）は、`skills/llm-wiki/references/hosted-mode.md` のホストモードを使う。MCP ツールを使い、MCP が使えないときは `python3 "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_remote.py"` を使う。上の手順は、次のように置き換える。
 
-- Step 1: call `wiki_overview` for `SCHEMA.md`.
-- Steps 2 and 2b: call `wiki_lint`. It returns structural findings, graph findings and open review flags in one result. No extract step is necessary.
-- Step 4: `wiki_search` with `top_linked: 10`, then `wiki_read`.
-- Step 6: apply approved fixes with `wiki_commit` (`edit`, or `move` and `delete` with `base_rev`). `move` does not change links, so edit the referring pages in the same commit. Add the `log.md` line with an `append` operation.
-- Show open review flags with the other findings. Resolve each one only after my decision: `wiki_remote.py review --resolve <id> --status accepted|dismissed`.
+- 手順 1: `wiki_overview` を呼び出して `SCHEMA.md` を得る。
+- 手順 2 と 2b: `wiki_lint` を呼び出す。構造の検出結果、グラフの検出結果、未解決のレビューフラグが1つの結果にまとめて返る。extract の手順は不要である。
+- 手順 4: `wiki_search` を `top_linked: 10` で呼び出し、そのあと `wiki_read` で読む。
+- 手順 6: 承認された修正は `wiki_commit` で適用する（`edit`、または `base_rev` を付けた `move` と `delete`）。`move` はリンクを書き換えないので、参照元のページも同じコミットで編集する。`log.md` の行は `append` 操作で追加する。
+- 未解決のレビューフラグは、ほかの検出結果と一緒に示す。ユーザーが判断してから、1件ずつ `wiki_remote.py review --resolve <id> --status accepted|dismissed` で解決する。
 
-If I enabled the optional decision layer, add `--decide` to `wiki_graph_lint.py` or `decide: true` to `wiki_lint`, and offer `wiki_decide.py contradictions` for a local wiki. See `skills/llm-wiki/references/decision-models.md`.
+ユーザーが任意の判定レイヤーを有効にしている場合は、`wiki_graph_lint.py` に `--decide` を、`wiki_lint` に `decide: true` を付ける。ローカルの wiki では `wiki_decide.py contradictions` も提案する。詳しくは `skills/llm-wiki/references/decision-models.md` を参照。

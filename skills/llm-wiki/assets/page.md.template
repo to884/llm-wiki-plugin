@@ -9,18 +9,18 @@ updated: YYYY-MM-DD
 
 # Title
 
-Lead paragraph: a clear, encyclopedic definition or framing of what this page is about. Should answer "what is this and why does it matter" in one or two sentences.
+リード段落: このページが何についてのものかを、百科事典のように明確に定義するか、位置づけを示す。「これは何で、なぜ重要か」に1〜2文で答える。
 
 ## Section 1
 
-Body content. Use `[[wikilinks]]` liberally to cross-reference other pages. (Frontmatter `sources:` list above uses bare slugs; only the body uses double-bracket wikilinks.)
+本文。ほかのページへの相互参照には `[[wikilinks]]` を積極的に使う。（上の frontmatter の `sources:` リストには、括弧なしのスラッグを書く。二重の角括弧の wikilink を使うのは本文だけである。）
 
 ## Section 2
 
-More body content. Hedge claims that aren't yet corroborated by multiple sources ("Source X claims Y, though this is not yet corroborated by other sources in the wiki").
+本文の続き。複数のソースでまだ裏づけられていない主張は、断定を避けて書く（「ソース X は Y と主張しているが、wiki のほかのソースではまだ裏づけられていない」）。
 
 ## Where this fits
 
-(For source pages.) List the entity and concept pages this source touches:
+（ソースページの場合。）このソースが関係するエンティティとコンセプトのページを並べる。
 - [[entity-page-1]]
 - [[concept-page-1]]

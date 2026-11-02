@@ -1,10 +1,10 @@
-# Page Conventions
+# ページの規約
 
-The structural rules every wiki page follows. The schema may extend or override these for a particular wiki, but these are the defaults.
+wiki のすべてのページが従う構造上の規則である。特定の wiki では、スキーマでこれらを拡張したり上書きしたりできるが、既定ではこの規則に従う。
 
-## Frontmatter
+## frontmatter
 
-Every wiki page begins with YAML frontmatter. The required fields:
+wiki のページはどれも YAML の frontmatter で始める。必須のフィールドは次のとおりである。
 
 ```yaml
 ---
@@ -17,73 +17,73 @@ updated: 2026-04-15
 ---
 ```
 
-Note that frontmatter list values are **bare slugs**, not `[[wikilinks]]`. The double-bracket syntax is only used in the page body. The bundled scripts treat frontmatter `sources:`, `entities:`, and `concepts:` lists as slug references and resolve them the same way as body wikilinks.
+frontmatter のリストの値は `[[wikilinks]]` ではなく、**そのままのスラッグ**である点に注意する。二重角括弧の書き方は、ページの本文でだけ使う。付属のスクリプトは、frontmatter の `sources:`、`entities:`、`concepts:` のリストをスラッグへの参照として扱い、本文の wikilink と同じように解決する。
 
-`type` determines the page-type and which subdirectory the page lives in. Standard types are `source`, `entity`, `concept`, `synthesis`. The schema can declare additional types.
+`type` は、ページの種類と、ページを置くサブディレクトリを決める。標準の種類は `source`、`entity`、`concept`、`synthesis` である。スキーマで種類を追加できる。
 
-`title` is the human-readable name. The filename slug is separate and may be a short version of the title. For pages about people, the convention is `Last, First` for sortability; for everything else, natural casing.
+`title` は人が読むための名前である。ファイル名のスラッグはこれとは別で、タイトルを短くしたものにしてもよい。人についてのページは、並べ替えやすいように `Last, First` とするのが慣例で、それ以外は自然な大文字・小文字の使い方にする。
 
-`tags` is a flat list. Tags are how `wiki_search.py` filters and how the user navigates topically in Obsidian. Keep the tag taxonomy small and disciplined — a wiki with 200 tags has effectively no tags. The schema should declare the canonical tag set and the lint script will warn on tags outside it.
+`tags` は階層のないリストである。タグは、`wiki_search.py` が絞り込みに使い、ユーザーが Obsidian で話題ごとにたどるのに使う。タグの体系は小さく、規律正しく保つ。タグが 200 個ある wiki は、事実上タグがないのと同じである。スキーマで正式なタグの一覧を定め、lint のスクリプトがそれ以外のタグに警告を出すようにする。
 
-`sources` is the list of source-summary pages this page draws from. Always populated for entity/concept/synthesis pages; for source pages themselves, this field is omitted (the source page is the source).
+`sources` は、このページの元になったソースの要約ページのリストである。エンティティ、コンセプト、シンセシスのページでは必ず埋める。ソースのページ自体では、このフィールドを省く（ソースのページがソースそのものだからである）。
 
-`created` and `updated` are dates in ISO format. `updated` is the load-bearing one — it powers the staleness check in lint and the "what's new" view.
+`created` と `updated` は ISO 形式の日付である。`updated` は、lint での更新の止まったページのチェックと、「新着」の表示に使われる要のフィールドである。
 
-Type-specific fields:
-- Source pages add `authors`, `url`, `raw` (path to the raw file), `ingested`.
-- Entity pages may add `aliases` (other names for the same entity), `kind` (person, paper, product, etc.).
-- Synthesis pages add `question` (the original question, if it was filed back from a query) and `sources_consulted`.
+種類ごとのフィールドは次のとおりである。
+- ソースのページには、`authors`、`url`、`raw`（raw ファイルへのパス）、`ingested` を加える。
+- エンティティのページには、`aliases`（同じエンティティの別名）、`kind`（person、paper、product など）を加えてもよい。
+- シンセシスのページには、`question`（クエリから保存した場合は、元の質問）と `sources_consulted` を加える。
 
-## Wikilinks
+## wikilink
 
-Cross-references use the `[[page-slug]]` syntax. The slug is the filename without the `.md` extension and without the directory prefix — Obsidian-style. Aliasing is supported: `[[page-slug|display text]]`.
+相互参照には `[[page-slug]]` の書き方を使う。スラッグは、`.md` の拡張子とディレクトリの接頭辞を除いたファイル名で、Obsidian と同じ形式である。別名を表示することもでき、`[[page-slug|display text]]` と書く。
 
-Every page should have at least one inbound link. New pages without inbound links are orphans and the lint pass will flag them.
+どのページにも、少なくとも1つの被リンクがあるべきである。被リンクのない新しいページは孤立ページであり、lint で指摘される。
 
-The bundled `wiki_search.py --backlinks <slug>` returns inbound links. To find them manually:
+付属の `wiki_search.py --backlinks <slug>` は被リンクを返す。手作業で探すには次のようにする。
 
 ```bash
 grep -rln "\[\[<slug>\]\]" wiki/
 ```
 
-## Page sizing
+## ページのサイズ
 
-**Soft cap: 400 lines or ~2,000 words.** When a page approaches this, consider whether it should split.
+**ソフト上限: 400 行または約 2,000 語。** ページがこれに近づいたら、分割すべきかを検討する。
 
-**Hard cap: 800 lines.** Pages over this must split. The lint script flags violations.
+**ハード上限: 800 行。** これを超えるページは必ず分割する。lint のスクリプトが違反を指摘する。
 
-Atomicity heuristic: a page is about *one* thing. A page on "Diffusion Models" should not also be the page on "Stable Diffusion" — those are two pages with cross-references. If you find yourself writing "## Variants" with five sub-sections of substantive prose, those sub-sections are probably their own pages.
+アトミックさの目安: 1つのページは*1つ*のことを扱う。"Diffusion Models" のページが "Stable Diffusion" のページを兼ねてはならない。それらは相互参照し合う2つのページである。"## Variants" の下に中身のある文章の小見出しを5つも書いているなら、それらの小見出しはおそらく独立したページにすべきである。
 
-The reason for the size cap is the context-bottleneck principle: any single page read is bounded, so the LLM can confidently read several pages without exhausting context.
+サイズに上限を設けるのは、コンテキストのボトルネックの原則のためである。1回に読むページの大きさに上限があるので、LLM はコンテキストを使い果たす心配をせずに、いくつかのページを読める。
 
-## Naming
+## 命名
 
-Page slugs are lowercase, hyphenated, no special characters. Match the directory: a concept page lives at `wiki/concepts/<slug>.md`.
+ページのスラッグは、小文字で、ハイフンでつなぎ、特殊文字を含めない。ディレクトリと対応させる。コンセプトのページは `wiki/concepts/<slug>.md` に置く。
 
-For entity pages about people: prefer the full name slugified (`andrej-karpathy.md`), not just the surname. Add `aliases:` to frontmatter for common short names.
+人についてのエンティティのページ: 姓だけでなく、フルネームをスラッグ化したものにする（`andrej-karpathy.md`）。よく使われる短い呼び名は、frontmatter の `aliases:` に加える。
 
-For source pages: use a slug derived from the source title, possibly with the year for disambiguation (`attention-is-all-you-need-2017.md`). The source page slug should match the raw file slug if possible — that makes the back-pointer trivial.
+ソースのページ: ソースのタイトルから作ったスラッグを使い、区別のために年を付けてもよい（`attention-is-all-you-need-2017.md`）。できれば、ソースのページのスラッグを raw ファイルのスラッグと一致させる。こうすると、raw ファイルへの参照が簡単になる。
 
-For synthesis pages: derive from the question or the topic, not the date. `comparing-rag-vs-llm-wiki.md`, not `2026-04-15-question.md`. Date-based names don't surface usefully in the index.
+シンセシスのページ: 日付ではなく、質問か話題から名前を付ける。`2026-04-15-question.md` ではなく、`comparing-rag-vs-llm-wiki.md` にする。日付の名前は、インデックスで見ても役に立たない。
 
-## Body structure
+## 本文の構成
 
-The body has no rigid template — the schema may declare one for specific page types — but a few defaults work well:
+本文には決まったテンプレートはない（スキーマで、特定のページの種類にテンプレートを決めてもよい）。ただ、既定として次の構成がうまく機能する。
 
-**Source pages**: lead paragraph summarizing the source's main contribution. Sections for key claims, methodology (if relevant), conclusions, open questions. End with a "Where this fits" section listing the entity and concept pages this source touches.
+**ソースのページ**: ソースの主な貢献を要約するリード文で始める。主な主張、手法（関係する場合）、結論、未解決の問いのセクションを置く。最後に "Where this fits" のセクションを置き、このソースが関係するエンティティとコンセプトのページを並べる。
 
-**Entity pages**: lead paragraph defining the entity. Sections for relevant attributes (for a paper: authors, venue, key claims; for a person: affiliation, notable work; for a product: what it does, who makes it). A "Mentioned in" section is unnecessary — the backlink discovery handles that.
+**エンティティのページ**: エンティティを定義するリード文で始める。関係する属性のセクションを置く（論文なら著者、発表の場、主な主張。人なら所属、主な業績。製品なら何をするものか、誰が作っているか）。"Mentioned in" のセクションは不要である。被リンクを探せば分かるからである。
 
-**Concept pages**: lead paragraph defining the concept clearly. Sections for the key formulation, variants, contested aspects, related concepts. Heavy use of `[[wikilinks]]` is expected — concept pages are the connective tissue of the wiki.
+**コンセプトのページ**: コンセプトをはっきり定義するリード文で始める。主な定式化、派生形、議論のある点、関係するコンセプトのセクションを置く。`[[wikilinks]]` を多く使うのがふつうである。コンセプトのページは、wiki の各部分をつなぐ役割を果たす。
 
-**Synthesis pages**: lead with the question (if filed from a query) or the framing. The body is the answer/analysis. End with the sources consulted as wikilinks.
+**シンセシスのページ**: 質問（クエリから保存した場合）か、問題の設定から始める。本文は回答や分析である。最後に、参照したソースを wikilink で並べる。
 
-## Hedging language
+## 留保の書き方
 
-When a source claims something that hasn't been corroborated by other sources in the wiki, hedge: "Source X claims Y, though this is not yet corroborated by other sources in the wiki." The lint pass will revisit hedged claims as the wiki accumulates more sources, either upgrading them to confirmed or flagging them as contested.
+wiki のほかのソースで裏づけられていない主張をソースがしている場合は、留保を付ける。「ソース X は Y と主張しているが、wiki のほかのソースではまだ裏づけられていない」のように書く。wiki にソースが増えるにつれて、lint で留保付きの主張を見直し、確認済みに格上げするか、議論があるものとして指摘する。
 
-When two sources contradict, document both: "Source X claims Y; source Z claims not-Y. The contradiction is unresolved." Do not silently pick a side.
+2つのソースが矛盾する場合は、両方を書く。「ソース X は Y と主張し、ソース Z は Y ではないと主張している。この矛盾は解決していない」のように書く。黙ってどちらか一方を選んではならない。
 
-## Keeping pages voice-neutral
+## ページの語り口を中立に保つ
 
-The wiki is the LLM's voice, not the source author's voice and not the user's voice. Paraphrase rather than quote, except for short load-bearing phrases where the exact wording matters. Maintain a consistent, neutral, encyclopedic tone — close to a Wikipedia article in register, not a chat reply.
+wiki は LLM の語り口で書く。ソースの著者の語り口でも、ユーザーの語り口でもない。正確な言い回しが重要な、短く要となる表現を除いて、引用ではなく言い換えで書く。一貫した、中立で百科事典的な文体を保つ。チャットの返答ではなく、Wikipedia の記事に近い文体にする。

@@ -1,39 +1,39 @@
 # LLM Wiki
 
-> LLM Wiki is an open-source skill and plugin for building an agent-maintained, continuously compiled knowledge base from project sources. It implements Andrej Karpathy's LLM Wiki pattern with canonical Markdown pages, section-level retrieval, optional typed graphs, and support for multiple coding agents.
+> LLM Wiki は、プロジェクトのソースから、エージェントが保守し、継続的にコンパイルし続けるナレッジベースを構築するためのオープンソースのスキル兼プラグインである。Andrej Karpathy の LLM Wiki パターンを実装しており、正本となる Markdown ページ、セクション単位の検索、任意の型付きグラフ、複数のコーディングエージェントへの対応を備える。
 
-The canonical project is https://github.com/praneybehl/llm-wiki-plugin. The documentation below is public, pre-rendered as static HTML, and maintained with the current release.
+正規のプロジェクトは https://github.com/praneybehl/llm-wiki-plugin である。以下のドキュメントは公開されており、静的 HTML として事前にレンダリングされ、現行のリリースに合わせて保守されている。
 
-## Start here
+## はじめに
 
-- [Overview](https://praneybehl.github.io/llm-wiki-plugin/): What LLM Wiki is, how it differs from query-time RAG, and the three-step quick start.
-- [Getting started](https://praneybehl.github.io/llm-wiki-plugin/getting-started.html): Install `uv` and the skill/plugin for Claude Code, Codex, Cursor, Gemini CLI, OpenCode, OpenClaw, Pi, OMP, or Hermes; initialization then installs the complete pinned runtime, local model, and indexes.
-- [Commands](https://praneybehl.github.io/llm-wiki-plugin/commands.html): Reference for `/wiki:init` (including `--hosted <url>`), `/wiki:ingest`, `/wiki:query`, `/wiki:lint`, `/wiki:stats`, `/wiki:graph`, `/wiki:migrate`, `/wiki:upgrade`, `/wiki:learn`, and `/wiki:evolve`.
-- [Workflows](https://praneybehl.github.io/llm-wiki-plugin/workflows.html): Step-by-step ingest, query, and maintenance behavior.
+- [概要](https://praneybehl.github.io/llm-wiki-plugin/): LLM Wiki とは何か、クエリ時に検索する RAG とどう違うか、3ステップのクイックスタート。
+- [はじめ方](https://praneybehl.github.io/llm-wiki-plugin/getting-started.html): `uv` と、Claude Code、Codex、Cursor、Gemini CLI、OpenCode、OpenClaw、Pi、OMP、Hermes 向けのスキルまたはプラグインをインストールする。そのあと初期化で、バージョンを固定した実行環境一式、ローカルのモデル、インデックスがインストールされる。
+- [コマンド](https://praneybehl.github.io/llm-wiki-plugin/commands.html): `/wiki:init`（`--hosted <url>` を含む）、`/wiki:ingest`、`/wiki:query`、`/wiki:lint`、`/wiki:stats`、`/wiki:graph`、`/wiki:migrate`、`/wiki:upgrade`、`/wiki:learn`、`/wiki:evolve` のリファレンス。
+- [ワークフロー](https://praneybehl.github.io/llm-wiki-plugin/workflows.html): 取り込み、クエリ、保守の動作を手順ごとに説明する。
 
-- [Learning and skill evolution](https://praneybehl.github.io/llm-wiki-plugin/evolution.html): Bounded training, persistent evidence consolidation, whole-skill proposals, validation selection, independent final tests and cross-agent transfer. Includes nine host adapters, durable interrupted traces, calibrated judging, ingestion/graph/hybrid-search checks, paired task-level analysis, pre-request API spending reservations and recovery.
+- [学習とスキルの改善](https://praneybehl.github.io/llm-wiki-plugin/evolution.html): 範囲を限った学習、証拠の継続的な統合、スキル全体に対する改善案、検証による選定、独立した最終テスト、別エージェントへの転用。9つのホスト用アダプター、中断しても残るトレース、較正したジャッジ、取り込み・グラフ・ハイブリッド検索のチェック、タスク単位の対応のある分析、リクエスト前の API 費用の予約と復旧も扱う。
 
-- [WikiSkill research basis](https://arxiv.org/html/2608.27454v1): The source paper for the optional evolution workflow; the evolution guide maps adopted ideas, project-specific choices and measured limitations.
+- [WikiSkill の研究上の根拠](https://arxiv.org/html/2608.27454v1): 任意で使う改善ワークフローの元になった論文。改善ワークフローのガイドに、取り入れた考え方、このプロジェクト独自の選択、測定で分かった制約をまとめている。
 
-## Retrieval and structure
+## 検索と構造
 
-- [Search and retrieval](https://praneybehl.github.io/llm-wiki-plugin/search.html): Mandatory init/upgrade setup for local FastEmbed + sqlite-vec semantic search fused with section-level BM25, structured JSON evidence, and incrementally synchronized caches.
-- [Graph layer](https://praneybehl.github.io/llm-wiki-plugin/graph.html): Optional typed, provenance-backed relationships compiled from canonical Markdown.
+- [検索と取得](https://praneybehl.github.io/llm-wiki-plugin/search.html): init と upgrade で必ず行うセットアップ。ローカルの FastEmbed と sqlite-vec によるセマンティック検索をセクション単位の BM25 と統合する仕組み、構造化された JSON の証拠、差分で同期されるキャッシュ。
+- [グラフ層](https://praneybehl.github.io/llm-wiki-plugin/graph.html): 正本の Markdown からコンパイルされる、出典の裏づけを持つ任意の型付き関係。
 
-## Hosted wiki
+## ホスト型 wiki
 
-- [Hosted wiki](https://praneybehl.github.io/llm-wiki-plugin/hosted.html): Optional one-click Cloudflare deployment: one Worker with a SQLite Durable Object for each wiki, MCP and JSON API access, per-agent tokens or OAuth, atomic commits with history and conflict detection, hybrid search with Workers AI and Vectorize, a browser reader, migration with `wiki_remote.py import`, a pull mirror, Free and Paid plan limits, costs and security.
-- [Decision models](https://praneybehl.github.io/llm-wiki-plugin/decisions.html): Optional, off-by-default small decision models (Jev, Liquid d1) for a search relevance gate, graph evidence checks, contradiction screening, ingest shortlists and untrusted-text flags; backends, privacy, licence and fail-open rules.
+- [ホスト型 wiki](https://praneybehl.github.io/llm-wiki-plugin/hosted.html): ワンクリックでデプロイできる、任意の Cloudflare 構成。wiki ごとに SQLite Durable Object を持つ1つの Worker、MCP と JSON API によるアクセス、エージェントごとのトークンまたは OAuth、履歴と競合検出を備えたアトミックなコミット、Workers AI と Vectorize によるハイブリッド検索、ブラウザー用のリーダー、`wiki_remote.py import` による移行、pull ミラー、Free プランと Paid プランの制限、費用、セキュリティ。
+- [判定モデル](https://praneybehl.github.io/llm-wiki-plugin/decisions.html): 任意で使う、既定では無効の小さな判定モデル（Jev、Liquid d1）。検索結果の関連度によるふるい分け、グラフの証拠のチェック、矛盾の洗い出し、取り込み候補の絞り込み、信頼できないテキストへのフラグ付けに使う。バックエンド、プライバシー、ライセンス、判定に失敗したときに処理を通す（fail-open）規則も扱う。
 
-## Ecosystem
+## エコシステム
 
-- [Supported agents](https://praneybehl.github.io/llm-wiki-plugin/agents.html): Verified agent support, installation methods, and memory-file conventions.
-- [Upgrade to v4](https://praneybehl.github.io/llm-wiki-plugin/upgrade.html): v4 adds the optional hosted wiki and decision layer; local wikis need no migration. Also covers upgrades from v3.1 and earlier.
-- [v3.2.0 documentation (legacy)](https://praneybehl.github.io/llm-wiki-plugin/v3/): The old v3.2.0 pages, including the removed Paperclip integration. Use the v4 pages above for the current release.
+- [対応エージェント](https://praneybehl.github.io/llm-wiki-plugin/agents.html): 動作を確認したエージェント、インストール方法、メモリファイルの規約。
+- [v4 へのアップグレード](https://praneybehl.github.io/llm-wiki-plugin/upgrade.html): v4 では、任意のホスト型 wiki と判定レイヤーが加わった。ローカルの wiki に移行作業は要らない。v3.1 以前からのアップグレードも扱う。
+- [v3.2.0 のドキュメント（旧版）](https://praneybehl.github.io/llm-wiki-plugin/v3/): 削除された Paperclip 連携を含む、v3.2.0 の旧ページ。現行のリリースには、上の v4 のページを使う。
 
-## Source and licensing
+## ソースとライセンス
 
-- [GitHub repository](https://github.com/praneybehl/llm-wiki-plugin): Source code, skill files, commands, the hosted server, tests, and release history.
-- [License](https://github.com/praneybehl/llm-wiki-plugin/blob/main/LICENSE): MIT.
-- [Karpathy's LLM Wiki gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f): The original pattern that inspired this implementation.
-- [Cerebras: How We Built Our Knowledge Base](https://www.cerebras.ai/blog/how-we-built-our-knowledge-base): Engineering reference that informed v2 section retrieval, fusion, evidence packaging, and evaluation.
+- [GitHub リポジトリ](https://github.com/praneybehl/llm-wiki-plugin): ソースコード、スキルのファイル、コマンド、ホスト型のサーバー、テスト、リリース履歴。
+- [ライセンス](https://github.com/praneybehl/llm-wiki-plugin/blob/main/LICENSE): MIT。
+- [Karpathy の LLM Wiki の gist](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f): この実装のきっかけになった元のパターン。
+- [Cerebras: How We Built Our Knowledge Base](https://www.cerebras.ai/blog/how-we-built-our-knowledge-base): v2 のセクション検索、統合、証拠のまとめ方、評価の参考にしたエンジニアリングの資料。

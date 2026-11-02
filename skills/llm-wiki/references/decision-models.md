@@ -1,61 +1,61 @@
-# Decision Models (optional)
+# 判定モデル（任意）
 
-A decision model is a small model that answers a closed question. Examples: "Does this section help answer the query? A or B". "Which sentence supports this edge? s1, s2 or none". Code prepares the options. The model picks one and gives a confidence.
+判定モデルは、選択肢が決まった質問に答える小さなモデルである。たとえば「このセクションはクエリへの回答に役立つか？ A か B」「このエッジを裏づける文はどれか？ s1、s2、どれでもない」といった質問である。選択肢はコードが用意し、モデルはその中から1つを選んで確信度を返す。
 
-The decision layer is off by default. The wiki works the same without it. Enable it only when the user asks.
+判定レイヤーは既定では無効で、なくても wiki は同じように動く。ユーザーが求めた場合にだけ有効にする。
 
-## Rules
+## 規則
 
-- A decision never writes or blocks a write. Read paths fail open. Write checks only add lint findings or review flags.
-- Fail open means: on an error, a timeout or an invalid answer, the tool returns the normal result and reports `failed_open: true`.
-- Never send wiki text to a hosted backend unless the user enabled that backend.
-- Every output records the backend, the model, `latency_ms` and the threshold.
-- Do not use a decision model to write, merge or summarize pages, to answer questions, to make slugs or to check frontmatter. Code or the main agent does that work.
+- 判定がページを書き込むことも、書き込みを止めることもない。読み取りの処理は fail-open で動く。書き込み時のチェックは、lint の検出結果かレビューフラグを追加するだけである。
+- fail-open とは、エラー、タイムアウト、無効な回答のときに、ツールが通常の結果を返し、`failed_open: true` を報告することである。
+- ユーザーがそのバックエンドを有効にしていない限り、ホスト型のバックエンドに wiki のテキストを送ってはならない。
+- どの出力にも、バックエンド、モデル、`latency_ms`、閾値を記録する。
+- ページの書き込み、統合、要約、質問への回答、スラッグの作成、frontmatter のチェックに判定モデルを使ってはならない。これらはコードかメインのエージェントが行う。
 
-## Checks
+## チェック
 
-| Check | Where | Question | Result |
+| チェック | 使う場所 | 質問 | 結果 |
 |---|---|---|---|
-| D1 relevance gate | Search (local and hosted) | For each of the top 20 rows: does this section help answer the query (A) or does it only share words (B)? | Rows with P(A) below the threshold are removed. An empty result means the wiki has no answer. |
-| D2 evidence check | Graph lint (local and hosted) | The evidence text of a typed edge does not occur in its source page. Which sentence supports the edge, or none? | Lint finding `evidence_unsupported` or a review flag |
-| D3 contradiction screen | Local lint (`wiki_decide.py contradictions`) | For two sections about the same entity: corroborates, contradicts, new detail or unrelated? | A list of pairs to read. The agent decides. |
-| D4 ingest shortlist | Local ingest (`wiki_decide.py shortlist`) | For each search candidate: does this source add to or change this page? | A ranked list of pages to read first |
-| D5 untrusted-text screen | Hosted writes to `sources/`, local `wiki_decide.py screen` | Does this text give instructions to an AI system? | Review flag `untrusted_text`. The commit still applies. |
+| D1 関連度ゲート | 検索（ローカルとホスト型） | 上位 20 行のそれぞれについて、このセクションはクエリへの回答に役立つか（A）、単語が共通しているだけか（B）？ | P(A) が閾値を下回る行を除く。結果が空なら、wiki に答えはない。 |
+| D2 証拠のチェック | グラフの lint（ローカルとホスト型） | 型付きエッジの証拠のテキストが、そのソースページに見つからない。エッジを裏づける文はどれか、それともどれでもないか？ | lint の検出結果 `evidence_unsupported`、またはレビューフラグ |
+| D3 矛盾の洗い出し | ローカルの lint（`wiki_decide.py contradictions`） | 同じエンティティについての2つのセクションは、裏づけ合うか、矛盾するか、新しい詳細を加えるか、無関係か？ | 読むべきペアの一覧。判断はエージェントが行う。 |
+| D4 取り込み候補の絞り込み | ローカルの取り込み（`wiki_decide.py shortlist`） | 検索で見つかった候補のそれぞれについて、このソースはこのページに情報を加えるか、内容を変えるか？ | 先に読むべきページの順位付きの一覧 |
+| D5 信頼できないテキストの洗い出し | ホスト型での `sources/` への書き込み、ローカルの `wiki_decide.py screen` | このテキストは AI システムに指示を出しているか？ | レビューフラグ `untrusted_text`。コミットはそのまま適用される。 |
 
-A check that has not passed its eval is experimental. Use its result as a hint, not as a fact.
+評価に合格していないチェックは実験的なものである。その結果は事実ではなく、手がかりとして使う。
 
-## Backends
+## バックエンド
 
-| Backend | Where it runs | Model | Key | Text leaves the machine |
+| バックエンド | 実行場所 | モデル | キー | テキストがマシンの外に出るか |
 |---|---|---|---|---|
-| `local` | `llama-server` on `127.0.0.1:8080` with `LiquidAI/d1-2B-GGUF` | `d1-2B` | None | No |
-| `typesafe` | `https://api.typesafe.ai` | `jev-1.14.0` | `TYPESAFE_API_KEY` | Yes, to TypeSafe |
-| `openrouter` | `https://openrouter.ai/api` | `typesafe/jev-1.14` | `OPENROUTER_API_KEY` | Yes, to OpenRouter and TypeSafe |
-| `liquid` | `https://api.liquid.ai/decisions` | `d1.1` | `LIQUID_API_KEY` | Yes, to Liquid |
-| `hosted` | The hosted wiki server (`/api/v1/decide`) | The server setting | Wiki token | Yes, to your Worker and its backend |
-| `workers-ai` | Server only: Jev on Workers AI | `typesafe/jev-1.14.0` | None (needs AI Gateway credits) | Stays in Cloudflare |
+| `local` | `127.0.0.1:8080` の `llama-server` と `LiquidAI/d1-2B-GGUF` | `d1-2B` | なし | 出ない |
+| `typesafe` | `https://api.typesafe.ai` | `jev-1.14.0` | `TYPESAFE_API_KEY` | 出る（TypeSafe へ） |
+| `openrouter` | `https://openrouter.ai/api` | `typesafe/jev-1.14` | `OPENROUTER_API_KEY` | 出る（OpenRouter と TypeSafe へ） |
+| `liquid` | `https://api.liquid.ai/decisions` | `d1.1` | `LIQUID_API_KEY` | 出る（Liquid へ） |
+| `hosted` | ホスト型 wiki のサーバー（`/api/v1/decide`） | サーバーの設定による | wiki のトークン | 出る（自分の Worker とそのバックエンドへ） |
+| `workers-ai` | サーバーのみ: Workers AI 上の Jev | `typesafe/jev-1.14.0` | なし（AI Gateway のクレジットが必要） | Cloudflare の中にとどまる |
 
-Notes:
+補足:
 
-- `workers-ai` needs Cloudflare AI Gateway credits (unified billing). Without credits, the call fails with `2021: Insufficient AI Gateway credits`. The wiki then fails open: no gate and no flags.
-- For `typesafe`, `openrouter` or `liquid` on the server, add the key as a Worker secret: `npx wrangler secret put TYPESAFE_API_KEY`.
-- Bind `llama-server` to `127.0.0.1` only.
-- Licence: Liquid d1 models use the LFM Open License v1.0. Free use stops at $10M annual revenue. Above that limit, the user needs a commercial licence from Liquid.
-- Price (vendor figures, October 2026): Jev $0.042 for each million input tokens. Liquid API `d1.1` $0.02 for each million input tokens. Local use costs nothing.
-- Privacy: TypeSafe keeps zero data only on enterprise plans. Liquid has not stated API retention. Jev on Workers AI has zero data retention. Tell the user which text each check sends (D1: query and section text; D2: edge and page sentences; D3: two sections; D4: source start and candidate sections; D5: page text).
+- `workers-ai` には、Cloudflare AI Gateway のクレジット（統合請求）が必要である。クレジットがないと、呼び出しは `2021: Insufficient AI Gateway credits` で失敗する。その場合 wiki は fail-open で動き、ゲートもフラグもかからない。
+- サーバーで `typesafe`、`openrouter`、`liquid` を使う場合は、キーを Worker のシークレットとして追加する: `npx wrangler secret put TYPESAFE_API_KEY`。
+- `llama-server` は `127.0.0.1` だけにバインドする。
+- ライセンス: Liquid の d1 モデルは LFM Open License v1.0 である。無償で使えるのは年間売上 1,000 万ドルまでで、それを超える場合は Liquid から商用ライセンスを受ける必要がある。
+- 料金（ベンダー公表値、2026 年 10 月）: Jev は入力 100 万トークンあたり 0.042 ドル、Liquid API の `d1.1` は入力 100 万トークンあたり 0.02 ドル。ローカルで使う場合は無料である。
+- プライバシー: TypeSafe がデータを一切保持しないのは、エンタープライズプランだけである。Liquid は API のデータ保持について明らかにしていない。Workers AI 上の Jev はデータを保持しない。各チェックがどのテキストを送るかをユーザーに伝える（D1: クエリとセクションのテキスト、D2: エッジとページの文、D3: 2つのセクション、D4: ソースの冒頭と候補のセクション、D5: ページのテキスト）。
 
-## Enable locally
+## ローカルで有効にする
 
-Set the backend with an environment variable or a flag. The default is `off`.
+バックエンドは、環境変数かフラグで設定する。既定は `off` である。
 
 ```bash
 export LLM_WIKI_DECISIONS=local          # off | local | typesafe | openrouter | liquid | hosted
-export LLM_WIKI_DECISIONS_URL=http://127.0.0.1:8080   # optional base URL
-export LLM_WIKI_DECISIONS_MODEL=d1-2B                 # optional model override
-python scripts/wiki_decide.py check                   # test the backend
+export LLM_WIKI_DECISIONS_URL=http://127.0.0.1:8080   # 任意。ベース URL
+export LLM_WIKI_DECISIONS_MODEL=d1-2B                 # 任意。モデルを上書きする
+python scripts/wiki_decide.py check                   # バックエンドを試す
 ```
 
-Use the checks:
+チェックは次のように使う。
 
 ```bash
 uv run --script scripts/wiki_search.py "query" --json --decide [--decide-pool 20] [--decide-threshold 0.65]
@@ -65,32 +65,32 @@ python scripts/wiki_decide.py shortlist raw/<source-file> --wiki wiki/ [--top 30
 python scripts/wiki_decide.py screen <file>
 ```
 
-Global flags for `wiki_decide.py`: `--backend`, `--model`, `--url`, `--timeout`, `--profile`. See each subcommand's `--help` for its threshold flag. With `--decide`, the search JSON gets a top-level `decision` block and a `decision` field on each row. Without `--decide`, the output does not change.
+`wiki_decide.py` のグローバルなフラグは、`--backend`、`--model`、`--url`、`--timeout`、`--profile` である。閾値のフラグは、各サブコマンドの `--help` を参照。`--decide` を付けると、検索の JSON にトップレベルの `decision` ブロックと、各行の `decision` フィールドが加わる。`--decide` を付けなければ、出力は変わらない。
 
-## Enable on a hosted wiki
+## ホスト型 wiki で有効にする
 
-The owner changes the wiki settings on the `/setup` page or with `python3 scripts/wiki_remote.py settings --set <key>=<value>`. Settings:
+wiki の設定は、所有者が `/setup` ページか `python3 scripts/wiki_remote.py settings --set <key>=<value>` で変更する。設定は次のとおり。
 
-| Setting | Meaning | Default |
+| 設定 | 意味 | 既定値 |
 |---|---|---|
-| `decisions.enabled` | Turn the layer on | `false` |
-| `decisions.backend` | `workers-ai`, `typesafe`, `openrouter` or `liquid` | `workers-ai` |
-| `decisions.model` | Pinned model id | Backend default |
-| `decisions.search_gate` | Gate every search, not only searches with `decide: true` | `false` |
-| `decisions.screen_writes` | Run D5 on new or replaced pages under `sources/` | `false` |
-| `decisions.relevance_threshold` | P(relevant) to keep a search row | `0.65` |
-| `decisions.screen_threshold` | P(untrusted) to create a review flag | `0.7` |
-| `decisions.timeout_ms` | Timeout for one call | `4000` |
+| `decisions.enabled` | 判定レイヤーを有効にする | `false` |
+| `decisions.backend` | `workers-ai`、`typesafe`、`openrouter`、`liquid` のいずれか | `workers-ai` |
+| `decisions.model` | 固定するモデルの ID | バックエンドの既定 |
+| `decisions.search_gate` | `decide: true` を付けた検索だけでなく、すべての検索にゲートをかける | `false` |
+| `decisions.screen_writes` | `sources/` 以下の新しいページや置き換えたページに D5 を実行する | `false` |
+| `decisions.relevance_threshold` | 検索の行を残すための P(関連あり) | `0.65` |
+| `decisions.screen_threshold` | レビューフラグを作るための P(信頼できない) | `0.7` |
+| `decisions.timeout_ms` | 1回の呼び出しのタイムアウト | `4000` |
 
-Agents send `decide: true` to `wiki_search`, or `--decide` to `wiki_remote.py search` and `lint`. Review flags are in `wiki_lint` output and on the `/ui/<wiki>/review` page. Resolve them with `wiki_remote.py review --resolve <id> --status accepted|dismissed`.
+エージェントは、`wiki_search` には `decide: true` を、`wiki_remote.py search` と `lint` には `--decide` を渡す。レビューフラグは、`wiki_lint` の出力と `/ui/<wiki>/review` ページに出る。フラグは `wiki_remote.py review --resolve <id> --status accepted|dismissed` で解決する。
 
-## Evaluate before use
+## 使う前に評価する
 
-The eval uses only synthetic fixtures. Never send private wiki text to a hosted backend for an eval.
+評価には、合成したフィクスチャだけを使う。評価のために、非公開の wiki のテキストをホスト型のバックエンドに送ってはならない。
 
 ```bash
-python eval/decisions/run_eval.py --backend fake            # no network
+python eval/decisions/run_eval.py --backend fake            # ネットワークを使わない
 python eval/decisions/run_eval.py --backend local --out results.json
 ```
 
-Report each backend separately. Set a threshold only from a held-out split.
+バックエンドごとに分けて報告する。閾値は、取り分けておいた分割のデータだけをもとに決める。

@@ -1,33 +1,29 @@
 #!/usr/bin/env python3
-"""Retrieval-quality eval harness for the llm-wiki section search.
+"""llm-wiki のセクション検索の検索品質を評価するハーネス。
 
-Shells out to ``skills/llm-wiki/scripts/wiki_search.py`` over the fixed
-fixture corpus (``corpus/wiki``) and query set (``queries.json``), then
-reports retrieval quality per mode:
+固定したフィクスチャのコーパス（``corpus/wiki``）とクエリセット（``queries.json``）に対して
+``skills/llm-wiki/scripts/wiki_search.py`` をサブプロセスで実行し、モードごとの検索品質を報告する。
 
-  * ``page``    -- whole-page BM25 (``--granularity page --no-embed``)
-  * ``section`` -- section-level BM25 (``--no-embed``)
-  * ``hybrid``  -- RRF fusion of BM25 + local FastEmbed/sqlite-vec retrieval;
-                   evaluated when those optional packages are installed,
-                   detected by running one search and reading its JSON mode.
+  * ``page``    -- ページ単位の BM25（``--granularity page --no-embed``）
+  * ``section`` -- セクション単位の BM25（``--no-embed``）
+  * ``hybrid``  -- BM25 とローカルの FastEmbed/sqlite-vec による検索を RRF で統合したもの。
+                   任意のパッケージがインストールされているときに評価する。
+                   インストールの有無は、検索を1回実行し、JSON の mode を読んで判定する。
 
-Metrics are computed over the non-negative queries, matching on page slug
-(a section hit counts for its page): recall@5, recall@10, and MRR, all
-against the raw result rows (no per-page dedup before slicing). Negative
-queries are reported separately as a false-positive rate: the fraction
-that return at least one result in the top 5.
+指標は、負例でないクエリについて、ページのスラッグで照合して計算する（セクションが当たれば、そのページが当たったとみなす）。
+指標は recall@5、recall@10、MRR で、いずれも生の結果行に対して計算する（上位を切り出す前に、ページ単位の重複は除かない）。
+負例のクエリは、偽陽性率として別に報告する。偽陽性率は、上位5件に1件以上の結果を返したクエリの割合である。
 
-The harness also verifies the ``--cache`` byte-identical invariant: three
-fixed queries produce identical ``--json`` output with no cache, with a
-cold cache, and with a warm cache.
+このハーネスは、``--cache`` を使っても出力がバイト単位で変わらないことも確かめる。
+固定した3つのクエリについて、キャッシュなし、コールドキャッシュ、ウォームキャッシュのどれでも、``--json`` の出力が同じになることを確認する。
 
-Lexical checks use only stdlib. Use ``uv run --script`` on the search script
-or install its pinned optional packages before evaluating hybrid retrieval.
+語彙ベースのチェックは標準ライブラリだけを使う。ハイブリッド検索を評価する前に、検索スクリプトを
+``uv run --script`` で実行するか、バージョンを固定した任意のパッケージをインストールしておく。
 
-  python3 eval/retrieval/run_eval.py          # lexical report
+  python3 eval/retrieval/run_eval.py          # 語彙ベースのレポート
   uv run --with fastembed==0.8.0 --with sqlite-vec==0.1.9 \
-    python eval/retrieval/run_eval.py          # include hybrid
-  python3 eval/retrieval/run_eval.py --gate   # + regression gate (CI)
+    python eval/retrieval/run_eval.py          # ハイブリッド検索も含める
+  python3 eval/retrieval/run_eval.py --gate   # 回帰ゲートも実行する（CI）
 """
 
 import argparse
@@ -43,7 +39,7 @@ SCRIPT = REPO / "skills" / "llm-wiki" / "scripts" / "wiki_search.py"
 CORPUS = HERE / "corpus" / "wiki"
 QUERIES = HERE / "queries.json"
 
-# Retrieval modes, expressed as flags for wiki_search.py.
+# 検索モード。wiki_search.py に渡すフラグで表す。
 MODES = {
     "page": {"granularity": "page", "no_embed": True},
     "section": {"granularity": "section", "no_embed": True},
@@ -52,7 +48,7 @@ MODES = {
 
 METRIC_COLUMNS = ["recall@5", "recall@10", "mrr", "fp_rate"]
 
-# Three fixed queries for the cache byte-identical invariant check.
+# キャッシュを使っても出力がバイト単位で変わらないことを確かめる、固定した3つのクエリ。
 CACHE_QUERIES = [
     "attention mechanism",
     "quantization int8",
@@ -82,9 +78,9 @@ def build_cmd(query, granularity, filters, no_embed, cache=None):
 
 
 def run_search_bytes(query, granularity="section", filters=None, no_embed=True, cache=None):
-    """Run one search and return raw stdout bytes (the JSON line)."""
+    """検索を1回実行し、標準出力をバイト列のまま（JSON の行）返す。"""
     cmd = build_cmd(query, granularity, filters, no_embed, cache)
-    proc = subprocess.run(cmd, capture_output=True, cwd=str(REPO))  # bytes, no decode
+    proc = subprocess.run(cmd, capture_output=True, cwd=str(REPO))  # デコードせずにバイト列のまま
     if proc.returncode != 0:
         detail = proc.stderr.decode("utf-8", "replace").strip()
         raise SystemExit(f"search failed for {query!r}: {detail}")
@@ -92,7 +88,7 @@ def run_search_bytes(query, granularity="section", filters=None, no_embed=True, 
 
 
 def run_search(query, granularity="section", filters=None, no_embed=True, cache=None):
-    """Run one search and return decoded stdout (for JSON parsing)."""
+    """検索を1回実行し、デコードした標準出力を返す（JSON のパース用）。"""
     return run_search_bytes(query, granularity, filters, no_embed, cache).decode("utf-8")
 
 
@@ -101,13 +97,13 @@ def result_slugs(stdout):
 
 
 def recall_at(slugs, expected, k):
-    """Fraction of expected slugs present in the raw top-k result rows."""
+    """期待するスラッグのうち、上位 k 件の生の結果行に含まれるものの割合。"""
     top = set(slugs[:k])
     return sum(1 for slug in expected if slug in top) / len(expected)
 
 
 def reciprocal_rank(slugs, expected):
-    """1/rank of the first raw result row whose slug is expected (0 if none)."""
+    """スラッグが期待どおりである最初の生の結果行について 1/順位 を返す（なければ 0）。"""
     for rank, slug in enumerate(slugs, 1):
         if slug in expected:
             return 1.0 / rank
@@ -142,11 +138,11 @@ def evaluate_mode(mode_opts, queries):
 
 
 def hybrid_available():
-    """True when the local embedding backend produces a hybrid search.
+    """ローカルの埋め込みバックエンドでハイブリッド検索が行われるときに True を返す。
 
-    Runs one section search without --no-embed and reads the JSON ``mode``.
-    Returns False when local dependencies are absent or fail to initialize
-    (wiki_search falls back to lexical mode).
+    --no-embed を付けずにセクション検索を1回実行し、JSON の ``mode`` を読む。
+    ローカルの依存パッケージがない、または初期化に失敗した場合は False を返す
+    （wiki_search は語彙ベースのモードに切り替わる）。
     """
     try:
         payload = json.loads(run_search("attention", no_embed=False))
@@ -156,12 +152,12 @@ def hybrid_available():
 
 
 def cache_invariant():
-    """--json stdout must be byte-identical with no cache, cold cache, warm cache.
+    """--json の標準出力は、キャッシュなし、コールドキャッシュ、ウォームキャッシュのどれでもバイト単位で同じでなければならない。
 
-    Three passes against one temp cache path: all queries uncached, all with a
-    cold cache (the first invocation builds the file, later ones reuse it), all
-    with a warm cache. Compares raw stdout bytes so the assertion is a genuine
-    byte invariant, not a decoded-string comparison.
+    1つの一時的なキャッシュのパスに対して3回実行する。1回目はすべてのクエリをキャッシュなしで、
+    2回目はコールドキャッシュで（最初の呼び出しでファイルを作り、以降はそれを再利用する）、
+    3回目はウォームキャッシュで実行する。デコードした文字列ではなく標準出力の生のバイト列を比べるので、
+    バイト単位で変わらないことを正しく検証できる。
     """
     with tempfile.TemporaryDirectory() as tmp:
         cache = Path(tmp) / "idx.json"
@@ -212,7 +208,7 @@ def main():
     cache_ok = cache_invariant()
     print(f"\ncache: {'OK' if cache_ok else 'MISMATCH'}")
     if not cache_ok:
-        exit_code = 1  # mismatch fails regardless of --gate
+        exit_code = 1  # 不一致なら --gate の有無にかかわらず失敗にする
 
     if args.gate:
         failures = []

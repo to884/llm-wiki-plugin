@@ -7,21 +7,21 @@
 #   "sqlite-vec==0.1.9",
 # ]
 # ///
-"""Install and verify LLM Wiki runtime dependencies, model, and local indexes."""
+"""LLM Wiki の実行に必要な依存パッケージ、モデル、ローカルのインデックスをインストールし、検証する。"""
 
 import argparse
 import json
 from importlib.metadata import version
 from pathlib import Path
 
-# Importability check for the pinned graph-script dependency.
+# グラフ用スクリプトの固定した依存パッケージを import できるかを確かめる。
 import yaml
 
 import wiki_search
 
 
 def prepare(wiki_root: Path, cache_path: Path | None = None) -> dict:
-    """Download the pinned model and synchronize every current wiki section."""
+    """バージョンを固定したモデルをダウンロードし、現在の wiki の全セクションを同期する。"""
     pages = wiki_search.collect_pages(wiki_root, cache_path)
     sections = wiki_search.collect_sections(pages)
     model, sqlite_vec, dimension = wiki_search.load_local_embedding_backend()

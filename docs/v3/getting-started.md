@@ -1,32 +1,32 @@
 ---
-title: Getting started
-description: Install the LLM Wiki skill for your agent, then walk through init, first ingest, first query, and first lint.
+title: はじめに
+description: 使っているエージェントに LLM Wiki のスキルをインストールし、init、最初の取り込み、最初のクエリ、最初の lint を順に試す。
 ---
 
 <!-- Adapted from: docs/getting-started.html (source: README.md "Installation"/"Quick start", commands/wiki/init.md, commands/wiki/ingest.md). -->
 
-# Getting started
+# はじめに {#getting-started}
 
-Install the skill for your coding agent, then run the four-step loop: initialize, ingest, query, lint.
+使っているコーディングエージェントにスキルをインストールし、初期化、取り込み、クエリ、lint の4ステップを繰り返す。
 
-## Install
+## インストール {#install}
 
-There are two install paths. Claude Code gets the full plugin (skill + `/wiki:*` slash commands + marketplace manifest). Every other supported agent installs the same [agentskills.io](https://agentskills.io)-format skill through the [`skills` CLI](https://github.com/vercel-labs/skills). See the [agent support matrix](/v3/agents) for the full picture.
+インストールの方法は2つある。Claude Code には、プラグイン一式（スキル、`/wiki:*` スラッシュコマンド、マーケットプレイスのマニフェスト）を入れる。ほかの対応エージェントには、同じ [agentskills.io](https://agentskills.io) 形式のスキルを [`skills` CLI](https://github.com/vercel-labs/skills) で入れる。全体像は [エージェントの対応表](/v3/agents) を参照。
 
-Install [`uv`](https://docs.astral.sh/uv/getting-started/installation/) first. It is the only prerequisite and creates isolated, pinned environments for the bundled tools.
+最初に [`uv`](https://docs.astral.sh/uv/getting-started/installation/) をインストールする。前提条件はこれだけで、同梱のツールのために、バージョンを固定した独立の環境を `uv` が作る。
 
-### Claude Code: full plugin {#a-claude}
+### Claude Code: プラグイン一式 {#a-claude}
 
-The native path: skill, slash commands, and manifest ship together.
+ネイティブの方法で、スキル、スラッシュコマンド、マニフェストがまとめて入る。
 
 ```bash
 /plugin marketplace add praneybehl/llm-wiki-plugin
 /plugin install llm-wiki@llm-wiki
 ```
 
-Once installed, the plugin works in any project. Installation does not decide where your wiki lives.
+インストールすれば、プラグインはどのプロジェクトでも動く。wiki をどこに置くかは、インストールでは決まらない。
 
-The agents below install the same skill through the `skills` CLI. Each uses the same command with a different `-a` value: add `-g` to install globally across all projects, or drop it to install into the current project only. Slash commands are Claude Code–only; elsewhere, invoke the skill by natural language.
+以下のエージェントは、同じスキルを `skills` CLI でインストールする。どれも同じコマンドで、`-a` の値だけが違う。`-g` を付けるとすべてのプロジェクトで使えるようにグローバルにインストールし、外すと現在のプロジェクトだけにインストールする。スラッシュコマンドは Claude Code 専用で、ほかのエージェントではスキルを自然言語で呼び出す。
 
 ### Codex (OpenAI) {#a-codex}
 
@@ -34,7 +34,7 @@ The agents below install the same skill through the `skills` CLI. Each uses the 
 npx skills add praneybehl/llm-wiki-plugin -a codex -g
 ```
 
-Invoke via `/skills`, `$llm-wiki`, or natural language. Bundled scripts run.
+`/skills`、`$llm-wiki`、または自然言語で呼び出す。同梱のスクリプトも実行できる。
 
 ### Cursor {#a-cursor}
 
@@ -42,7 +42,7 @@ Invoke via `/skills`, `$llm-wiki`, or natural language. Bundled scripts run.
 npx skills add praneybehl/llm-wiki-plugin -a cursor -g
 ```
 
-Invoke via `/llm-wiki` or natural language. Bundled scripts run.
+`/llm-wiki` または自然言語で呼び出す。同梱のスクリプトも実行できる。
 
 ### Gemini CLI {#a-gemini}
 
@@ -50,7 +50,7 @@ Invoke via `/llm-wiki` or natural language. Bundled scripts run.
 npx skills add praneybehl/llm-wiki-plugin -a gemini-cli -g
 ```
 
-Invoke via the `/skills` management commands or natural language. Bundled scripts run.
+`/skills` の管理コマンド、または自然言語で呼び出す。同梱のスクリプトも実行できる。
 
 ### OpenCode {#a-opencode}
 
@@ -58,7 +58,7 @@ Invoke via the `/skills` management commands or natural language. Bundled script
 npx skills add praneybehl/llm-wiki-plugin -a opencode -g
 ```
 
-The agent invokes the skill through its native `skill` tool on natural-language requests. OpenCode also reads `.claude/skills/` and `~/.claude/skills/`, so a Claude Code install works here too. Bundled scripts run.
+自然言語で依頼すると、エージェントがネイティブの `skill` ツールでスキルを呼び出す。OpenCode は `.claude/skills/` と `~/.claude/skills/` も読むので、Claude Code 向けにインストールしたスキルもそのまま使える。同梱のスクリプトも実行できる。
 
 ### OpenClaw {#a-openclaw}
 
@@ -66,7 +66,7 @@ The agent invokes the skill through its native `skill` tool on natural-language 
 npx skills add praneybehl/llm-wiki-plugin -a openclaw -g
 ```
 
-The skill is auto-exposed as a user command. Bundled scripts run.
+スキルは、自動的にユーザーコマンドとして公開される。同梱のスクリプトも実行できる。
 
 ### Pi Agent {#a-pi}
 
@@ -74,11 +74,11 @@ The skill is auto-exposed as a user command. Bundled scripts run.
 npx skills add praneybehl/llm-wiki-plugin -a pi -g
 ```
 
-Invoke via `/skill:llm-wiki` or natural language. Bundled scripts run.
+`/skill:llm-wiki` または自然言語で呼び出す。同梱のスクリプトも実行できる。
 
 ### OMP ("Oh My Pi") {#a-omp}
 
-OMP reads managed and user skills from `~/.omp/agent/skills/` and surfaces them automatically via `skill://`. OMP is not yet in the `npx skills` registry, so install by cloning the repo and symlinking the skill:
+OMP は、管理対象のスキルとユーザーのスキルを `~/.omp/agent/skills/` から読み込み、`skill://` で自動的に公開する。OMP はまだ `npx skills` のレジストリにないので、リポジトリをクローンしてスキルのシンボリックリンクを張ってインストールする。
 
 ```bash
 git clone https://github.com/praneybehl/llm-wiki-plugin.git
@@ -86,9 +86,9 @@ mkdir -p ~/.omp/agent/skills
 ln -s "$(pwd)/llm-wiki-plugin/skills/llm-wiki" ~/.omp/agent/skills/llm-wiki
 ```
 
-### Other runtimes: clone and symlink {#a-other}
+### そのほかのランタイム: クローンしてシンボリックリンクを張る {#a-other}
 
-Hermes Agent and any other agentskills.io-compatible runtime not yet in the `npx skills` registry can use the skill by symlinking it into the agent's skills directory:
+Hermes Agent をはじめ、`npx skills` のレジストリにまだない agentskills.io 互換のランタイムでは、エージェントのスキルディレクトリにシンボリックリンクを張ればスキルを使える。
 
 ```bash
 git clone https://github.com/praneybehl/llm-wiki-plugin.git
@@ -96,61 +96,61 @@ mkdir -p ~/.hermes/skills
 ln -s "$(pwd)/llm-wiki-plugin/skills/llm-wiki" ~/.hermes/skills/llm-wiki
 ```
 
-The wiki itself is agent-agnostic: it is just a directory of markdown files. You can ingest with one agent and query with another.
+wiki そのものは、特定のエージェントに依存しない。中身は markdown ファイルを置いたディレクトリにすぎない。あるエージェントで取り込み、別のエージェントでクエリすることもできる。
 
-## Choose the wiki location
+## wiki の場所を選ぶ {#choose-the-wiki-location}
 
-Skill scope and wiki scope are independent:
+スキルのスコープと wiki のスコープは、互いに独立している。
 
-- **Personal global wiki:** one knowledge base at a stable user-level path such as `~/wiki/`, with raw sources at `~/wiki/raw/`. Add that path to your agent's global instructions. Any project can contribute durable findings and sources to this wiki.
-- **Project wiki:** `wiki/` and `raw/` live in one project. Add a relative-path pointer to that project's agent-memory file. This keeps knowledge isolated and makes it easy to version with the repository.
+- **個人用のグローバルな wiki:** `~/wiki/` のようにユーザーレベルで固定したパスに置く、1つのナレッジベース。raw ソースは `~/wiki/raw/` に置く。このパスを、エージェントのグローバルな指示に書いておく。どのプロジェクトからでも、長く残すべき知見やソースをこの wiki に追加できる。
+- **プロジェクトの wiki:** `wiki/` と `raw/` を1つのプロジェクトの中に置く。そのプロジェクトのエージェントのメモリファイルに、相対パスで場所を書いておく。知識をプロジェクトごとに分けられ、リポジトリと一緒にバージョン管理しやすい。
 
-Installing the skill globally with `-g` only makes the skill available everywhere. It does not create a global wiki. Likewise, a global wiki does not automatically crawl projects; the agent ingests project material when asked or when its global instructions require durable findings to be preserved.
+`-g` でスキルをグローバルにインストールしても、スキルがどこでも使えるようになるだけで、グローバルな wiki は作られない。同じように、グローバルな wiki があっても、プロジェクトが自動で巡回されることはない。エージェントがプロジェクトの資料を取り込むのは、依頼されたときか、長く残すべき知見を保存するようグローバルな指示で求められているときである。
 
-## Your first wiki
+## 最初の wiki を作る {#your-first-wiki}
 
-The commands below use Claude Code's `/wiki:*` slash syntax. In other agents, phrase the same requests in natural language.
+以下のコマンドは、Claude Code の `/wiki:*` スラッシュ構文を使う。ほかのエージェントでは、同じ依頼を自然言語で伝える。
 
-1. **Initialize the structure.** For one personal wiki shared across projects:
+1. **構造を初期化する。** プロジェクトをまたいで使う個人用の wiki を1つ作る場合:
 
    ```bash
    /wiki:init --global
    ```
 
-   For a wiki isolated to the current project, run `/wiki:init` without `--global`.
+   現在のプロジェクト専用の wiki にする場合は、`--global` を付けずに `/wiki:init` を実行する。
 
-   > **Expected**: Bootstraps the wiki structure, then installs FastEmbed 0.8.0, sqlite-vec 0.1.9, and PyYAML 6.0.3; downloads the local `BAAI/bge-small-en-v1.5` model if absent; builds the parse cache; and embeds every current section. Setup is complete only when the runtime JSON reports `"status": "ready"`. The agent then walks through the schema and offers agent-memory integration; nothing is written there without approval.
+   > **期待する結果**: wiki の構造を作り、FastEmbed 0.8.0、sqlite-vec 0.1.9、PyYAML 6.0.3 をインストールする。ローカルの `BAAI/bge-small-en-v1.5` モデルがなければダウンロードし、パースキャッシュを作り、現在の全セクションをベクトル化する。セットアップが完了するのは、実行環境の JSON が `"status": "ready"` を返したときだけである。そのあとエージェントはスキーマを一緒に確認し、エージェントのメモリとの連携を提案する。承認なしにそこへ書き込むことはない。
 
-   > **Already have a wiki** from an earlier version? Run [`/wiki:upgrade`](/v3/upgrade) instead. It performs the same mandatory runtime setup and incremental full-corpus synchronization while leaving existing pages untouched.
+   > 以前のバージョンで作った **wiki がすでにある**場合は、代わりに [`/wiki:upgrade`](/v3/upgrade) を実行する。必須の実行環境のセットアップと、コーパス全体の差分同期を同じように行い、既存のページには手を付けない。
 
-2. **Add your first source.** Drop anything textual into the configured raw root, such as `~/wiki/raw/` for the global layout, then:
+2. **最初のソースを追加する。** テキストを含むものなら何でも、設定した raw ルート（グローバル構成なら `~/wiki/raw/`）に置き、次を実行する。
 
    ```bash
    /wiki:ingest ~/wiki/raw/your-source.pdf
    ```
 
-   > **Expected**: The agent resolves the configured wiki, reads the source (chunk-reading if it is large), discusses the takeaways with you, writes a source summary, surgically updates the entity and concept pages it touches, creates new pages (each with at least one inbound link), updates the index, and appends one line to `log.md`.
+   > **期待する結果**: エージェントは設定された wiki を特定し、ソースを読み（大きければ分割して読む）、要点をユーザーと話し合う。そのうえで、ソースの要約を書き、関係するエンティティとコンセプトのページを必要な箇所だけ更新し、新しいページを作り（それぞれに少なくとも1つの被リンクを付ける）、インデックスを更新し、`log.md` に1行追記する。
 
-3. **Ask a question.** Once a few sources are in:
+3. **質問する。** ソースをいくつか取り込んだら、次を実行する。
 
    ```bash
    /wiki:query What does my wiki say about X?
    ```
 
-   > **Expected**: The agent reads the index to find candidate pages, reads them, synthesizes an answer with `[[wikilink]]` citations, and offers to file substantive answers back into `wiki/synthesis/` so the exploration compounds.
+   > **期待する結果**: エージェントはインデックスを読んで候補のページを見つけ、それらを読み、`[[wikilink]]` の出典を付けて回答をまとめる。中身のある回答は、調べた内容が蓄積されるように `wiki/synthesis/` に保存することを提案する。
 
-4. **Run a health check** periodically:
+4. 定期的に**健全性をチェックする**。
 
    ```bash
    /wiki:lint
    ```
 
-   > **Expected**: Catches orphan pages, broken wikilinks, oversized pages, missing frontmatter, and stale claims. Findings are presented as proposed edits: the wiki is never rewritten silently.
+   > **期待する結果**: 孤立ページ、リンク切れの wikilink、大きすぎるページ、frontmatter の欠落、古くなった主張を検出する。検出結果は編集案として示され、wiki が黙って書き換えられることはない。
 
 ::: info
-You don't have to use the slash commands. The agent triggers the same skill on natural-language requests too. The commands are there when you want explicit invocation. See the [Commands reference](/v3/commands).
+スラッシュコマンドを使わなくてもよい。自然言語で依頼しても、エージェントは同じスキルを呼び出す。コマンドは、明示的に呼び出したいときのために用意している。[コマンドリファレンス](/v3/commands) を参照。
 :::
 
-## Optional learning workflow
+## 任意の学習ワークフロー {#optional-learning-workflow}
 
-After a verified task, use `/wiki:learn` (or “learn from this task”) to preserve the lesson. Use `/wiki:evolve` to develop a tested skill improvement. Initialization installs experience/pattern templates and archive guidance; existing wikis receive them via `/wiki:upgrade`. No model evaluation starts automatically. See [Learning and skill evolution](/v3/evolution).
+検証済みのタスクのあとで `/wiki:learn`（または「このタスクから学んで」）を使うと、教訓を残せる。テスト済みのスキル改善を作るには `/wiki:evolve` を使う。初期化では、経験とパターンのテンプレートと、アーカイブについての案内がインストールされる。既存の wiki には `/wiki:upgrade` で追加される。モデルの評価が自動で始まることはない。[学習とスキルの改善](/v3/evolution) を参照。

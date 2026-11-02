@@ -1,65 +1,65 @@
-# Ingest Workflow
+# 取り込みのワークフロー
 
-When a new source arrives, this is the procedure. The order matters: each step builds context for the next.
+新しいソースが届いたときの手順である。順序には意味がある。各手順が、次の手順のための文脈を作る。
 
-Each step shows the local form first. For a hosted wiki, use the **Hosted** form (see `hosted-mode.md`). In hosted mode, collect the page writes of Steps 5 to 9 into one `wiki_commit` when possible. One commit applies all changes, or none.
+各手順では、まずローカルでの形を示す。ホスト型 wiki では **ホスト型** の形を使う（`hosted-mode.md` を参照）。ホストモードでは、手順 5〜9 のページへの書き込みを、できるだけ1つの `wiki_commit` にまとめる。1つのコミットは、すべての変更を適用するか、何も適用しないかのどちらかである。
 
-## Step 0: Check the schema
+## 手順 0: スキーマを確認する
 
-Before anything else, read `wiki/SCHEMA.md`. The user may have customized the page-type structure, the tag taxonomy, the naming conventions, or the ingest workflow itself. Schema overrides everything documented here.
+何よりも先に `wiki/SCHEMA.md` を読む。ユーザーが、ページの種類の構成、タグの体系、命名規則、取り込みのワークフローそのものをカスタマイズしていることがある。スキーマは、ここに書いてあるすべてより優先される。
 
-**Hosted:** call `wiki_overview`. It returns `SCHEMA.md` and `index.md`.
+**ホスト型:** `wiki_overview` を呼び出す。`SCHEMA.md` と `index.md` が返る。
 
-## Step 1: Place the raw source
+## 手順 1: raw ソースを置く
 
-If the source isn't already in `raw/`, place it there. Use a slugified filename: lowercase, hyphens for spaces, no special characters, with the original extension. For web articles, save as `.md` (Obsidian Web Clipper output is ideal). For PDFs, keep the `.pdf`. For transcripts, save as `.md` or `.txt`.
+ソースがまだ `raw/` にない場合は、そこに置く。ファイル名はスラッグ化したものにする。小文字にし、空白はハイフンにし、特殊文字を使わず、元の拡張子を付ける。Web の記事は `.md` で保存する（Obsidian Web Clipper の出力が理想的である）。PDF は `.pdf` のままにする。文字起こしは `.md` か `.txt` で保存する。
 
-The slug you pick here will become the slug of the source-summary page in `wiki/sources/`, so make it descriptive and stable.
+ここで決めたスラッグは、`wiki/sources/` に作るソースの要約ページのスラッグになる。内容が分かり、あとで変えなくて済むものにする。
 
-**Hosted:** upload the file with `python3 scripts/wiki_remote.py raw put <file> --as <slug>.<ext>`. Without a shell, save text sources with `wiki_raw` `put_text`. If the server has no raw storage, keep the file on this machine and record its path and SHA-256 in the source page frontmatter.
+**ホスト型:** `python3 scripts/wiki_remote.py raw put <file> --as <slug>.<ext>` でファイルをアップロードする。シェルが使えない場合、テキストのソースは `wiki_raw` の `put_text` で保存する。サーバーに raw ストレージがない場合は、ファイルをこのマシンに置いたままにし、そのパスと SHA-256 をソースページの frontmatter に記録する。
 
-## Step 2: Read the source
+## 手順 2: ソースを読む
 
-For short sources (under ~5,000 words / ~25,000 tokens), read the whole thing in one pass.
+短いソース（約 5,000 語 / 約 25,000 トークン未満）は、1回で全体を読む。
 
-For long sources (papers over ~30 pages, book chapters, multi-hour transcripts), **chunk-read**: read the table of contents or section headers first to build a mental map, then read sections sequentially, summarizing each section in working memory before moving to the next. Do not load the entire raw source into context at once if it would consume more than ~25% of your context window: that leaves no room for the rest of the operation.
+長いソース（約 30 ページを超える論文、書籍の章、数時間分の文字起こし）は、**分割して読む**。まず目次かセクションの見出しを読んで全体の構成をつかみ、次にセクションを順に読む。次のセクションに進む前に、それぞれのセクションの要約を作業用のメモリにまとめておく。コンテキストウィンドウの約 25% を超えるなら、raw ソース全体を一度にコンテキストに読み込んではならない。残りの作業をする余地がなくなる。
 
-**Hosted:** read a raw file in parts with `wiki_raw` `read`, `offset` and `length`.
+**ホスト型:** raw ファイルは、`wiki_raw` の `read` に `offset` と `length` を指定して分割して読む。
 
-For PDFs specifically, prefer the `pdf-reading` skill if available (it handles the chunking automatically). Otherwise extract text first with `pdftotext` or `pdfminer` and then chunk-read the extracted text.
+PDF の場合は、`pdf-reading` スキルがあればそれを使う（分割を自動で行う）。なければ、先に `pdftotext` か `pdfminer` でテキストを抽出し、抽出したテキストを分割して読む。
 
-For images embedded in the source: read the surrounding text first, then view only the images that the text suggests are load-bearing (a chart referenced in an argument, a diagram of a system, a figure the source explicitly walks through). Don't blindly load every image: many are decorative.
+ソースに埋め込まれた画像は、まず周りの文章を読み、その文章から内容上欠かせないと分かる画像だけを見る（論証の中で参照されているグラフ、システムの図、ソースが順を追って説明している図など）。すべての画像をむやみに読み込まない。多くは装飾である。
 
-## Step 3: Discuss the takeaways with the user
+## 手順 3: 要点をユーザーと話し合う
 
-Briefly: three or four sentences. Surface what struck you as important, what was surprising, what connects to existing wiki content, and what's worth flagging. The user's reaction shapes the next steps. They might say "skip the methodology section, only the results matter for me" or "we already have a page on this: just update it" or "this contradicts the page on X, flag that prominently".
+3〜4文で簡単に話す。重要だと感じた点、意外だった点、wiki の既存の内容とつながる点、指摘しておくべき点を挙げる。ユーザーの反応で次の手順が決まる。「方法論のセクションはスキップしていい、自分には結果だけが重要だ」「これについてはすでにページがある、それを更新するだけでいい」「これは X のページと矛盾している、目立つように指摘して」のように言われることがある。
 
-If the user is operating in a hands-off mode (batch ingest, "just process these 20 papers"), skip the discussion but be more conservative on the wiki edits: make smaller, safer updates and surface anything ambiguous in the log.
+ユーザーが手を出さない形で進めている場合（まとめての取り込みや、「この 20 本の論文を処理しておいて」など）は、話し合いはスキップする。そのかわり、wiki の編集は控えめにする。小さく安全な更新にとどめ、あいまいな点はログに書いて示す。
 
-## Step 4: Identify what's touched
+## 手順 4: 関係するページを洗い出す
 
-Before writing anything, do a survey pass against the wiki to determine the impact:
+何かを書く前に、wiki を一通り調べて、影響の範囲を決める。
 
-1. Read `wiki/index.md` (or the relevant shard under `wiki/indexes/`) to identify existing pages this source touches. Look for entity names, concept names, and topical overlap.
-2. For each potentially-touched page, read the page to confirm. (Read, don't grep: the index summaries can mislead.)
-3. List, in working memory: existing pages to update, new pages to create, contradictions to flag.
+1. `wiki/index.md`（または `wiki/indexes/` の下の該当するインデックス）を読み、このソースが関係する既存のページを見つける。エンティティの名前、コンセプトの名前、トピックの重なりを探す。
+2. 関係しそうなページはそれぞれ読んで確かめる（grep ではなく読む。インデックスの要約だけでは判断を誤ることがある）。
+3. 更新する既存のページ、作成する新しいページ、指摘する矛盾を、作業用のメモリに一覧にする。
 
-If the user enabled the optional decision layer, `python scripts/wiki_decide.py shortlist raw/<source-file> --wiki wiki/` ranks the pages to read first. Use it as a hint only (`decision-models.md`).
+ユーザーが任意の判定レイヤーを有効にしている場合は、`python scripts/wiki_decide.py shortlist raw/<source-file> --wiki wiki/` で、先に読むべきページに順位を付けられる。結果は手がかりとしてだけ使う（`decision-models.md`）。
 
-**Hosted:** use `index.md` from `wiki_overview`, then `wiki_read` for the candidate pages. Keep the `rev` of each page that you will change.
+**ホスト型:** `wiki_overview` の `index.md` を使い、候補のページは `wiki_read` で読む。変更するページは、それぞれの `rev` を控えておく。
 
-This survey is what prevents duplication. Without it, you'll create a new page on a topic that already has one under a slightly different name.
+この下調べが、ページの重複を防ぐ。下調べをしないと、少し違う名前ですでにページがあるトピックについて、新しいページを作ってしまう。
 
-## Step 5: Write the source-summary page
+## 手順 5: ソースの要約ページを書く
 
-Create `wiki/sources/<source-slug>.md`. Use the page template (`assets/page.md.template`) as a starting point. Frontmatter should include at minimum:
+`wiki/sources/<source-slug>.md` を作成する。ページのテンプレート（`assets/page.md.template`）を出発点にする。frontmatter には、少なくとも次の項目を入れる。
 
 ```yaml
 ---
 type: source
 title: "Original title of the source"
 authors: ["Author Name"]
-url: "https://..." # if applicable
+url: "https://..." # 該当する場合
 raw: "raw/<source-slug>.<ext>"
 ingested: 2026-04-15
 tags: [tag1, tag2]
@@ -68,84 +68,84 @@ concepts: [concept-page-1, concept-page-2]
 ---
 ```
 
-Frontmatter list values are bare slugs: the `[[wikilink]]` syntax goes in the body, not in YAML.
+frontmatter のリストの値は、そのままのスラッグにする。`[[wikilink]]` の書き方は本文で使い、YAML では使わない。
 
-The body should be the LLM's summary of the source: the key claims, the methodology if relevant, the conclusions, the open questions. Do not paraphrase the entire source; that defeats the purpose. Aim for a summary that captures what a future query would need to know without re-reading the raw file.
+本文には、LLM がまとめたソースの要約を書く。主な主張、必要なら方法論、結論、未解決の問いを書く。ソース全体を言い換えてはならない。それでは要約の意味がない。将来のクエリで、raw ファイルを読み直さずに済むだけの内容をとらえた要約を目指す。
 
-Keep the page atomic: under the 400-line soft cap. If the source is so dense that a single summary page can't capture it, split: one page per major section, each linking to the others, with a parent page that gives the overview.
+ページは1つのテーマに絞り、400 行のソフト上限を超えないようにする。ソースの内容が濃すぎて1つの要約ページに収まらない場合は分割する。主なセクションごとに1ページを作って互いにリンクし、全体を概観する親ページを置く。
 
-End the body with a "Where this fits" section listing `[[wikilinks]]` to the entity and concept pages this source touches. This is the bidirectional link from source → existing structure.
+本文の最後には「Where this fits」セクションを置き、このソースが関係するエンティティとコンセプトのページへの `[[wikilinks]]` を並べる。これが、ソースから既存の構造への双方向のリンクになる。
 
-## Step 6: Update touched pages
+## 手順 6: 関係するページを更新する
 
-For each existing page identified in Step 4, surgically edit it to incorporate what the new source adds. Use `str_replace`, not full rewrites. The goal is to add a sentence or paragraph in the relevant section, with a `[[wikilinks]]` citation to the new source-summary page.
+手順 4 で洗い出した既存のページそれぞれについて、新しいソースが加える内容を、必要な箇所だけ編集して取り入れる。ページ全体を書き直さず、`str_replace` を使う。目標は、該当するセクションに1文か1段落を加え、新しいソースの要約ページへの `[[wikilinks]]` を引用として付けることである。
 
-**Hosted:** use a `wiki_commit` `edit` operation with the page `base_rev`. Each `old` text must occur once in the page. After a conflict, read the page again and retry (`hosted-mode.md`).
+**ホスト型:** ページの `base_rev` を付けた `wiki_commit` の `edit` 操作を使う。それぞれの `old` のテキストは、ページの中にちょうど1回だけ出てくるものでなければならない。競合が起きたら、ページを読み直して再試行する（`hosted-mode.md`）。
 
-Common update patterns:
+よくある更新のパターンは次のとおりである。
 
-- A new source corroborates an existing claim → add a citation: `..., as established in [[paper-X]] and now corroborated by [[paper-Y]]`.
-- A new source contradicts an existing claim → flag prominently: add a "## Contradictions" section if it doesn't exist, and document the contradiction with both sources cited. Do not silently overwrite the older claim.
-- A new source adds a new dimension to an existing topic → add a new sub-section, don't dilute the existing prose.
-- A new source mentions an entity or concept the page already discusses → update the `sources:` frontmatter and add the cross-reference where relevant in the body.
+- 新しいソースが既存の主張を裏づける → 引用を加える: `..., as established in [[paper-X]] and now corroborated by [[paper-Y]]`。
+- 新しいソースが既存の主張と矛盾する → 目立つように指摘する。「## Contradictions」セクションがなければ追加し、両方のソースを引用して矛盾を記録する。古い主張を黙って上書きしてはならない。
+- 新しいソースが既存のトピックに新しい観点を加える → 新しいサブセクションを追加する。既存の文章を薄めない。
+- 新しいソースが、そのページですでに扱っているエンティティやコンセプトに触れている → frontmatter の `sources:` を更新し、本文の該当する箇所に相互参照を加える。
 
-If updating a page would push it over the 800-line hard cap, that's the signal to split the page (extract the new dimension into its own page, link from the parent). Do that as part of the ingest, not as a deferred lint task.
+更新するとページが 800 行のハード上限を超えるなら、それはページを分割する合図である（新しい観点を独立したページに切り出し、親ページからリンクする）。分割は lint の作業として後回しにせず、取り込みの中で行う。
 
-## Step 7: Create new pages for new entities and concepts
+## 手順 7: 新しいエンティティとコンセプトのページを作る
 
-For each new entity or concept the source introduces that doesn't have a page yet, decide whether it warrants its own page. Heuristic: if the source mentions it in passing and no other source is likely to expand on it, just mention it inline on a related page. If the source treats it as a first-class topic or you can foresee future sources building on it, create a page.
+ソースで新しく出てきた、まだページのないエンティティやコンセプトについて、それぞれ独立したページにする価値があるかを決める。目安として、ソースが軽く触れているだけで、ほかのソースが詳しく扱いそうにないなら、関連するページの本文で触れるだけにする。ソースがそれを主要なトピックとして扱っている、または今後のソースがそれを掘り下げそうだと見込めるなら、ページを作る。
 
-New pages need:
-- Frontmatter with `type`, `tags`, `sources: [[[<source-slug>]]]`, `created`, `updated`.
-- A body that introduces the entity/concept with what this source said about it.
-- Inbound links: at least one existing page should `[[wikilink]]` to the new page, otherwise it's an instant orphan. Update the existing page to add the link.
+新しいページには、次のものが必要である。
+- `type`、`tags`、`sources: [[[<source-slug>]]]`、`created`、`updated` を含む frontmatter。
+- そのエンティティやコンセプトを、このソースが述べた内容で紹介する本文。
+- 被リンク。少なくとも1つの既存のページから、新しいページに `[[wikilink]]` を張る。そうしないと、作った時点で孤立ページになる。既存のページを更新してリンクを加える。
 
-A new page that nothing links to is a bug in the ingest, not just a lint finding.
+どこからもリンクされていない新しいページは、lint で見つかる問題であるだけでなく、取り込みのバグである。
 
-**Hosted:** use a `create` operation for each new page. It fails if the path exists. Then read the existing page and edit it.
+**ホスト型:** 新しいページごとに `create` 操作を使う。パスがすでにあると失敗する。そのあと、既存のページを読んで編集する。
 
-## Step 8: Update the index
+## 手順 8: インデックスを更新する
 
-Add entries for any new pages to `wiki/index.md` (or the appropriate shard). Each entry is one line: a wikilink to the page and a one-sentence summary. Keep the summary tight: the index is engineered to be cheap to read, and a fat index defeats the index-first navigation principle.
+新しいページの項目を `wiki/index.md`（または該当する分割されたインデックス）に追加する。各項目は1行で、ページへの wikilink と1文の要約からなる。要約は短くする。インデックスは安く読めるように作ってあり、肥大化したインデックスは、インデックスを先に読むという方針を台なしにする。
 
-**Hosted:** use an `append` operation on the index page, with `after_heading` for the correct section.
+**ホスト型:** インデックスのページに `append` 操作を使い、`after_heading` で正しいセクションを指定する。
 
-If `index.md` exceeds 300 lines after this update, that's the signal to shard. Do it now while the structure is fresh: see `scaling-playbook.md` for the procedure.
+この更新で `index.md` が 300 行を超えたら、それはインデックスを分割する合図である。構成をよく把握している今のうちに分割する。手順は `scaling-playbook.md` を参照。
 
-## Step 8b: Refresh the graph layer (only if `wiki/graph/ontology.yaml` exists)
+## 手順 8b: グラフ層を更新する（`wiki/graph/ontology.yaml` がある場合のみ）
 
-If the wiki has the optional graph layer:
+wiki に任意のグラフ層がある場合は、次のことを行う。
 
-1. Add typed `graph.relationships[]` only when the source explicitly supports them (predicate, source-page slug, evidence quote, confidence, status). When uncertain, prefer a plain `[[wikilink]]` in the body: the body wikilink already produces a `mentions` edge.
-2. Run `uv run --script scripts/wiki_graph_lint.py wiki/`. Triage findings with the user before extracting; do not silently rewrite typed edges.
-3. Run `uv run --script scripts/wiki_graph_extract.py wiki/` to regenerate `nodes.jsonl`, `edges.jsonl`, `graph.sqlite`, `graph.graphml`.
+1. 型付きの `graph.relationships[]` は、ソースが明示的に裏づけている場合に限って追加する（述語、ソースページのスラッグ、証拠となる引用、確信度、ステータスを付ける）。確信が持てないときは、本文にふつうの `[[wikilink]]` を書くほうを選ぶ。本文の wikilink だけでも `mentions` エッジができる。
+2. `uv run --script scripts/wiki_graph_lint.py wiki/` を実行する。抽出する前に、検出結果をユーザーと一緒に仕分ける。型付きエッジを黙って書き換えてはならない。
+3. `uv run --script scripts/wiki_graph_extract.py wiki/` を実行し、`nodes.jsonl`、`edges.jsonl`、`graph.sqlite`、`graph.graphml` を作り直す。
 
-Skip this entire step if the ingest added no `graph:` metadata and created no new pages: the compiled artifacts are unchanged. Full reference: `references/graph-workflow.md`.
+取り込みで `graph:` メタデータを追加せず、新しいページも作らなかった場合は、この手順をまるごとスキップする。コンパイル済みの成果物は変わらないからである。詳しいリファレンス: `references/graph-workflow.md`。
 
-**Hosted:** do not run extract. The server updates the graph in the same commit. Run `wiki_lint` and triage the graph findings.
+**ホスト型:** extract は実行しない。サーバーが同じコミットの中でグラフを更新する。`wiki_lint` を実行し、グラフの検出結果を仕分ける。
 
-## Step 9: Append to the log
+## 手順 9: ログに追記する
 
-One line in `wiki/log.md`, with the prefix `## [YYYY-MM-DD] ingest | <source-title>`. Optionally add a sub-line listing the pages touched. If the graph layer was refreshed, add a second sub-line: `   graph: +N nodes, +M typed edges`. The log is parsed by simple unix tools (`grep "^## \[" log.md | tail -10`), so the prefix matters.
+`wiki/log.md` に、`## [YYYY-MM-DD] ingest | <source-title>` で始まる行を1行追記する。必要なら、更新したページを並べたサブ行を加える。グラフ層を更新した場合は、2つ目のサブ行 `   graph: +N nodes, +M typed edges` を加える。ログは単純な unix のツール（`grep "^## \[" log.md | tail -10`）で解析するので、行頭の書式が重要である。
 
-**Hosted:** add the same line with an `append` operation on `log.md`. Appends never conflict.
+**ホスト型:** 同じ行を `log.md` への `append` 操作で追加する。`append` が競合することはない。
 
-## Step 10: Close the loop with the user
+## 手順 10: ユーザーに報告して締めくくる
 
-Tell the user what you did, briefly: "Ingested. Created the source page and a new entity page for X; updated the concept pages for Y and Z. Flagged a contradiction with [[paper-A]] regarding the claim about W."
+何をしたかを、ユーザーに簡単に伝える。たとえば「取り込みました。ソースページと、X の新しいエンティティページを作成しました。Y と Z のコンセプトページを更新しました。W についての主張で、[[paper-A]] との矛盾を指摘しました」のように伝える。
 
-If the source revealed something worth following up on (an obvious gap, a question the source raised but didn't answer, a candidate next source to ingest), say so: this is where the wiki's compounding effect comes from.
+ソースから、追って調べる価値のあることが分かった場合（明らかな欠落、ソースが提起したのに答えていない問い、次に取り込むとよさそうなソースなど）は、そのことも伝える。wiki の知識が積み重なっていく効果は、ここから生まれる。
 
-## Anti-patterns to avoid
+## 避けるべきパターン
 
-**Loading the whole source into context at once when it's large.** This is the most common scaling failure. Chunk-read.
+**大きいソースを、一度に全部コンテキストに読み込む。** もっともよくあるスケーリングの失敗である。分割して読む。
 
-**Rewriting whole pages instead of surgical edits.** This burns tokens, risks losing nuance, and erodes diff quality if the wiki is in git.
+**必要な箇所だけを編集せず、ページ全体を書き直す。** トークンを浪費し、細かいニュアンスが失われるおそれがあり、wiki を git で管理しているなら差分も読みにくくなる。
 
-**Creating pages with no inbound links.** Orphans accumulate fast and become invisible. Always link.
+**被リンクのないページを作る。** 孤立ページはすぐにたまり、見えなくなる。必ずリンクを張る。
 
-**Ingesting silently in batch mode without surfacing surprises.** Batch ingest is fine, but a one-line "ingested 5 sources, 2 new entity pages, 1 contradiction with [[X]]" summary is the minimum.
+**まとめて取り込むときに、意外な点を伝えずに黙って進める。** まとめての取り込みはかまわないが、「5つのソースを取り込み、新しいエンティティページを2つ作成し、[[X]] との矛盾を1件見つけた」のような1行の要約は最低限必要である。
 
-**Treating prior wiki pages as ground truth instead of the raw sources.** When updating an existing claim, re-read the raw source for that claim before merging the new one. Don't compound on the wiki's own paraphrase.
+**raw ソースではなく、以前の wiki のページを正しい情報として扱う。** 既存の主張を更新するときは、新しい主張とまとめる前に、その主張の raw ソースを読み直す。wiki 自身の言い換えの上に、さらに積み重ねてはならない。
 
-**Letting the page split decision drift to a future lint pass.** If a page crossed the size cap during this ingest, split it during this ingest.
+**ページを分割するかの判断を、次の lint まで先送りする。** 今回の取り込みでページがサイズの上限を超えたなら、今回の取り込みの中で分割する。

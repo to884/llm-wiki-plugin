@@ -1,37 +1,36 @@
 #!/usr/bin/env python3
 """
-wiki_decide.py: optional typed-decision checks for an LLM Wiki (stdlib only).
+wiki_decide.py: LLM Wiki 用の任意の型付き判定チェック（標準ライブラリのみ）。
 
-A decision model reads a state and answers typed questions with a choice and
-probabilities. It never writes text. This tool is off by default. It sends
-wiki text to a backend only when you select that backend with --backend or
-the LLM_WIKI_DECISIONS environment variable.
+判定モデルは状態を読み、型付きの質問に選択肢と確率で答える。テキストは書かない。
+このツールは既定では無効である。wiki のテキストをバックエンドに送るのは、
+--backend か環境変数 LLM_WIKI_DECISIONS でそのバックエンドを選んだときだけである。
 
-Backends:
-    local       llama-server with LiquidAI/d1-2B-GGUF (default http://127.0.0.1:8080). No key.
-    typesafe    TypeSafe Jev (https://api.typesafe.ai). Needs TYPESAFE_API_KEY.
-    openrouter  Jev through OpenRouter (https://openrouter.ai/api). Needs OPENROUTER_API_KEY.
-    liquid      Liquid decisions API (https://api.liquid.ai/decisions). Needs LIQUID_API_KEY.
-    hosted      Your hosted wiki server (/api/v1/decide). Uses the wiki_remote.py profile, URL,
-                token and wiki. --profile wins over LLM_WIKI_URL and LLM_WIKI_TOKEN.
-                LLM_WIKI_CONFIG selects another config file.
+バックエンド:
+    local       LiquidAI/d1-2B-GGUF を載せた llama-server（既定は http://127.0.0.1:8080）。キーは不要。
+    typesafe    TypeSafe Jev（https://api.typesafe.ai）。TYPESAFE_API_KEY が必要。
+    openrouter  OpenRouter 経由の Jev（https://openrouter.ai/api）。OPENROUTER_API_KEY が必要。
+    liquid      Liquid の判定 API（https://api.liquid.ai/decisions）。LIQUID_API_KEY が必要。
+    hosted      自分のホスト型 wiki のサーバー（/api/v1/decide）。wiki_remote.py のプロファイル、URL、
+                トークン、wiki を使う。--profile は LLM_WIKI_URL と LLM_WIKI_TOKEN より優先される。
+                LLM_WIKI_CONFIG で別の設定ファイルを選べる。
 
-Environment:
-    LLM_WIKI_DECISIONS          Backend name (default: off).
-    LLM_WIKI_DECISIONS_URL      Backend base URL.
-    LLM_WIKI_DECISIONS_MODEL    Model name.
+環境変数:
+    LLM_WIKI_DECISIONS          バックエンド名（既定: off）。
+    LLM_WIKI_DECISIONS_URL      バックエンドのベース URL。
+    LLM_WIKI_DECISIONS_MODEL    モデル名。
 
-Commands:
-    ask [FILE]                     Send a raw {state, questions} JSON request (FILE or stdin).
-    screen FILE                    Check if text gives orders to an AI system (D5).
-    shortlist SOURCE [--wiki DIR]  Rank wiki pages that a new source changes (D4).
-    contradictions [--wiki DIR]    Find section pairs that contradict (D3).
-    check                          Test the backend connection.
+コマンド:
+    ask [FILE]                     生の {state, questions} の JSON リクエストを送る（FILE か標準入力）。
+    screen FILE                    テキストが AI システムに指示を出しているかを調べる（D5）。
+    shortlist SOURCE [--wiki DIR]  新しいソースが変更する wiki のページを順位付けする（D4）。
+    contradictions [--wiki DIR]    矛盾するセクションの組を見つける（D3）。
+    check                          バックエンドへの接続を確かめる。
 
-On a backend error the checks fail open: the output keeps the unchecked
-result, sets "failed_open": true, and a note goes to stderr.
+バックエンドでエラーが起きると、チェックは処理を通す（fail open）。出力にはチェックしていない
+結果をそのまま残し、"failed_open": true を設定し、stderr に注記を出す。
 
-Examples:
+例:
     LLM_WIKI_DECISIONS=local python wiki_decide.py check
     python wiki_decide.py --backend openrouter screen raw/article.md
     python wiki_decide.py --backend local shortlist raw/paper.md --wiki wiki
@@ -78,8 +77,8 @@ QUESTIONS = load_questions()
 
 
 class DecisionError(Exception):
-    """A backend call failed. `code` is one of: unavailable, insufficient_credits,
-    timeout, http, invalid_answer, bad_request."""
+    """バックエンドの呼び出しが失敗した。`code` は unavailable、insufficient_credits、
+    timeout、http、invalid_answer、bad_request のいずれかである。"""
 
     def __init__(self, code: str, message: str, status: int | None = None):
         super().__init__(message)
@@ -91,7 +90,7 @@ Transport = Callable[[dict], dict]
 
 
 class DecisionClient:
-    """Posts System One requests to one backend. `transport` replaces HTTP in tests."""
+    """System One のリクエストを1つのバックエンドに POST する。テストでは `transport` が HTTP の代わりになる。"""
 
     def __init__(
         self,
@@ -119,7 +118,7 @@ class DecisionClient:
         return base if base.endswith("/v1/systemone") else base + "/v1/systemone"
 
     def ask(self, request: dict) -> dict:
-        """Return {"answers", "model", "latency_ms"}. Raises DecisionError."""
+        """{"answers", "model", "latency_ms"} を返す。DecisionError を送出する。"""
         if not isinstance(request, dict) or "state" not in request or not isinstance(request.get("questions"), dict):
             raise DecisionError("bad_request", "request needs state and questions")
         started = time.monotonic()
@@ -157,7 +156,7 @@ class DecisionClient:
             code = "insufficient_credits" if exc.code == 402 or "insufficient" in detail.lower() and "credit" in detail.lower() else "http"
             raise DecisionError(code, f"HTTP {exc.code}: {detail}", exc.code) from None
         except http.client.HTTPException as exc:
-            # IncompleteRead, BadStatusLine, RemoteDisconnected and other protocol errors.
+            # IncompleteRead、BadStatusLine、RemoteDisconnected などのプロトコルのエラー。
             raise DecisionError("unavailable", f"bad response from {self.endpoint}: {exc!r}") from None
         except (TimeoutError, OSError) as exc:
             reason = getattr(exc, "reason", exc)
@@ -175,10 +174,10 @@ def note(message: str) -> None:
 
 
 def read_remote_profile(profile: str | None, url_override: str | None = None) -> tuple[str, str, str | None]:
-    """Return (url, token, wiki) with the same config file and rules as wiki_remote.py.
+    """wiki_remote.py と同じ設定ファイルと規則で (url, token, wiki) を返す。
 
-    An explicit profile wins over LLM_WIKI_URL and LLM_WIKI_TOKEN and must exist.
-    LLM_WIKI_CONFIG selects another config file. Raises DecisionError("unavailable").
+    明示したプロファイルは LLM_WIKI_URL と LLM_WIKI_TOKEN より優先され、存在しなければならない。
+    LLM_WIKI_CONFIG で別の設定ファイルを選べる。DecisionError("unavailable") を送出する。
     """
     if str(SCRIPT_DIR) not in sys.path:
         sys.path.insert(0, str(SCRIPT_DIR))
@@ -199,8 +198,8 @@ def client_from_config(
     timeout: float | None = None,
     profile: str | None = None,
 ) -> DecisionClient | None:
-    """Build a client from flags, then environment. Returns None when decisions are off.
-    Raises DecisionError("unavailable") when the selected backend lacks a key or URL."""
+    """フラグ、次に環境変数からクライアントを作る。判定が無効なら None を返す。
+    選んだバックエンドのキーか URL がなければ DecisionError("unavailable") を送出する。"""
     name = (backend or os.environ.get("LLM_WIKI_DECISIONS") or "off").strip().lower()
     if name in ("", "off", "none", "0", "false"):
         return None
@@ -214,18 +213,18 @@ def client_from_config(
         raise DecisionError("unavailable", f"set {spec['key']} to use the {name} backend")
     wiki = None
     if name == "hosted":
-        # A decisions URL (flag or LLM_WIKI_DECISIONS_URL) replaces the profile URL, like --url in wiki_remote.py.
+        # 判定用の URL（フラグか LLM_WIKI_DECISIONS_URL）は、wiki_remote.py の --url と同じく、プロファイルの URL を置き換える。
         url, key, wiki = read_remote_profile(profile, url)
     return DecisionClient(name, url, model, key, timeout or DEFAULT_TIMEOUT, wiki=wiki)
 
 
 # ---------------------------------------------------------------------------
-# Answer reading
+# 回答の読み取り
 # ---------------------------------------------------------------------------
 
 def read_choice(answers: dict, name: str, keys: list[str]) -> dict:
-    """Validate a choice answer against the sent keys. Probabilities are renormalized
-    over `keys`. Raises DecisionError("invalid_answer")."""
+    """選択肢の回答を、送ったキーと照らし合わせて検証する。確率は `keys` の範囲で
+    正規化し直す。DecisionError("invalid_answer") を送出する。"""
     answer = answers.get(name) if isinstance(answers, dict) else None
     if not isinstance(answer, dict):
         raise DecisionError("invalid_answer", f"no answer for {name}")
@@ -281,7 +280,7 @@ def positive_probability(answers: dict, check: str) -> float:
 
 
 def ask_many(client: DecisionClient, requests: list[dict]) -> list[dict]:
-    """Run requests in parallel threads. Raises the first DecisionError."""
+    """リクエストを並列のスレッドで実行する。最初に起きた DecisionError を送出する。"""
     if not requests:
         return []
     with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(requests))) as pool:
@@ -299,7 +298,7 @@ def block(client: DecisionClient | None, threshold: float, started: float, **ext
 
 
 # ---------------------------------------------------------------------------
-# D1 relevance gate
+# D1 関連度のゲート
 # ---------------------------------------------------------------------------
 
 def relevance_request(query: str, title: str, heading: str, text: str) -> dict:
@@ -311,7 +310,7 @@ def relevance_request(query: str, title: str, heading: str, text: str) -> dict:
 
 
 def score_relevance(client: DecisionClient, query: str, rows: list[dict], texts: list[str]) -> list[float]:
-    """P(relevant) for each row. `rows` carry `title` and `heading_path`. Raises DecisionError."""
+    """各行の P(relevant) を返す。`rows` の各要素は `title` と `heading_path` を持つ。DecisionError を送出する。"""
     requests = [
         relevance_request(query, row.get("title") or "", " > ".join(row.get("heading_path") or []), text)
         for row, text in zip(rows, texts)
@@ -327,8 +326,8 @@ def gate_pool(
     threshold: float,
     top: int,
 ) -> tuple[list[int], dict[int, dict], dict]:
-    """Return (kept pool indices in order, capped at `top`; per-index row decision; decision block).
-    Keeps rows with P(relevant) >= threshold. Fails open: the first `top` indices, failed_open true."""
+    """(残したプール内のインデックスを順に並べたもので最大 `top` 件, インデックスごとの行の判定, 判定のブロック) を返す。
+    P(relevant) >= threshold の行を残す。失敗したときは処理を通し、先頭の `top` 件のインデックスと failed_open true を返す。"""
     started = time.monotonic()
     try:
         if client is None:
@@ -348,7 +347,7 @@ def gate_pool(
 
 
 # ---------------------------------------------------------------------------
-# D2 evidence check
+# D2 証拠のチェック
 # ---------------------------------------------------------------------------
 
 FENCE_RE = re.compile(r"^\s*(```|~~~)")
@@ -361,13 +360,13 @@ def normalize_for_match(text: str) -> str:
 
 
 def evidence_in_text(evidence: str, body: str) -> bool:
-    """True when `evidence` occurs in `body`, ignoring case and whitespace."""
+    """大文字と小文字、空白を無視して、`evidence` が `body` に含まれていれば True を返す。"""
     needle = normalize_for_match(evidence or "")
     return bool(needle) and needle in normalize_for_match(body)
 
 
 def split_sentences(text: str, max_sentences: int = 60, max_chars: int = 300) -> list[str]:
-    """Split Markdown into sentences. Mirrors splitSentences in server/src/decisions."""
+    """Markdown を文に分割する。server/src/decisions の splitSentences と同じ動作である。"""
     blocks: list[str] = []
     para: list[str] = []
     in_fence = False
@@ -417,7 +416,7 @@ def evidence_request(claim: str, evidence: str, sentences: list[str]) -> dict:
 
 
 def check_evidence(client: DecisionClient, claim: str, evidence: str, body: str, threshold: float) -> dict:
-    """D2 verdict for one edge. Raises DecisionError on backend failure."""
+    """1つのエッジについての D2 の判定。バックエンドが失敗したら DecisionError を送出する。"""
     t = QUESTIONS["evidence"]
     if evidence_in_text(evidence, body):
         return {"supported": True, "choice": "quote", "confidence": 1.0, "sentence": None}
@@ -437,7 +436,7 @@ def check_evidence(client: DecisionClient, claim: str, evidence: str, body: str,
 
 
 # ---------------------------------------------------------------------------
-# D3 relation, D4 changes, D5 screen
+# D3 関係、D4 変更、D5 スクリーニング
 # ---------------------------------------------------------------------------
 
 def relation_request(entity: str, a: dict, b: dict) -> dict:
@@ -486,7 +485,7 @@ def screen_text(client: DecisionClient | None, path: str, text: str, threshold: 
 
 
 # ---------------------------------------------------------------------------
-# Wiki helpers (reuse the search parser)
+# wiki 用のヘルパー（検索のパーサーを再利用する）
 # ---------------------------------------------------------------------------
 
 def load_search_module():
@@ -497,7 +496,7 @@ def load_search_module():
 
 
 def strip_frontmatter(text: str) -> tuple[str, str]:
-    """Return (title, body) of a Markdown file."""
+    """Markdown ファイルの (title, body) を返す。"""
     ws = load_search_module()
     meta, body = ws.parse_frontmatter(text)
     title = meta.get("title") if isinstance(meta, dict) else None
@@ -561,7 +560,7 @@ def cmd_shortlist(args, client: DecisionClient | None) -> int:
 
 
 def contradiction_pairs(wiki: Path, max_pairs: int) -> list[tuple[str, dict, dict]]:
-    """Pairs of sections from different pages that link the same entity page."""
+    """同じエンティティのページにリンクしている、異なるページのセクションの組。"""
     ws = load_search_module()
     pages = ws.collect_pages(wiki)
     by_path, by_slug = ws.build_link_index(pages)

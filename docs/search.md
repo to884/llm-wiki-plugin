@@ -1,15 +1,15 @@
 ---
-title: Search & retrieval
-description: Local FastEmbed + sqlite-vec hybrid retrieval, section-level BM25, JSON evidence rows, and incremental caches.
+title: 検索と取得
+description: FastEmbed と sqlite-vec によるローカルのハイブリッド検索、セクション単位の BM25、JSON の証拠行、差分更新されるキャッシュ。
 ---
 
 <!-- Source: v3 local hybrid design: FastEmbed, sqlite-vec, BM25/RRF, JSON evidence, and incremental caches. -->
 
-# Search & retrieval
+# 検索と取得 {#search-retrieval}
 
-v3.0.0 makes section-level hybrid search local and default: FastEmbed produces semantic vectors, sqlite-vec stores and ranks them, BM25 preserves exact-term precision, and RRF fuses both result lists. Structured `--json` evidence rows and content-hashed incremental caches remain unchanged.
+v3.0.0 では、セクション単位のハイブリッド検索がローカルで動く既定の検索になった。FastEmbed がセマンティックなベクトルを生成し、sqlite-vec がそれを保存して順位を付け、BM25 が語の完全一致による精度を保ち、RRF が両方の結果リストを統合する。構造化された `--json` の証拠行と、内容のハッシュで管理する差分更新のキャッシュは、これまでと変わらない。
 
-The search script is the fallback for when the index's one-line summaries don't surface good candidates (see the [query workflow](/workflows#query)). It runs from the repo root:
+検索スクリプトは、インデックスの1行の要約から適切な候補が見つからないときの代わりの手段である（[クエリのワークフロー](/workflows#query)を参照）。リポジトリのルートで実行する。
 
 ```bash
 uv run --script skills/llm-wiki/scripts/wiki_search.py "attention mechanism" --wiki wiki --json
@@ -17,30 +17,30 @@ uv run --script skills/llm-wiki/scripts/wiki_search.py "attention mechanism" --w
 
 ```mermaid
 flowchart LR
-  pages["wiki pages"] --> split["split at ATX headings"]
-  split --> sections["sections"]
-  query["query"] --> bm25["BM25 ranking"]
+  pages["wiki のページ"] --> split["ATX 見出しで分割"]
+  split --> sections["セクション"]
+  query["クエリ"] --> bm25["BM25 による順位付け"]
   sections --> bm25
-  query -. hybrid .-> qemb["query embedding"]
-  sections -. hybrid .-> semb["section embeddings"]
-  qemb --> cosine["cosine similarity"]
+  query -. ハイブリッド .-> qemb["クエリの埋め込み"]
+  sections -. ハイブリッド .-> semb["セクションの埋め込み"]
+  qemb --> cosine["コサイン類似度"]
   semb --> cosine
-  bm25 --> rrf["RRF fusion (k=60)"]
-  cosine -. hybrid .-> rrf
-  rrf --> cap["per-page cap"]
-  cap --> results["ranked results"]
-  cachef[".wiki-cache (parse + vectors)"] -. speeds up .-> split
+  bm25 --> rrf["RRF による統合 (k=60)"]
+  cosine -. ハイブリッド .-> rrf
+  rrf --> cap["ページごとの上限"]
+  cap --> results["順位付きの結果"]
+  cachef[".wiki-cache (パース + ベクトル)"] -. 高速化 .-> split
 ```
 
-## Section-level results
+## セクション単位の結果 {#section-level-results}
 
-By default (`--granularity section`), the script splits every page at its ATX headings and ranks the resulting sections with BM25, keeping at most `--per-page` sections per page (default 2) until `--top` results are collected. Each section is scored over its title, its heading path, and its text: a contextual-BM25 prefix that sharpens matches inside long pages.
+既定（`--granularity section`）では、スクリプトは各ページを ATX 見出しで分割し、得られたセクションに BM25 で順位を付ける。1ページから採るセクションは最大 `--per-page` 件（既定は 2）までとし、`--top` 件の結果が集まるまで続ける。各セクションのスコアは、タイトル、見出しのパス、本文を対象に計算する。これは、長いページの中での一致をより正確にするための、文脈つき BM25 のプレフィックスである。
 
-Ranking constants are unchanged from v1 (BM25 with `k1=1.5`, `b=0.75`).
+順位付けの定数は v1 から変わっていない（BM25 で `k1=1.5`、`b=0.75`）。
 
-## JSON evidence rows
+## JSON の証拠行 {#json-evidence-rows}
 
-The `--json` flag emits one machine-readable object to stdout, ideal for feeding an agent or another tool:
+`--json` フラグを付けると、機械可読なオブジェクトを1つ標準出力に出す。エージェントやほかのツールに渡すのに向いている。
 
 ```json
 {
@@ -68,113 +68,113 @@ The `--json` flag emits one machine-readable object to stdout, ideal for feeding
 }
 ```
 
-| Field | Meaning |
+| フィールド | 意味 |
 | --- | --- |
-| `heading_path` | The heading stack for the matched section (ancestor headings ending with this one). Empty in page granularity. |
-| `section_index` | The section's position within its page. `null` in page granularity. |
-| `score` | The BM25 score (or RRF score in hybrid mode), rounded to 4 decimals. |
-| `retrievers` | Which retrievers surfaced this row: `["bm25"]`, `["embedding"]`, or both. |
-| `snippet` | The section text, whitespace collapsed, first 400 characters. |
-| `updated`, `tags`, `sources` | Straight from frontmatter (`null` / `[]` when absent). |
-| `neighbors` | The headings of the adjacent sections on the same page (`null` at page edges). |
+| `heading_path` | 一致したセクションの見出しの階層（祖先の見出しから順に並び、このセクションの見出しで終わる）。ページ単位では空。 |
+| `section_index` | ページ内でのセクションの位置。ページ単位では `null`。 |
+| `score` | BM25 のスコア（ハイブリッドモードでは RRF のスコア）。小数点以下 4 桁に丸める。 |
+| `retrievers` | この行を見つけた検索器: `["bm25"]`、`["embedding"]`、またはその両方。 |
+| `snippet` | セクションの本文。空白をまとめたうえで、先頭 400 文字。 |
+| `updated`、`tags`、`sources` | frontmatter の値をそのまま使う（ない場合は `null` / `[]`）。 |
+| `neighbors` | 同じページで隣り合うセクションの見出し（ページの先頭や末尾では `null`）。 |
 
-Semantic candidates must also clear a conservative cosine-similarity floor before RRF. This prevents unrelated vector neighbors from turning out-of-domain questions into confident-looking results; exact BM25 matches remain unaffected.
+セマンティック検索の候補は、RRF の前に、控えめに設定したコサイン類似度の下限も超える必要がある。これにより、無関係なベクトルの近傍のせいで、wiki の範囲外の質問に、いかにも確かそうな結果が返ることを防ぐ。BM25 の完全一致には影響しない。
 
-Without `--json`, results print in the familiar human format, with a `§` line showing the heading path for section hits.
+`--json` を付けなければ、結果はこれまでどおりの人が読む形式で出力される。セクションが一致した行には、見出しのパスを示す `§` の行が付く。
 
-## Whole-page ranking
+## ページ全体の順位付け {#whole-page-ranking}
 
-Pass `--granularity page` to rank whole pages exactly as v1 did: the pre-v2 behavior, byte-for-byte. Page-granularity rows carry an empty `heading_path` and a `null` `section_index`, and are always lexical (embeddings apply only to section granularity).
+`--granularity page` を指定すると、v1 とまったく同じ方法でページ全体に順位を付ける。v2 より前の動作をバイト単位で再現する。ページ単位の行は、`heading_path` が空で `section_index` が `null` になり、常に語彙ベースの検索になる（埋め込みはセクション単位でだけ使われる）。
 
 ```bash
 python skills/llm-wiki/scripts/wiki_search.py "attention mechanism" --wiki wiki --granularity page --no-embed --json
 ```
 
-## Filters
+## フィルター {#filters}
 
-Narrow results with frontmatter filters, all combinable:
+frontmatter のフィルターで結果を絞り込める。フィルターはすべて組み合わせられる。
 
 ```bash
 uv run --script skills/llm-wiki/scripts/wiki_search.py "diffusion" --wiki wiki \
   --type concept --tag generative --since 2026-01-01 --top 10 --per-page 3
 ```
 
-Two link-oriented modes keep the v1 text output: `--backlinks <slug>` finds inbound links, and `--top-linked N` finds the wiki's hub pages.
+リンクを対象にした2つのモードは、v1 のテキスト出力のままである。`--backlinks <slug>` は被リンクを、`--top-linked N` は wiki のハブページを見つける。
 
-## The parse cache
+## パースキャッシュ {#the-parse-cache}
 
-The `--cache` flag keeps an incremental parse cache so large wikis don't re-parse every page on every search. With no value it resolves to `wiki/.wiki-cache/search-index.json`; pass a path to override.
+`--cache` フラグを付けると、差分更新のパースキャッシュを使う。これにより、大きな wiki でも検索のたびに全ページをパースし直さずに済む。値を省略すると `wiki/.wiki-cache/search-index.json` を使い、パスを指定すればその場所を使う。
 
 ```bash
-# Use the default cache location
+# 既定のキャッシュの場所を使う
 uv run --script skills/llm-wiki/scripts/wiki_search.py "attention" --wiki wiki --json --cache
 
-# Or an explicit path
+# またはパスを明示する
 uv run --script skills/llm-wiki/scripts/wiki_search.py "attention" --wiki wiki --json --cache /tmp/idx.json
 ```
 
-Each file is keyed by the SHA-256 of its raw bytes: unchanged files are reused, changed files are reparsed, deleted files are dropped. A cache that is missing, unparseable, or from an older schema is rebuilt from scratch, with a single `cache: rebuilding (<reason>)` line to stderr. The cache is written atomically.
+各ファイルは、生のバイト列の SHA-256 をキーにして管理する。変わっていないファイルはキャッシュを再利用し、変わったファイルはパースし直し、削除されたファイルはキャッシュから除く。キャッシュがない、パースできない、古いスキーマのものである、といった場合は一から作り直し、標準エラー出力に `cache: rebuilding (<reason>)` を1行出す。キャッシュはアトミックに書き込まれる。
 
-::: info Guaranteed identical results
-`--json` output with and without `--cache` is byte-identical for the same query: the cache only changes speed, never ranking. This invariant is checked by the eval harness.
+::: info 結果が同じであることを保証
+同じクエリなら、`--cache` の有無にかかわらず `--json` の出力はバイト単位で同じになる。キャッシュが変えるのは速度だけで、順位は変えない。この不変条件は、評価用のハーネスで確かめている。
 :::
 
-## Default local hybrid retrieval
+## 既定のローカルのハイブリッド検索 {#default-local-hybrid-retrieval}
 
-Section search uses `BAAI/bge-small-en-v1.5` through FastEmbed and stores its 384-dimensional vectors in a sqlite-vec virtual table. BM25 and semantic ranks are fused with Reciprocal Rank Fusion (RRF, `k=60`, equal weights). No API key or service is involved, and wiki sections and query text never leave the machine.
+セクションの検索では、FastEmbed で `BAAI/bge-small-en-v1.5` を使い、その 384 次元のベクトルを sqlite-vec の仮想テーブルに保存する。BM25 とセマンティック検索の順位は、Reciprocal Rank Fusion（RRF、`k=60`、重みは等しい）で統合する。API キーや外部のサービスは使わず、wiki のセクションとクエリのテキストがマシンの外に出ることはない。
 
-The script carries pinned [PEP 723](https://peps.python.org/pep-0723/) dependencies. Run it with `uv` so those packages are available without modifying your project environment:
+スクリプトは、バージョンを固定した [PEP 723](https://peps.python.org/pep-0723/) の依存関係を宣言している。`uv` で実行すれば、プロジェクトの環境を変えずに、それらのパッケージを使える。
 
 ```bash
 uv run --script skills/llm-wiki/scripts/wiki_search.py \
   "how does self-attention weigh tokens" --wiki wiki --json --top 5
 ```
 
-Initialization and every upgrade run `setup_wiki.py`: FastEmbed model artifacts are cached under `~/.cache/llm-wiki/fastembed/` (override with `FASTEMBED_CACHE_PATH`), and every current section is synchronized into `wiki/.wiki-cache/embeddings.sqlite`. Subsequent searches and upgrades embed only new or changed sections and remove deleted ones.
+初期化とアップグレードのたびに `setup_wiki.py` が実行される。FastEmbed のモデルのファイルは `~/.cache/llm-wiki/fastembed/` にキャッシュされ（`FASTEMBED_CACHE_PATH` で変更できる）、現在のすべてのセクションが `wiki/.wiki-cache/embeddings.sqlite` に同期される。以降の検索とアップグレードでは、新しいセクションや変更されたセクションだけをベクトル化し、削除されたセクションは取り除く。
 
-In hybrid mode JSON `mode` is `"hybrid"` and every row's `retrievers` field shows whether BM25, embeddings, or both surfaced it.
+ハイブリッドモードでは、JSON の `mode` が `"hybrid"` になり、各行の `retrievers` フィールドで、BM25、埋め込み、その両方のどれがその行を見つけたかが分かる。
 
-::: warning Failures never break search
-If FastEmbed is unavailable, model initialization fails, or sqlite-vec cannot load, the command emits a non-sensitive warning to stderr, falls back to BM25, and exits 0 with `mode: "lexical"`. To choose the dependency-free path explicitly, bypass PEP 723 resolution: `python skills/llm-wiki/scripts/wiki_search.py "<query>" --no-embed`.
+::: warning 失敗しても検索は壊れない
+FastEmbed が使えない、モデルの初期化に失敗した、sqlite-vec を読み込めない、といった場合、コマンドは機密情報を含まない警告を標準エラー出力に出し、BM25 に切り替え、`mode: "lexical"` で終了コード 0 で終わる。依存パッケージを使わない方法を明示的に選ぶには、PEP 723 による解決を経由せずに `python skills/llm-wiki/scripts/wiki_search.py "<query>" --no-embed` を実行する。
 :::
 
-## The cache directory
+## キャッシュディレクトリ {#the-cache-directory}
 
-`wiki/.wiki-cache/` contains two independent, fully regenerable indexes:
+`wiki/.wiki-cache/` には、互いに独立していて、いつでも完全に再生成できる2つのインデックスがある。
 
-| File | Purpose |
+| ファイル | 用途 |
 | --- | --- |
-| `search-index.json` | Parsed page/section cache used by `--cache`. |
-| `embeddings.sqlite` | Section locators, content hashes, and sqlite-vec vectors. |
+| `search-index.json` | `--cache` が使う、パース済みのページとセクションのキャッシュ。 |
+| `embeddings.sqlite` | セクションの位置情報、内容のハッシュ、sqlite-vec のベクトル。 |
 
-Both are gitignored and safe to delete. The next query rebuilds what is missing. A model, dimension, or vector-schema change also rebuilds `embeddings.sqlite` automatically. Legacy `embeddings.jsonl` provider caches are ignored and may be removed.
+どちらも gitignore の対象で、削除してかまわない。次のクエリで、ないものが作り直される。モデル、次元数、ベクトルのスキーマが変わったときも、`embeddings.sqlite` は自動的に作り直される。プロバイダーを使っていた旧来の `embeddings.jsonl` キャッシュは無視されるので、削除してよい。
 
-## Optional relevance gate
+## 任意の関連度ゲート {#optional-relevance-gate}
 
-With the optional [decision layer](/decisions) turned on, `--decide` asks a small decision model whether each of the top 20 sections helps answer the query. Rows below the threshold are removed. An empty result then means that the wiki probably has no answer.
+任意の[判定レイヤー](/decisions)を有効にしていれば、`--decide` を付けると、上位 20 のセクションのそれぞれがクエリに答える役に立つかを、小さな判定モデルに問い合わせる。閾値を下回る行は除かれる。その結果が空なら、wiki にはおそらく答えがないということである。
 
 ```bash
 uv run --script skills/llm-wiki/scripts/wiki_search.py "query" --wiki wiki --json --decide
 ```
 
-The JSON gets a top-level `decision` block (backend, model, threshold, pool, kept, dropped, `failed_open`, latency) and a `decision` field on each row. If the backend fails, the search returns the normal rows with `failed_open: true`. Without `--decide`, the output does not change.
+JSON には、トップレベルの `decision` ブロック（バックエンド、モデル、閾値、候補の数、残した数、除いた数、`failed_open`、レイテンシー）と、各行の `decision` フィールドが加わる。バックエンドが失敗した場合、検索は `failed_open: true` を付けて通常の行を返す。`--decide` を付けなければ、出力は変わらない。
 
-## Hosted search
+## ホスト型の検索 {#hosted-search}
 
-A [hosted wiki](/hosted) runs the same kind of search on the server. Agents call the `wiki_search` MCP tool or `wiki_remote.py search`.
+[ホスト型 wiki](/hosted) では、同じ種類の検索をサーバーで実行する。エージェントは、MCP ツールの `wiki_search` か `wiki_remote.py search` を呼び出す。
 
-| | Local | Hosted |
+| | ローカル | ホスト型 |
 |---|---|---|
-| Sections | ATX headings outside code fences | Same rules |
-| Keyword leg | Python BM25 (`k1=1.5`, `b=0.75`) | SQLite FTS5 `bm25()` |
-| Semantic leg | FastEmbed `BAAI/bge-small-en-v1.5` in sqlite-vec | Workers AI `@cf/baai/bge-small-en-v1.5` (CLS pooling, L2-normalized) in Vectorize |
-| Fusion | RRF, `k=60` | RRF, `k=60` |
-| Filters | `--type`, `--tag`, `--since` | `type`, `tag`, `since`, applied in the wiki Durable Object |
-| Row shape | `--json` rows | The same rows |
-| When vectors are missing | Lexical fallback | Lexical mode; `vector_lag` shows sections that wait for a vector |
+| セクション | コードフェンスの外にある ATX 見出し | 同じ規則 |
+| キーワード検索 | Python の BM25（`k1=1.5`、`b=0.75`） | SQLite FTS5 の `bm25()` |
+| セマンティック検索 | sqlite-vec に格納した FastEmbed `BAAI/bge-small-en-v1.5` | Vectorize に格納した Workers AI `@cf/baai/bge-small-en-v1.5`（CLS プーリング、L2 正規化） |
+| 統合 | RRF、`k=60` | RRF、`k=60` |
+| フィルター | `--type`、`--tag`、`--since` | `type`、`tag`、`since`。wiki の Durable Object 内で適用する |
+| 行の形式 | `--json` の行 | 同じ行 |
+| ベクトルがないとき | 語彙ベースの検索に切り替える | 語彙ベースのモードになる。`vector_lag` に、ベクトル化を待っているセクションの数が出る |
 
-- Hosted results are equivalent to local results, not identical. The BM25 constants, the tokenizer and the embedding runtime are different. Local and hosted vectors are never mixed.
-- A commit is searchable by keyword at once. The server embeds changed sections in batches a few seconds later. `vector_lag` counts the sections that Vectorize does not serve yet. It usually reaches 0 about 30 to 60 seconds after a change. The server checks each vector, and sends a vector again when Vectorize did not store it.
-- Without the Vectorize or Workers AI binding, hosted search is lexical. Send `mode: "lexical"` to force it.
-- A personal wiki fits in the Workers AI free allocation of 10,000 neurons a day. See [Free and Paid plans](/hosted#free-and-paid-plans).
-- `backlinks` and `top_linked` modes replace `--backlinks` and `--top-linked`.
+- ホスト型の結果は、ローカルの結果と同等ではあるが、同一ではない。BM25 の定数、トークナイザー、埋め込みの実行環境が異なるためである。ローカルとホスト型のベクトルが混ざることはない。
+- コミットした内容は、すぐにキーワードで検索できる。サーバーは、変更されたセクションを数秒後にバッチでベクトル化する。`vector_lag` は、Vectorize がまだ返せないセクションの数である。通常は、変更から 30〜60 秒ほどで 0 になる。サーバーは各ベクトルを確認し、Vectorize が保存しなかったベクトルを再送する。
+- Vectorize か Workers AI のバインディングがない場合、ホスト型の検索は語彙ベースになる。語彙ベースに固定するには `mode: "lexical"` を送る。
+- 個人用の wiki なら、Workers AI の無料枠である1日 10,000 ニューロンに収まる。[Free プランと Paid プラン](/hosted#free-and-paid-plans)を参照。
+- ホスト型では、`--backlinks` と `--top-linked` の代わりに、`backlinks` と `top_linked` のモードを使う。

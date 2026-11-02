@@ -1,44 +1,44 @@
 ---
-description: Initialize a personal global LLM Wiki or one in this project, or connect this agent to a hosted wiki.
+description: 個人用のグローバルな LLM Wiki、またはこのプロジェクトの LLM Wiki を初期化する。ホスト型の wiki にこのエージェントを接続することもできる。
 argument-hint: "[--global] [--wiki-dir <name>] [--raw-dir <name>] | --hosted <url>"
 ---
 
-Initialize a new LLM Wiki, or connect to a hosted one. Use the `llm-wiki` skill.
+新しい LLM Wiki を初期化するか、ホスト型の wiki に接続する。`llm-wiki` スキルを使う。
 
-Arguments (if any): $ARGUMENTS
+引数（あれば）: $ARGUMENTS
 
-If the arguments contain `--hosted <url>`, follow "Connect to a hosted wiki" below and skip the local steps.
+引数に `--hosted <url>` が含まれている場合は、下の「ホスト型 wiki への接続」に従い、ローカルの手順はスキップする。
 
-## Local wiki
+## ローカルの wiki
 
-1. Open `skills/llm-wiki/references/retrieval-setup.md` and ask its setup questions in one grouped interaction: global or project scope, wiki/raw paths, model-cache location, graph usage, and agent-memory integration. Treat `--global` as selecting `~/wiki/` and `~/wiki/raw/` unless I supplied other paths.
-2. Explain that initialization installs and verifies the complete local runtime through `uv`: pinned FastEmbed, sqlite-vec, PyYAML, the `BAAI/bge-small-en-v1.5` model, the parse cache, and vectors for every existing section. No API key, provider consent, per-query fee, or outbound wiki/query text is involved.
-3. After I answer, run the initializer against the selected location. For a project wiki, use `python "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/init_wiki.py" "<absolute-project-root>"`. For the standard global layout, use `python "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/init_wiki.py" "<absolute-home-directory>" --wiki-dir wiki --raw-dir wiki/raw`. Never run it against the plugin directory. Do not report setup complete unless its runtime JSON says `"status": "ready"`.
-4. Walk me through the bootstrapped `SCHEMA.md`, set its location block to the selected paths, and ask whether I want to customize page types, tags, or workflow conventions.
-5. Propose the matching agent-memory integration using `references/agent-memory-integration.md`: global instructions with a stable user-level path for a global wiki, or project instructions with relative paths for a project wiki. Show the exact addition and ask whether to append, create, or skip. Never write without approval.
-6. Do not ingest a source yet. This command only completes an informed setup.
+1. `skills/llm-wiki/references/retrieval-setup.md` を開き、そこにあるセットアップの質問を1回のやり取りでまとめて聞く。質問するのは、グローバルとプロジェクトのどちらにするか、wiki と raw のパス、モデルキャッシュの場所、グラフを使うか、エージェントのメモリとの連携の5点である。`--global` が指定されていれば、ユーザーが別のパスを指定しない限り、`~/wiki/` と `~/wiki/raw/` を選んだものとして扱う。
+2. 初期化では、`uv` を通じてローカルの実行環境一式をインストールし、動作を確認することを説明する。対象は、バージョンを固定した FastEmbed、sqlite-vec、PyYAML、`BAAI/bge-small-en-v1.5` モデル、パースキャッシュ、既存の全セクションのベクトルである。API キー、プロバイダーへの同意、クエリごとの料金は不要で、wiki やクエリのテキストを外部に送ることもない。
+3. ユーザーが答えたら、選んだ場所に対して初期化スクリプトを実行する。プロジェクトの wiki では `python "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/init_wiki.py" "<absolute-project-root>"` を使う。標準のグローバル構成では `python "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/init_wiki.py" "<absolute-home-directory>" --wiki-dir wiki --raw-dir wiki/raw` を使う。プラグインのディレクトリに対して実行してはならない。実行環境の JSON が `"status": "ready"` を示していない限り、セットアップの完了を報告してはならない。
+4. 生成された `SCHEMA.md` の内容をユーザーと一緒に確認し、場所を記したブロックを選んだパスに設定する。ページの種類、タグ、ワークフローの規約をカスタマイズしたいかをユーザーに聞く。
+5. `references/agent-memory-integration.md` に従い、構成に合ったエージェントのメモリとの連携を提案する。グローバルな wiki なら、ユーザーレベルの固定パスを使ってグローバルな指示に書き、プロジェクトの wiki なら、相対パスを使ってプロジェクトの指示に書く。追加する内容をそのまま示し、追記するか、新しく作るか、見送るかを聞く。承認なしに書き込んではならない。
+6. この時点ではまだソースを取り込まない。このコマンドの役目は、ユーザーが内容を理解したうえでセットアップを終えることだけである。
 
-## Connect to a hosted wiki (`--hosted <url>`)
+## ホスト型 wiki への接続（`--hosted <url>`）
 
-Read `skills/llm-wiki/references/hosted-mode.md` first. This flow connects this agent to a wiki that is already deployed. It does not deploy a server. To deploy one, point me to the "Hosted wiki" documentation page.
+最初に `skills/llm-wiki/references/hosted-mode.md` を読む。この手順は、すでにデプロイされている wiki にこのエージェントを接続するものであり、サーバーはデプロイしない。サーバーをデプロイしたい場合は、「Hosted wiki」のドキュメントページを案内する。
 
-1. Ask me which agent client I use, and whether I connect with a token or with OAuth. Use OAuth only if my client supports OAuth sign-in for remote MCP servers. Then follow one branch.
+1. ユーザーが使っているエージェントのクライアントと、トークンと OAuth のどちらで接続するかを聞く。OAuth を使うのは、そのクライアントがリモートの MCP サーバーへの OAuth サインインに対応している場合だけである。答えに応じて、次のどちらかの手順に進む。
 
-### Token branch
+### トークンの場合
 
-2. Ask me for a token for this agent. Tell me to make one on `<url>/setup` or with `wiki_remote.py token create`, with the scopes `read,write` (add `raw:write` for raw uploads). Tell me not to paste `ADMIN_TOKEN`.
-3. Store the connection: `python3 "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_remote.py" login --url "<url>" --token -`. I type the token on standard input. Never echo the token, write it into a file in the project, or put it in a memory file.
-4. Run `python3 "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_remote.py" status`. Report the wiki id, the scopes, the page count and the search mode. Stop if the command fails.
-5. Run `python3 "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_remote.py" mcp-config <client>` (`claude-code`, `codex`, `cursor`, `gemini`, `opencode`, `omp`, `pi`, `generic`). Show the output and where it goes. Add it only after I approve. Tell me to set `LLM_WIKI_TOKEN` in my environment.
+2. このエージェント用のトークンをユーザーに求める。トークンは `<url>/setup` か `wiki_remote.py token create` で、スコープを `read,write` にして作るよう伝える（raw をアップロードするなら `raw:write` も加える）。`ADMIN_TOKEN` は貼り付けないよう伝える。
+3. 接続情報を保存する: `python3 "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_remote.py" login --url "<url>" --token -`。トークンはユーザーが標準入力から入力する。トークンを表示したり、プロジェクト内のファイルやメモリファイルに書き込んだりしてはならない。
+4. `python3 "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_remote.py" status` を実行し、wiki の ID、スコープ、ページ数、検索モードを報告する。コマンドが失敗したら、そこで止める。
+5. `python3 "${CLAUDE_PLUGIN_ROOT}/skills/llm-wiki/scripts/wiki_remote.py" mcp-config <client>` を実行する（`<client>` は `claude-code`、`codex`、`cursor`、`gemini`、`opencode`、`omp`、`pi`、`generic` のいずれか）。出力と、それをどこに書くかを示し、ユーザーが承認してから追加する。環境変数 `LLM_WIKI_TOKEN` を設定するよう伝える。
 
-### OAuth branch
+### OAuth の場合
 
-2. Add the MCP server URL `<url>/mcp` to my client without an `Authorization` header. Show me the exact configuration change and add it only after I approve. Do not run `wiki_remote.py login`: the OAuth sign-in gives a token to the client, not to `wiki_remote.py`.
-3. Tell me to start the sign-in from my client (for example `/mcp` in Claude Code, or `pi mcp login llm-wiki` in Pi). The client opens the server authorization page in my browser with its own request parameters. Do not tell me to open `<url>/authorize` directly: without the client request, the page cannot complete the sign-in.
-4. On the authorization page, I approve the client with `ADMIN_TOKEN` or with a one-time pairing code (made on `<url>/setup` or with `wiki_remote.py pair --label <label> --scopes read,write`), then select the wiki and the access.
-5. Call `wiki_overview` through the new MCP server. Report the wiki id, the page count and the search mode from its result. Stop if the call fails.
+2. MCP サーバーの URL `<url>/mcp` を、`Authorization` ヘッダーなしでクライアントに追加する。設定の変更内容をそのまま示し、ユーザーが承認してから追加する。`wiki_remote.py login` は実行しない。OAuth サインインで発行されるトークンはクライアントに渡るもので、`wiki_remote.py` には渡らないためである。
+3. クライアントからサインインを始めるよう伝える（Claude Code なら `/mcp`、Pi なら `pi mcp login llm-wiki` など）。クライアントは、自身のリクエストパラメーターを付けて、サーバーの認可ページをブラウザーで開く。`<url>/authorize` を直接開くよう伝えてはならない。クライアントからのリクエストがないと、そのページではサインインを完了できない。
+4. 認可ページで、ユーザーは `ADMIN_TOKEN` か使い捨てのペアリングコードでクライアントを承認し、wiki とアクセス権を選ぶ。ペアリングコードは `<url>/setup` か `wiki_remote.py pair --label <label> --scopes read,write` で作る。
+5. 新しく追加した MCP サーバー経由で `wiki_overview` を呼び出し、結果から wiki の ID、ページ数、検索モードを報告する。呼び出しが失敗したら、そこで止める。
 
-### Both branches
+### 共通の手順
 
-6. Propose the hosted-wiki stanza from `references/agent-memory-integration.md`, with the URL filled in. Show the exact text and ask whether to append, create, or skip. Never write without approval. If a local-wiki stanza exists for the same wiki, propose to replace it.
-7. If I have a local wiki to move, suggest `/wiki:migrate`. Do not import anything in this command.
+6. `references/agent-memory-integration.md` にあるホスト型 wiki 用の記述を、URL を埋めた状態で提案する。追加する文面をそのまま示し、追記するか、新しく作るか、見送るかを聞く。承認なしに書き込んではならない。同じ wiki についてローカルの wiki 用の記述がすでにある場合は、置き換えを提案する。
+7. 移行したいローカルの wiki がある場合は、`/wiki:migrate` を提案する。このコマンドでは何もインポートしない。
